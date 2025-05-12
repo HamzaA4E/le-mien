@@ -1,0 +1,264 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Ticket;
+use App\Models\Demandeur;
+use App\Models\Societe;
+use App\Models\Emplacement;
+use App\Models\Priorite;
+use App\Models\Categorie;
+use App\Models\TypeDemande;
+use App\Models\Statut;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class TicketController extends Controller
+{
+    public function index()
+    {
+        $tickets = Ticket::with(['statut', 'priorite', 'demandeur'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($tickets);
+    }
+
+    public function store(Request $request)
+    {
+        try {
+            Log::info('Début de la création du ticket');
+            Log::info('Données reçues:', $request->all());
+
+            // Validation des données
+            $validated = $request->validate([
+                'titre' => 'required|string|max:255',
+                'description' => 'required|string',
+                'commentaire' => 'nullable|string',
+                'date_debut' => 'required|date',
+                'date_fin_prevue' => 'required|date',
+                'date_fin_reelle' => 'nullable|date',
+                'id_demandeur' => 'required|exists:T_DEMDEUR,id',
+                'id_utilisateur' => 'required|exists:T_UTILISAT,id',
+                'id_societe' => 'required|exists:T_SOCIETE,id',
+                'id_emplacement' => 'required|exists:T_EMPLACEMENT,id',
+                'id_priorite' => 'required|exists:T_PRIORITE,id',
+                'id_categorie' => 'required|exists:T_CATEGORIE,id',
+                'id_type_demande' => 'required|exists:T_TYPEDEMANDE,id',
+                'id_statut' => 'required|exists:T_STATUT,id',
+            ]);
+
+            Log::info('Données validées:', $validated);
+
+            DB::beginTransaction();
+
+            try {
+                // Préparation des données pour l'insertion
+                $data = [
+                    'titre' => $validated['titre'],
+                    'description' => $validated['description'],
+                    'commentaire' => $validated['commentaire'] ?? null,
+                    'id_priorite' => (int)$validated['id_priorite'],
+                    'id_statut' => (int)$validated['id_statut'],
+                    'id_demandeur' => (int)$validated['id_demandeur'],
+                    'id_societe' => (int)$validated['id_societe'],
+                    'id_emplacement' => (int)$validated['id_emplacement'],
+                    'id_categorie' => (int)$validated['id_categorie'],
+                    'id_type_demande' => (int)$validated['id_type_demande'],
+                    'id_utilisateur' => (int)$validated['id_utilisateur'],
+                    'date_debut' => Carbon::parse($validated['date_debut']),
+                    'date_fin_prevue' => Carbon::parse($validated['date_fin_prevue']),
+                    'date_fin_reelle' => $validated['date_fin_reelle'] ? Carbon::parse($validated['date_fin_reelle']) : null,
+                    'date_creation' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ];
+
+                Log::info('Données formatées pour SQL Server:', $data);
+
+                $ticket = Ticket::create($data);
+                DB::commit();
+
+                Log::info('Ticket créé avec succès:', ['id' => $ticket->id]);
+
+                return response()->json([
+                    'message' => 'Ticket créé avec succès',
+                    'ticket' => $ticket
+                ], 201);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Erreur lors de la création du ticket dans la base de données: ' . $e->getMessage());
+                Log::error('Stack trace: ' . $e->getTraceAsString());
+                throw $e;
+            }
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Erreur de validation:', ['errors' => $e->errors()]);
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la création du ticket: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'message' => 'Erreur lors de la création du ticket',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function show($id)
+    {
+        try {
+            $ticket = Ticket::with([
+                'statut',
+                'priorite',
+                'categorie',
+                'typeDemande',
+                'demandeur',
+                'societe',
+                'emplacement'
+            ])->findOrFail($id);
+
+            return response()->json($ticket);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération du ticket: ' . $e->getMessage());
+            return response()->json(['error' => 'Erreur lors de la récupération du ticket'], 500);
+        }
+    }
+
+    public function update(Request $request, Ticket $ticket)
+    {
+        $validated = $request->validate([
+            'titre' => 'sometimes|string|max:255',
+            'description' => 'sometimes|string',
+            'id_priorite' => 'sometimes|exists:T_PRIORITE,id',
+            'id_statut' => 'sometimes|exists:T_STATUT,id',
+        ]);
+
+        $ticket->update($validated);
+
+        return response()->json($ticket);
+    }
+
+    public function destroy(Ticket $ticket)
+    {
+        $ticket->delete();
+        return response()->json(null, 204);
+    }
+
+    public function getOptions()
+    {
+        try {
+            Log::info('Début de la récupération des options');
+
+            // Vérification de l'existence des tables
+            $tables = [
+                'T_DEMDEUR' => Demandeur::class,
+                'T_SOCIETE' => Societe::class,
+                'T_EMPLACEMENT' => Emplacement::class,
+                'T_PRIORITE' => Priorite::class,
+                'T_CATEGORIE' => Categorie::class,
+                'T_TYPEDEMANDE' => TypeDemande::class,
+                'T_STATUT' => Statut::class,
+            ];
+
+            $options = [];
+            foreach ($tables as $tableName => $modelClass) {
+                try {
+                    Log::info("Récupération des données pour la table {$tableName}");
+                    
+                    if ($tableName === 'T_DEMDEUR') {
+                        $options['demandeurs'] = $modelClass::with('service')->get();
+                    } else {
+                        $key = strtolower(str_replace('T_', '', $tableName));
+                        $options[$key] = $modelClass::all();
+                    }
+                    
+                    Log::info("Données récupérées pour {$tableName}", [
+                        'count' => $tableName === 'T_DEMDEUR' 
+                            ? $options['demandeurs']->count() 
+                            : $options[strtolower(str_replace('T_', '', $tableName))]->count()
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error("Erreur lors de la récupération des données de la table {$tableName}: " . $e->getMessage());
+                    Log::error("Stack trace: " . $e->getTraceAsString());
+                    
+                    // On continue avec les autres tables même si une échoue
+                    continue;
+                }
+            }
+
+            // Vérification que toutes les options requises sont présentes
+            $requiredOptions = ['demandeurs', 'societes', 'emplacements', 'priorites', 'categories', 'typesdemande', 'statuts'];
+            $missingOptions = array_diff($requiredOptions, array_keys($options));
+
+            if (!empty($missingOptions)) {
+                Log::error('Options manquantes: ' . implode(', ', $missingOptions));
+                throw new \Exception('Certaines options sont manquantes: ' . implode(', ', $missingOptions));
+            }
+
+            Log::info('Options récupérées avec succès', ['options' => array_keys($options)]);
+            return response()->json($options);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des options: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des options',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getStats()
+    {
+        try {
+            $stats = [
+                'total' => Ticket::count(),
+                'en_cours' => Ticket::whereHas('statut', function($query) {
+                    $query->where('designation', 'En cours');
+                })->count(),
+                'en_instance' => Ticket::whereHas('statut', function($query) {
+                    $query->where('designation', 'En instance');
+                })->count(),
+                'cloture' => Ticket::whereHas('statut', function($query) {
+                    $query->where('designation', 'Clôturé');
+                })->count(),
+                'par_priorite' => Ticket::select('id_priorite', DB::raw('count(*) as total'))
+                    ->with('priorite:id,designation')
+                    ->groupBy('id_priorite')
+                    ->get()
+                    ->map(function($item) {
+                        return [
+                            'priorite' => $item->priorite->designation,
+                            'total' => $item->total
+                        ];
+                    }),
+                'par_categorie' => Ticket::select('id_categorie', DB::raw('count(*) as total'))
+                    ->with('categorie:id,designation')
+                    ->groupBy('id_categorie')
+                    ->get()
+                    ->map(function($item) {
+                        return [
+                            'categorie' => $item->categorie->designation,
+                            'total' => $item->total
+                        ];
+                    })
+            ];
+
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des statistiques',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+} 

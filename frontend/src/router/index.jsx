@@ -1,48 +1,51 @@
 import React from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import LoginPage from '../Pages/LoginPage';
 import Dashboard from '../Pages/Dashboard';
+import TicketList from '../Pages/TicketList';
 import CreateTicket from '../Pages/CreateTicket';
 import CreateUser from '../Pages/CreateUser';
+import Profile from '../Pages/Profile';
+import ListUsers from '../Pages/ListUsers';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
+  if (!token) {
+    window.location.href = '/';
+    return null;
+  }
+  return children;
 };
 
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/login" replace />
-  },
-  {
-    path: '/login',
-    element: <LoginPage />
+    element: <LoginPage />,
   },
   {
     path: '/dashboard',
-    element: (
-      <PrivateRoute>
-        <Dashboard />
-      </PrivateRoute>
-    ),
+    element: <PrivateRoute><Dashboard /></PrivateRoute>,
   },
   {
-    path: '/tickets/create',
-    element: <CreateTicket />
+    path: '/tickets',
+    element: <PrivateRoute><TicketList /></PrivateRoute>,
   },
   {
-    path: '/utilisateurs/create',
-    element: (
-      <PrivateRoute>
-        <CreateUser />
-      </PrivateRoute>
-    ),
+    path: '/create-ticket',
+    element: <PrivateRoute><CreateTicket /></PrivateRoute>,
   },
-], {
-  future: {
-    v7_startTransition: true
-  }
-});
+  {
+    path: '/create-user',
+    element: <PrivateRoute><CreateUser /></PrivateRoute>,
+  },
+  {
+    path: '/profile',
+    element: <PrivateRoute><Profile /></PrivateRoute>,
+  },
+  {
+    path: '/users',
+    element: <PrivateRoute><ListUsers /></PrivateRoute>,
+  },
+]);
 
 export default router;

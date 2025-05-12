@@ -1,60 +1,46 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FaHome, FaSignOutAlt, FaPlus, FaUserPlus } from 'react-icons/fa';
-import axios from '../utils/axios';
+import { Link, useLocation } from 'react-router-dom';
+import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers } from 'react-icons/fa';
 
 const Sidebar = () => {
-  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleLogout = async () => {
-    try {
-      await axios.post('/api/logout');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      navigate('/login');
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-    }
+  const isActive = (path) => {
+    return location.pathname === path;
   };
+
+  const menuItems = [
+    { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
+    { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
+    { path: '/create-ticket', icon: <FaPlus />, text: 'Créer un ticket' },
+    { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
+    { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
+    { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
+  ];
 
   return (
     <div className="bg-gray-800 text-white w-64 min-h-screen p-4">
       <div className="mb-8">
         <h1 className="text-2xl font-bold">Gestion Tickets</h1>
       </div>
-      
-      <nav className="space-y-2">
-        <Link
-          to="/dashboard"
-          className="flex items-center space-x-2 p-2 rounded hover:bg-gray-700 transition-colors"
-        >
-          <FaHome className="text-xl" />
-          <span>Dashboard</span>
-        </Link>
-
-        <Link
-          to="/tickets/create"
-          className="flex items-center space-x-2 p-2 rounded hover:bg-gray-700 transition-colors"
-        >
-          <FaPlus className="text-xl" />
-          <span>Nouveau Ticket</span>
-        </Link>
-
-        <Link
-          to="/utilisateurs/create"
-          className="flex items-center space-x-2 p-2 rounded hover:bg-gray-700 transition-colors"
-        >
-          <FaUserPlus className="text-xl" />
-          <span>Nouvel Utilisateur</span>
-        </Link>
-        
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center space-x-2 p-2 rounded hover:bg-gray-700 transition-colors"
-        >
-          <FaSignOutAlt className="text-xl" />
-          <span>Déconnexion</span>
-        </button>
+      <nav>
+        <ul className="space-y-2">
+          {menuItems.map((item) => (
+            <li key={item.path}>
+              <Link
+                to={item.path}
+                className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${
+                  isActive(item.path)
+                    ? 'bg-gray-900 text-white'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <span className="text-lg">{item.icon}</span>
+                <span>{item.text}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </nav>
     </div>
   );

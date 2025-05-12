@@ -69,10 +69,6 @@ const CreateUser = () => {
         niveau: '',
         statut: '1'
       });
-      // Rediriger vers la liste des utilisateurs après 2 secondes
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
     } catch (error) {
       console.error('Erreur lors de la création:', error);
       setError(error.response?.data?.message || 'Erreur lors de la création de l\'utilisateur');

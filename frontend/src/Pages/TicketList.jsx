@@ -3,26 +3,49 @@ import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
 
+// Cache pour les tickets
+const ticketCache = {
+  tickets: null,
+  lastFetch: null,
+  // Durée de validité du cache (5 minutes)
+  cacheDuration: 5 * 60 * 1000
+};
+
 const TicketList = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get('/api/tickets');
-        setTickets(response.data);
-        setError('');
-      } catch (err) {
-        setError('Erreur lors du chargement des tickets');
-        console.error('Erreur:', err);
-      } finally {
-        setLoading(false);
+  const fetchTickets = async () => {
+    try {
+      // Vérifier si on peut utiliser le cache
+      if (ticketCache.tickets && ticketCache.lastFetch) {
+        const now = new Date().getTime();
+        if (now - ticketCache.lastFetch < ticketCache.cacheDuration) {
+          setTickets(ticketCache.tickets);
+          setLoading(false);
+          return;
+        }
       }
-    };
 
+      const response = await axios.get('/api/tickets');
+      const newTickets = response.data.data || response.data;
+      
+      // Mettre à jour le cache
+      ticketCache.tickets = newTickets;
+      ticketCache.lastFetch = new Date().getTime();
+
+      setTickets(newTickets);
+      setError('');
+    } catch (err) {
+      setError('Erreur lors du chargement des tickets');
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTickets();
   }, []);
 
@@ -38,11 +61,22 @@ const TicketList = () => {
     });
   };
 
-  if (loading) {
+  const renderTicketSkeleton = () => (
+    <div className="animate-pulse">
+      <div className="h-24 bg-gray-200 rounded mb-4"></div>
+      <div className="h-24 bg-gray-200 rounded mb-4"></div>
+      <div className="h-24 bg-gray-200 rounded mb-4"></div>
+    </div>
+  );
+
+  if (loading && !tickets.length) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Liste des Tickets</h1>
+          </div>
+          {renderTicketSkeleton()}
         </div>
       </Layout>
     );

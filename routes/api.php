@@ -14,6 +14,7 @@ use App\Http\Controllers\TypeDemandeController;
 use App\Http\Controllers\StatutController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\UserController;
 
 // Routes publiques
 Route::post('/login', [AuthController::class, 'login']);
@@ -50,4 +51,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/statuts', [StatutController::class, 'store']);
     Route::get('/services', [ServiceController::class, 'index']);
     Route::post('/services', [ServiceController::class, 'store']);
+
+    // Routes pour la gestion des utilisateurs
+    Route::get('/users', [UserController::class, 'index']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
 }); 

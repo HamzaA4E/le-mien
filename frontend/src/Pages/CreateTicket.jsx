@@ -9,6 +9,14 @@ import AddCategorieForm from '../components/forms/AddCategorieForm';
 import AddTypeDemandeForm from '../components/forms/AddTypeDemandeForm';
 import AddStatutForm from '../components/forms/AddStatutForm';
 
+// Cache pour stocker les données fréquemment utilisées
+const dataCache = {
+  priorites: null,
+  categories: null,
+  typesDemande: null,
+  statuts: null
+};
+
 const CreateTicket = () => {
   const [formData, setFormData] = useState({
     id_demandeur: '',
@@ -30,7 +38,18 @@ const CreateTicket = () => {
   const [categories, setCategories] = useState([]);
   const [typesDemande, setTypesDemande] = useState([]);
   const [statuts, setStatuts] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  // États de chargement individuels
+  const [loadingStates, setLoadingStates] = useState({
+    demandeurs: true,
+    societes: true,
+    emplacements: true,
+    priorites: true,
+    categories: true,
+    typesDemande: true,
+    statuts: true
+  });
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -42,44 +61,54 @@ const CreateTicket = () => {
   const [showTypeDemandeForm, setShowTypeDemandeForm] = useState(false);
   const [showStatutForm, setShowStatutForm] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [
-          demandeursRes,
-          societesRes,
-          emplacementsRes,
-          prioritesRes,
-          categoriesRes,
-          typesDemandeRes,
-          statutsRes
-        ] = await Promise.all([
-          axios.get('/api/demandeurs'),
-          axios.get('/api/societes'),
-          axios.get('/api/emplacements'),
-          axios.get('/api/priorites'),
-          axios.get('/api/categories'),
-          axios.get('/api/types-demande'),
-          axios.get('/api/statuts')
-        ]);
-
-        setDemandeurs(demandeursRes.data.map(d => ({ ...d, id: d.id.toString() })));
-        setSocietes(societesRes.data.map(d => ({ ...d, id: d.id.toString() })));
-        setEmplacements(emplacementsRes.data.map(d => ({ ...d, id: d.id.toString() })));
-        setPriorites(prioritesRes.data.map(d => ({ ...d, id: d.id.toString() })));
-        setCategories(categoriesRes.data.map(d => ({ ...d, id: d.id.toString() })));
-        setTypesDemande(typesDemandeRes.data.map(d => ({ ...d, id: d.id.toString() })));
-        setStatuts(statutsRes.data.map(d => ({ ...d, id: d.id.toString() })));
-        setError('');
-      } catch (err) {
-        setError('Erreur lors du chargement des données');
-        console.error('Erreur de chargement:', err);
-      } finally {
-        setLoading(false);
+  // Fonction pour charger les données avec mise en cache
+  const fetchDataWithCache = async (endpoint, setter, cacheKey) => {
+    try {
+      // Si les données sont en cache, les utiliser
+      if (dataCache[cacheKey]) {
+        setter(dataCache[cacheKey]);
+        setLoadingStates(prev => ({ ...prev, [cacheKey]: false }));
+        return;
       }
+
+      const response = await axios.get(endpoint);
+      const data = response.data.map(d => ({ ...d, id: d.id.toString() }));
+      
+      // Mettre en cache les données fréquemment utilisées
+      if (['priorites', 'categories', 'typesDemande', 'statuts'].includes(cacheKey)) {
+        dataCache[cacheKey] = data;
+      }
+      
+      setter(data);
+      setLoadingStates(prev => ({ ...prev, [cacheKey]: false }));
+    } catch (err) {
+      console.error(`Erreur lors du chargement des ${cacheKey}:`, err);
+      setError(`Erreur lors du chargement des ${cacheKey}`);
+      setLoadingStates(prev => ({ ...prev, [cacheKey]: false }));
+    }
+  };
+
+  useEffect(() => {
+    // Charger d'abord les données fréquemment utilisées
+    const loadFrequentData = async () => {
+      await Promise.all([
+        fetchDataWithCache('/api/priorites', setPriorites, 'priorites'),
+        fetchDataWithCache('/api/categories', setCategories, 'categories'),
+        fetchDataWithCache('/api/types-demande', setTypesDemande, 'typesDemande'),
+        fetchDataWithCache('/api/statuts', setStatuts, 'statuts')
+      ]);
     };
-    fetchData();
+
+    // Charger ensuite les données moins fréquentes
+    const loadLessFrequentData = async () => {
+      await Promise.all([
+        fetchDataWithCache('/api/demandeurs', setDemandeurs, 'demandeurs'),
+        fetchDataWithCache('/api/societes', setSocietes, 'societes'),
+        fetchDataWithCache('/api/emplacements', setEmplacements, 'emplacements')
+      ]);
+    };
+
+    loadFrequentData().then(loadLessFrequentData);
   }, []);
 
   const handleChange = (e) => {
@@ -198,15 +227,33 @@ const CreateTicket = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <div className="text-xl">Chargement...</div>
+  // Modifier la partie du rendu pour afficher les états de chargement
+  const renderSelect = (name, label, options, loading) => (
+    <div>
+      <label className="block mb-1">{label}</label>
+      {loading ? (
+        <div className="w-full border rounded px-3 py-2 bg-gray-100 animate-pulse">
+          Chargement...
         </div>
-      </Layout>
-    );
-  }
+      ) : (
+        <select
+          name={name}
+          value={formData[name]}
+          onChange={handleChange}
+          required
+          className="w-full border rounded px-3 py-2"
+        >
+          <option value="">Sélectionner {label.toLowerCase()}</option>
+          {options.map(option => (
+            <option key={option.id} value={option.id}>
+              {option.designation}
+            </option>
+          ))}
+          <option value="add_new">+ Ajouter {label.toLowerCase()}</option>
+        </select>
+      )}
+    </div>
+  );
 
   return (
     <Layout>
@@ -246,141 +293,19 @@ const CreateTicket = () => {
             </div>
 
             {/* Demandeur et Société */}
-            <div>
-              <label className="block mb-1">Demandeur</label>
-              <select
-                name="id_demandeur"
-                value={formData.id_demandeur}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">Sélectionner un demandeur</option>
-                {demandeurs.map(demandeur => (
-                  <option key={demandeur.id} value={demandeur.id}>
-                    {demandeur.designation}
-                  </option>
-                ))}
-                <option value="add_new">+ Ajouter un demandeur</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block mb-1">Société</label>
-              <select
-                name="id_societe"
-                value={formData.id_societe}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">Sélectionner une société</option>
-                {societes.map(societe => (
-                  <option key={societe.id} value={societe.id}>
-                    {societe.designation}
-                  </option>
-                ))}
-                <option value="add_new">+ Ajouter une société</option>
-              </select>
-            </div>
+            {renderSelect('id_demandeur', 'Demandeur', demandeurs, loadingStates.demandeurs)}
+            {renderSelect('id_societe', 'Société', societes, loadingStates.societes)}
 
             {/* Emplacement et Priorité */}
-            <div>
-              <label className="block mb-1">Emplacement</label>
-              <select
-                name="id_emplacement"
-                value={formData.id_emplacement}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">Sélectionner un emplacement</option>
-                {emplacements.map(emplacement => (
-                  <option key={emplacement.id} value={emplacement.id}>
-                    {emplacement.designation}
-                  </option>
-                ))}
-                <option value="add_new">+ Ajouter un emplacement</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block mb-1">Priorité</label>
-              <select
-                name="id_priorite"
-                value={formData.id_priorite}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">Sélectionner une priorité</option>
-                {priorites.map(priorite => (
-                  <option key={priorite.id} value={priorite.id}>
-                    {priorite.designation}
-                  </option>
-                ))}
-                <option value="add_new">+ Ajouter une priorité</option>
-              </select>
-            </div>
+            {renderSelect('id_emplacement', 'Emplacement', emplacements, loadingStates.emplacements)}
+            {renderSelect('id_priorite', 'Priorité', priorites, loadingStates.priorites)}
 
             {/* Catégorie et Type de demande */}
-            <div>
-              <label className="block mb-1">Catégorie</label>
-              <select
-                name="id_categorie"
-                value={formData.id_categorie}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">Sélectionner une catégorie</option>
-                {categories.map(categorie => (
-                  <option key={categorie.id} value={categorie.id}>
-                    {categorie.designation}
-                  </option>
-                ))}
-                <option value="add_new">+ Ajouter une catégorie</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block mb-1">Type de demande</label>
-              <select
-                name="id_type_demande"
-                value={formData.id_type_demande}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">Sélectionner un type</option>
-                {typesDemande.map(type => (
-                  <option key={type.id} value={type.id}>
-                    {type.designation}
-                  </option>
-                ))}
-                <option value="add_new">+ Ajouter un type de demande</option>
-              </select>
-            </div>
+            {renderSelect('id_categorie', 'Catégorie', categories, loadingStates.categories)}
+            {renderSelect('id_type_demande', 'Type de demande', typesDemande, loadingStates.typesDemande)}
 
             {/* Statut */}
-            <div>
-              <label className="block mb-1">Statut</label>
-              <select
-                name="id_statut"
-                value={formData.id_statut}
-                onChange={handleChange}
-                required
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">Sélectionner un statut</option>
-                {statuts.map(statut => (
-                  <option key={statut.id} value={statut.id}>
-                    {statut.designation}
-                  </option>
-                ))}
-                <option value="add_new">+ Ajouter un statut</option>
-              </select>
-            </div>
+            {renderSelect('id_statut', 'Statut', statuts, loadingStates.statuts)}
 
             {/* Commentaire */}
             <div className="md:col-span-2">

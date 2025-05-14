@@ -16,7 +16,8 @@ return new class extends Migration
             $table->integer('niveau')->default(1);
             $table->integer('statut')->default(1);
             $table->rememberToken();
-            $table->timestamps();
+            $table->date('created_at')->nullable();
+            $table->date('updated_at')->nullable();
         });
     }
 

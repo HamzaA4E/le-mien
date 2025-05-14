@@ -3,6 +3,13 @@ import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { FaUser, FaEnvelope, FaUserShield, FaClock, FaEdit, FaTrash } from 'react-icons/fa';
 
+// Cache pour les utilisateurs
+const userCache = {
+  users: null,
+  lastFetch: null,
+  cacheDuration: 5 * 60 * 1000 // 5 minutes
+};
+
 const ListUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,9 +38,21 @@ const ListUsers = () => {
 
   useEffect(() => {
     const fetchUsers = async () => {
+      // Vérifier si on peut utiliser le cache
+      if (userCache.users && userCache.lastFetch) {
+        const now = new Date().getTime();
+        if (now - userCache.lastFetch < userCache.cacheDuration) {
+          setUsers(userCache.users);
+          setLoading(false);
+          return;
+        }
+      }
       try {
         const response = await axios.get('/api/users');
         setUsers(response.data);
+        // Mettre à jour le cache
+        userCache.users = response.data;
+        userCache.lastFetch = new Date().getTime();
         setError('');
       } catch (err) {
         setError('Erreur lors du chargement des utilisateurs');
@@ -50,7 +69,9 @@ const ListUsers = () => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
       try {
         await axios.delete(`/api/users/${userId}`);
-        setUsers(users.filter(user => user.id !== userId));
+        const updatedUsers = users.filter(user => user.id !== userId);
+        setUsers(updatedUsers);
+        userCache.users = updatedUsers;
         setSuccess('Utilisateur supprimé avec succès');
         setTimeout(() => setSuccess(''), 3000);
       } catch (err) {

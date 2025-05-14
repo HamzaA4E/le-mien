@@ -11,6 +11,7 @@ class Categorie extends Model
 
     protected $table = 'T_CATEGORIE';
     protected $primaryKey = 'id';
+    public $timestamps = false;
 
     protected $fillable = [
         'designation'

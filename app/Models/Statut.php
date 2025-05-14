@@ -11,6 +11,7 @@ class Statut extends Model
 
     protected $table = 'T_STATUT';
     protected $primaryKey = 'id';
+    public $timestamps = false;
 
     protected $fillable = [
         'designation'

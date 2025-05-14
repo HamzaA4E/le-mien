@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Ticket extends Model
 {
@@ -12,112 +11,85 @@ class Ticket extends Model
 
     protected $table = 'T_TICKET';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    public $timestamps = false;
 
     protected $fillable = [
-        'titre',
-        'description',
-        'commentaire',
-        'id_priorite',
-        'id_statut',
-        'id_demandeur',
-        'id_societe',
-        'id_emplacement',
-        'id_categorie',
-        'id_type_demande',
-        'id_utilisateur',
-        'date_debut',
-        'date_fin_prevue',
-        'date_fin_reelle',
-        'date_creation'
+        'Titre',
+        'Description',
+        'Commentaire',
+        'Id_Priorite',
+        'Id_Statut',
+        'Id_Demandeur',
+        'Id_Societe',
+        'Id_Emplacement',
+        'Id_Categorie',
+        'Id_TypeDemande',
+        'Id_Utilisat',
+        'DateDebut',
+        'DateFinPrevue',
+        'DateFinReelle',
+        'DateCreation'
     ];
 
     protected $casts = [
-        'date_debut' => 'datetime:Y-m-d H:i:s',
-        'date_fin_prevue' => 'datetime:Y-m-d H:i:s',
-        'date_fin_reelle' => 'datetime:Y-m-d H:i:s',
-        'date_creation' => 'datetime:Y-m-d H:i:s',
-        'created_at' => 'datetime:Y-m-d H:i:s',
-        'updated_at' => 'datetime:Y-m-d H:i:s'
+        'Id_Priorite' => 'integer',
+        'Id_Statut' => 'integer',
+        'Id_Demandeur' => 'integer',
+        'Id_Societe' => 'integer',
+        'Id_Emplacement' => 'integer',
+        'Id_Categorie' => 'integer',
+        'Id_TypeDemande' => 'integer',
+        'Id_Utilisat' => 'integer'
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($ticket) {
+            if (empty($ticket->DateCreation)) {
+                $ticket->DateCreation = now();
+            }
+        });
+    }
 
     public function priorite()
     {
-        return $this->belongsTo(Priorite::class, 'id_priorite');
+        return $this->belongsTo(Priorite::class, 'Id_Priorite');
     }
 
     public function statut()
     {
-        return $this->belongsTo(Statut::class, 'id_statut');
+        return $this->belongsTo(Statut::class, 'Id_Statut');
     }
 
     public function demandeur()
     {
-        return $this->belongsTo(Demandeur::class, 'id_demandeur');
+        return $this->belongsTo(Demandeur::class, 'Id_Demandeur');
     }
 
     public function societe()
     {
-        return $this->belongsTo(Societe::class, 'id_societe');
+        return $this->belongsTo(Societe::class, 'Id_Societe');
     }
 
     public function emplacement()
     {
-        return $this->belongsTo(Emplacement::class, 'id_emplacement');
+        return $this->belongsTo(Emplacement::class, 'Id_Emplacement');
     }
 
     public function categorie()
     {
-        return $this->belongsTo(Categorie::class, 'id_categorie');
+        return $this->belongsTo(Categorie::class, 'Id_Categorie');
     }
 
     public function typeDemande()
     {
-        return $this->belongsTo(TypeDemande::class, 'id_type_demande');
+        return $this->belongsTo(TypeDemande::class, 'Id_TypeDemande');
     }
 
     public function utilisateur()
     {
-        return $this->belongsTo(Utilisateur::class, 'id_utilisateur');
-    }
-
-    public function getDateDebutAttribute($value)
-    {
-        return $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
-    }
-
-    public function getDateFinPrevueAttribute($value)
-    {
-        return $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
-    }
-
-    public function getDateFinReelleAttribute($value)
-    {
-        return $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
-    }
-
-    public function getDateCreationAttribute($value)
-    {
-        return $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
-    }
-
-    public function setDateDebutAttribute($value)
-    {
-        $this->attributes['date_debut'] = $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
-    }
-
-    public function setDateFinPrevueAttribute($value)
-    {
-        $this->attributes['date_fin_prevue'] = $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
-    }
-
-    public function setDateFinReelleAttribute($value)
-    {
-        $this->attributes['date_fin_reelle'] = $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
-    }
-
-    public function setDateCreationAttribute($value)
-    {
-        $this->attributes['date_creation'] = $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null;
+        return $this->belongsTo(Utilisateur::class, 'Id_Utilisat');
     }
 } 

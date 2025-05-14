@@ -3,6 +3,12 @@ import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
 
+const STATUTS = [
+  { id: 1, label: 'En instance' },
+  { id: 2, label: 'En cours' },
+  { id: 3, label: 'Clôturé' },
+];
+
 // Cache pour les tickets
 const ticketCache = {
   tickets: null,
@@ -15,6 +21,8 @@ const TicketList = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [updating, setUpdating] = useState({});
+  const [statuts, setStatuts] = useState([]);
 
   const fetchTickets = async () => {
     try {
@@ -45,14 +53,70 @@ const TicketList = () => {
     }
   };
 
+  const fetchStatuts = async () => {
+    try {
+      const response = await axios.get('/api/statuts');
+      setStatuts(response.data);
+    } catch (err) {
+      console.error('Erreur lors du chargement des statuts:', err);
+    }
+  };
+
+  const handleStatutChange = async (ticketId, newStatutId) => {
+    if (!newStatutId) return; // Ne rien faire si aucun statut n'est sélectionné
+    
+    setUpdating((prev) => ({ ...prev, [ticketId]: true }));
+    try {
+      console.log('Envoi de la requête de mise à jour:', {
+        ticketId,
+        newStatutId,
+        url: `/api/tickets/${ticketId}`,
+        data: { id_statut: newStatutId }
+      });
+
+      const response = await axios.put(`/api/tickets/${ticketId}`, { id_statut: newStatutId });
+      
+      console.log('Réponse du serveur:', response.data);
+
+      // Mettre à jour le statut localement avec les données complètes du ticket
+      setTickets((prevTickets) => {
+        const updatedTickets = prevTickets.map((t) =>
+          t.id === ticketId
+            ? { ...t, Id_Statut: response.data.Id_Statut, statut: response.data.statut }
+            : t
+        );
+        // Mettre à jour le cache pour garder la cohérence
+        ticketCache.tickets = updatedTickets;
+        return updatedTickets;
+      });
+    } catch (err) {
+      console.error('Erreur détaillée:', err.response?.data || err.message);
+      alert(`Erreur lors du changement de statut: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setUpdating((prev) => ({ ...prev, [ticketId]: false }));
+    }
+  };
+
   useEffect(() => {
     fetchTickets();
+    fetchStatuts();
   }, []);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString('fr-FR', {
+  const formatDate = (dateValue) => {
+    if (!dateValue) return '-';
+    // Si c'est un objet Laravel (date, timezone_type, timezone)
+    let dateString = dateValue;
+    if (typeof dateValue === 'object' && dateValue.date) {
+      dateString = dateValue.date;
+    }
+    // On coupe à la seconde si besoin (ex: 2025-05-14 16:34:24.000000)
+    if (typeof dateString === 'string' && dateString.includes('.')) {
+      dateString = dateString.split('.')[0];
+    }
+    // Format ISO pour JS
+    const isoString = dateString.replace(' ', 'T');
+    const date = new Date(isoString);
+    return isNaN(date) ? '-' : date.toLocaleString('fr-FR', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -109,7 +173,7 @@ const TicketList = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-medium text-gray-900 truncate">
-                        {ticket.titre}
+                        {ticket.Titre}
                       </h3>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -118,6 +182,18 @@ const TicketList = () => {
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           {ticket.priorite?.designation || 'Sans priorité'}
                         </span>
+                        {/* Dropdown pour changer le statut */}
+                        <select
+                          value={ticket.Id_Statut || ''}
+                          onChange={e => handleStatutChange(ticket.id, e.target.value)}
+                          disabled={updating[ticket.id]}
+                          className="ml-2 px-2 py-1 border rounded text-xs"
+                        >
+                          <option value="">Changer statut</option>
+                          {statuts.map(s => (
+                            <option key={s.id} value={s.id}>{s.designation}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                     <div className="ml-4 flex-shrink-0">
@@ -137,7 +213,7 @@ const TicketList = () => {
                     </div>
                     <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                       <p>
-                        Créé le: {formatDate(ticket.date_creation)}
+                        Créé le: {formatDate(ticket.DateCreation)}
                       </p>
                     </div>
                   </div>

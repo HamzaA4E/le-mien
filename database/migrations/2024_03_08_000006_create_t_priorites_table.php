@@ -12,7 +12,7 @@ return new class extends Migration
             $table->smallIncrements('id');
             $table->string('designation', 50);
             $table->smallInteger('ordre')->nullable();
-            $table->timestamps();
+            
         });
     }
 

@@ -11,6 +11,7 @@ class Demandeur extends Model
 
     protected $table = 'T_DEMDEUR';
     protected $primaryKey = 'id';
+    public $timestamps = false;
 
     protected $fillable = [
         'designation',

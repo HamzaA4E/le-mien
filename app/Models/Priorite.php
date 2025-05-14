@@ -11,6 +11,7 @@ class Priorite extends Model
 
     protected $table = 'T_PRIORITE';
     protected $primaryKey = 'id';
+    public $timestamps = false;
 
     protected $fillable = [
         'designation',

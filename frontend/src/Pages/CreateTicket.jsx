@@ -180,7 +180,7 @@ const CreateTicket = () => {
         id_type_demande: Number(formData.id_type_demande),
         id_utilisateur: 1, // À remplacer par l'ID de l'utilisateur connecté
         date_debut: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        date_fin_prevue: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        date_fin_prevue: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' '),
         date_fin_reelle: null
       };
 
@@ -209,21 +209,10 @@ const CreateTicket = () => {
       console.error('Erreur complète:', err);
       console.error('Détails de l\'erreur:', {
         message: err.message,
-        response: err.response?.data,
+        response: err.response,
         status: err.response?.status
       });
-
-      let errorMessage = 'Erreur lors de la création du ticket';
-      
-      if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.response?.data?.errors) {
-        errorMessage = Object.entries(err.response.data.errors)
-          .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
-          .join('\n');
-      }
-
-      setError(errorMessage);
+      setError(err.response?.data?.message || 'Une erreur est survenue lors de la création du ticket');
     }
   };
 

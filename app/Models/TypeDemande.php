@@ -11,6 +11,7 @@ class TypeDemande extends Model
 
     protected $table = 'T_TYPEDEMANDE';
     protected $primaryKey = 'id';
+    public $timestamps = false;
 
     protected $fillable = [
         'designation'

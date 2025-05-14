@@ -8,8 +8,12 @@ class Societe extends Model
 {
     protected $table = 'T_SOCIETE';
     protected $primaryKey = 'id';
+    public $timestamps = false;
 
     protected $fillable = [
-        'designation'
+        'designation',
+        
     ];
+
+   
 } 

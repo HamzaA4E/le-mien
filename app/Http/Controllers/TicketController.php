@@ -20,7 +20,7 @@ class TicketController extends Controller
     public function index()
     {
         $tickets = Ticket::with(['statut', 'priorite', 'demandeur'])
-            ->orderBy('created_at', 'desc')
+            ->orderBy('DateCreation', 'desc')
             ->get();
 
         return response()->json($tickets);
@@ -55,25 +55,42 @@ class TicketController extends Controller
             DB::beginTransaction();
 
             try {
-                // Préparation des données pour l'insertion
+                Log::info('Valeurs brutes des dates:', [
+                    'date_debut' => $validated['date_debut'],
+                    'date_fin_prevue' => $validated['date_fin_prevue'],
+                    'date_fin_reelle' => $validated['date_fin_reelle']
+                ]);
+
+                $dateDebut = date('d/m/Y H:i:s', strtotime($validated['date_debut']));
+                $dateFinPrevue = date('d/m/Y H:i:s', strtotime($validated['date_fin_prevue']));
+                $dateFinReelle = $validated['date_fin_reelle'] ? date('d/m/Y H:i:s', strtotime($validated['date_fin_reelle'])) : null;
+                $dateCreation = date('d/m/Y H:i:s');
+
+                Log::info('Valeurs converties des dates:', [
+                    'date_debut' => $dateDebut,
+                    'date_fin_prevue' => $dateFinPrevue,
+                    'date_fin_reelle' => $dateFinReelle,
+                    'date_creation' => $dateCreation
+                ]);
+
                 $data = [
-                    'titre' => $validated['titre'],
-                    'description' => $validated['description'],
-                    'commentaire' => $validated['commentaire'] ?? null,
-                    'id_priorite' => (int)$validated['id_priorite'],
-                    'id_statut' => (int)$validated['id_statut'],
-                    'id_demandeur' => (int)$validated['id_demandeur'],
-                    'id_societe' => (int)$validated['id_societe'],
-                    'id_emplacement' => (int)$validated['id_emplacement'],
-                    'id_categorie' => (int)$validated['id_categorie'],
-                    'id_type_demande' => (int)$validated['id_type_demande'],
-                    'id_utilisateur' => (int)$validated['id_utilisateur'],
-                    'date_debut' => Carbon::parse($validated['date_debut']),
-                    'date_fin_prevue' => Carbon::parse($validated['date_fin_prevue']),
-                    'date_fin_reelle' => $validated['date_fin_reelle'] ? Carbon::parse($validated['date_fin_reelle']) : null,
-                    'date_creation' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now()
+                    'Titre' => $validated['titre'],
+                    'Description' => $validated['description'],
+                    'Commentaire' => $validated['commentaire'] ?? null,
+                    'Id_Priorite' => (int)$validated['id_priorite'],
+                    'Id_Statut' => (int)$validated['id_statut'],
+                    'Id_Demandeur' => (int)$validated['id_demandeur'],
+                    'Id_Societe' => (int)$validated['id_societe'],
+                    'Id_Emplacement' => (int)$validated['id_emplacement'],
+                    'Id_Categorie' => (int)$validated['id_categorie'],
+                    'Id_TypeDemande' => (int)$validated['id_type_demande'],
+                    'Id_Utilisat' => (int)$validated['id_utilisateur'],
+                    'DateDebut' => $dateDebut,
+                    'DateFinPrevue' => $dateFinPrevue,
+                    'DateFinReelle' => $dateFinReelle,
+                    'DateCreation' => $dateCreation,
+                    'created_at' => $dateCreation,
+                    'updated_at' => $dateCreation,
                 ];
 
                 Log::info('Données formatées pour SQL Server:', $data);
@@ -133,16 +150,80 @@ class TicketController extends Controller
 
     public function update(Request $request, Ticket $ticket)
     {
-        $validated = $request->validate([
-            'titre' => 'sometimes|string|max:255',
-            'description' => 'sometimes|string',
-            'id_priorite' => 'sometimes|exists:T_PRIORITE,id',
-            'id_statut' => 'sometimes|exists:T_STATUT,id',
-        ]);
+        try {
+            Log::info('Début de la mise à jour du ticket', [
+                'ticket_id' => $ticket->id,
+                'donnees_recues' => $request->all()
+            ]);
 
-        $ticket->update($validated);
+            // Validation des données
+            $validated = $request->validate([
+                'titre' => 'sometimes|string|max:255',
+                'description' => 'sometimes|string',
+                'id_priorite' => 'sometimes|exists:T_PRIORITE,id',
+                'id_statut' => 'sometimes|exists:T_STATUT,id',
+            ]);
 
-        return response()->json($ticket);
+            Log::info('Données validées:', $validated);
+
+            // Préparation des données pour la mise à jour
+            $data = [];
+            foreach ($validated as $key => $value) {
+                switch ($key) {
+                    case 'id_statut':
+                        $data['Id_Statut'] = (int)$value;
+                        break;
+                    case 'id_priorite':
+                        $data['Id_Priorite'] = (int)$value;
+                        break;
+                    default:
+                        $data[$key] = $value;
+                }
+            }
+
+            Log::info('Données formatées pour la mise à jour:', $data);
+
+            // Vérification avant la mise à jour
+            Log::info('État du ticket avant mise à jour:', [
+                'id' => $ticket->id,
+                'statut_actuel' => $ticket->Id_Statut
+            ]);
+
+            // Mise à jour du ticket
+            DB::beginTransaction();
+            try {
+                $ticket->update($data);
+                DB::commit();
+                
+                Log::info('Ticket mis à jour avec succès', [
+                    'ticket_id' => $ticket->id,
+                    'nouveau_statut' => $ticket->Id_Statut
+                ]);
+
+                // Recharger le ticket avec ses relations
+                $ticket = Ticket::with(['statut', 'priorite'])->find($ticket->id);
+                
+                return response()->json($ticket);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Erreur lors de la mise à jour dans la base de données: ' . $e->getMessage());
+                Log::error('Stack trace: ' . $e->getTraceAsString());
+                throw $e;
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Erreur de validation:', ['errors' => $e->errors()]);
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la mise à jour du ticket: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'message' => 'Erreur lors de la mise à jour du ticket',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function destroy(Ticket $ticket)

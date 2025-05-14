@@ -11,6 +11,7 @@ class Emplacement extends Model
 
     protected $table = 'T_EMPLACEMENT';
     protected $primaryKey = 'id';
+    public $timestamps = false;
 
     protected $fillable = [
         'designation'

@@ -10,61 +10,61 @@ return new class extends Migration
     {
         Schema::create('T_TICKET', function (Blueprint $table) {
             $table->smallIncrements('id');
-            $table->dateTime('date_creation');
-            $table->unsignedSmallInteger('id_demandeur');
-            $table->unsignedSmallInteger('id_utilisateur');
-            $table->unsignedSmallInteger('id_societe');
-            $table->unsignedSmallInteger('id_emplacement');
-            $table->unsignedSmallInteger('id_priorite');
-            $table->unsignedSmallInteger('id_categorie');
-            $table->unsignedSmallInteger('id_type_demande');
-            $table->unsignedSmallInteger('id_statut');
-            $table->string('titre', 200);
-            $table->string('description', 800)->nullable();
-            $table->text('commentaire')->nullable();
-            $table->dateTime('date_debut')->nullable();
-            $table->dateTime('date_fin_prevue')->nullable();
-            $table->dateTime('date_fin_reelle')->nullable();
+            $table->dateTime('DateCreation');
+            $table->unsignedSmallInteger('Id_Demandeur');
+            $table->unsignedSmallInteger('Id_Utilisat');
+            $table->unsignedSmallInteger('Id_Societe');
+            $table->unsignedSmallInteger('Id_Emplacement');
+            $table->unsignedSmallInteger('Id_Priorite');
+            $table->unsignedSmallInteger('Id_Categorie');
+            $table->unsignedSmallInteger('Id_TypeDemande');
+            $table->unsignedSmallInteger('Id_Statut');
+            $table->string('Titre', 200);
+            $table->string('Description', 800)->nullable();
+            $table->text('Commentaire')->nullable();
+            $table->dateTime('DateDebut')->nullable();
+            $table->dateTime('DateFinPrevue')->nullable();
+            $table->dateTime('DateFinReelle')->nullable();
             $table->timestamps();
 
-            $table->foreign('id_demandeur')
-                  ->references('id')
-                  ->on('T_DEMDEUR')
-                  ->onDelete('no action');
-
-            $table->foreign('id_utilisateur')
-                  ->references('id')
-                  ->on('T_UTILISAT')
-                  ->onDelete('no action');
-
-            $table->foreign('id_societe')
-                  ->references('id')
-                  ->on('T_SOCIETE')
-                  ->onDelete('no action');
-
-            $table->foreign('id_emplacement')
-                  ->references('id')
-                  ->on('T_EMPLACEMENT')
-                  ->onDelete('no action');
-
-            $table->foreign('id_priorite')
-                  ->references('id')
-                  ->on('T_PRIORITE')
-                  ->onDelete('no action');
-
-            $table->foreign('id_categorie')
+            $table->foreign('Id_Categorie', 'FK_T_TICKET_T_CATEGORIE')
                   ->references('id')
                   ->on('T_CATEGORIE')
                   ->onDelete('no action');
 
-            $table->foreign('id_type_demande')
+            $table->foreign('Id_Demandeur', 'FK_T_TICKET_T_DEMDEUR')
+                  ->references('id')
+                  ->on('T_DEMDEUR')
+                  ->onDelete('no action');
+
+            $table->foreign('Id_Emplacement', 'FK_T_TICKET_T_EMPLACEMENT')
+                  ->references('id')
+                  ->on('T_EMPLACEMENT')
+                  ->onDelete('no action');
+
+            $table->foreign('Id_Priorite', 'FK_T_TICKET_T_PRIORITE')
+                  ->references('id')
+                  ->on('T_PRIORITE')
+                  ->onDelete('no action');
+
+            $table->foreign('Id_Societe', 'FK_T_TICKET_T_SOCIETE')
+                  ->references('id')
+                  ->on('T_SOCIETE')
+                  ->onDelete('no action');
+
+            $table->foreign('Id_Statut', 'FK_T_TICKET_T_STATUT')
+                  ->references('id')
+                  ->on('T_STATUT')
+                  ->onDelete('no action');
+
+            $table->foreign('Id_TypeDemande', 'FK_T_TICKET_T_TYPEDEMENDE')
                   ->references('id')
                   ->on('T_TYPEDEMANDE')
                   ->onDelete('no action');
 
-            $table->foreign('id_statut')
+            $table->foreign('Id_Utilisat', 'FK_T_TICKET_T_UTILISAT')
                   ->references('id')
-                  ->on('T_STATUT')
+                  ->on('T_UTILISAT')
                   ->onDelete('no action');
         });
     }

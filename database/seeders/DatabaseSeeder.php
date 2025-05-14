@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password'),
             'niveau' => 1,
             'statut' => 1,
+            'created_at' => date('Y-m-d'),
+            'updated_at' => date('Y-m-d'),
         ]);
     }
 }

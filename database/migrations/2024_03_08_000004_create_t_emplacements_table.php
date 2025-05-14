@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('T_EMPLACEMENT', function (Blueprint $table) {
             $table->smallIncrements('id');
             $table->string('designation', 50);
-            $table->timestamps();
+            
         });
     }
 

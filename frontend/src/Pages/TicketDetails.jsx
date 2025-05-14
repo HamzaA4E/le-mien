@@ -16,6 +16,7 @@ const TicketDetails = () => {
         setLoading(true);
         const response = await axios.get(`/api/tickets/${id}`);
         setTicket(response.data);
+        console.log('Ticket reçu:', response.data);
         setError('');
       } catch (err) {
         setError('Erreur lors du chargement du ticket');
@@ -28,10 +29,30 @@ const TicketDetails = () => {
     fetchTicket();
   }, [id]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString('fr-FR', {
+  const parseFrDate = (frDate) => {
+    if (!frDate || typeof frDate !== 'string') return null;
+    const [date, time] = frDate.split(' ');
+    if (!date || !time) return null;
+    const [day, month, year] = date.split('/');
+    if (!day || !month || !year) return null;
+    return `${year}-${month}-${day}T${time}`;
+  };
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return '-';
+    // Si c'est un objet Laravel (date, timezone_type, timezone)
+    let dateString = dateValue;
+    if (typeof dateValue === 'object' && dateValue.date) {
+      dateString = dateValue.date;
+    }
+    // On coupe à la seconde si besoin (ex: 2025-05-14 16:34:24.000000)
+    if (typeof dateString === 'string' && dateString.includes('.')) {
+      dateString = dateString.split('.')[0];
+    }
+    // Format ISO pour JS
+    const isoString = dateString.replace(' ', 'T');
+    const date = new Date(isoString);
+    return isNaN(date) ? '-' : date.toLocaleString('fr-FR', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -74,6 +95,10 @@ const TicketDetails = () => {
     );
   }
 
+  console.log('DateCreation:', ticket.DateCreation);
+  console.log('DateDebut:', ticket.DateDebut);
+  console.log('DateFinPrevue:', ticket.DateFinPrevue);
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -98,7 +123,7 @@ const TicketDetails = () => {
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900">
-              {ticket.titre}
+              {ticket.Titre}
             </h3>
             <div className="mt-2 flex flex-wrap gap-2">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -114,7 +139,7 @@ const TicketDetails = () => {
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Description</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {ticket.description || 'Aucune description'}
+                  {ticket.Description || 'Aucune description'}
                 </dd>
               </div>
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -150,19 +175,19 @@ const TicketDetails = () => {
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Date de création</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {formatDate(ticket.date_creation)}
+                  {formatDate(ticket.DateCreation)}
                 </dd>
               </div>
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Date de début</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {formatDate(ticket.date_debut)}
+                  {formatDate(ticket.DateDebut)}
                 </dd>
               </div>
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Date de fin prévue</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {formatDate(ticket.date_fin_prevue)}
+                  {formatDate(ticket.DateFinPrevue)}
                 </dd>
               </div>
             </dl>

@@ -13,7 +13,6 @@ return new class extends Migration
             $table->string('designation', 50);
             $table->unsignedSmallInteger('id_service')->nullable();
             $table->smallInteger('statut')->nullable();
-            $table->timestamps();
 
             $table->foreign('id_service')
                   ->references('id')

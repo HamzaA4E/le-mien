@@ -15,6 +15,7 @@ use App\Http\Controllers\StatutController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\TicketStatsController;
 
 // Routes publiques
 Route::post('/login', [AuthController::class, 'login']);
@@ -26,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Routes pour le dashboard
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
+    Route::get('/tickets/stats', [DashboardController::class, 'getStatsByUser']);
     
     // Routes pour les tickets
     Route::apiResource('tickets', TicketController::class);

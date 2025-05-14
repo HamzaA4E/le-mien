@@ -29,7 +29,7 @@ class UtilisateurController extends Controller
                 'designation' => 'required|string|max:255',
                 'email' => 'required|email|unique:T_UTILISAT',
                 'password' => 'required|min:6',
-                'niveau' => 'required|in:1,2,3',
+                'niveau' => 'required|in:1,2',
                 'statut' => 'required|in:0,1'
             ]);
 
@@ -79,7 +79,7 @@ class UtilisateurController extends Controller
                 'designation' => 'sometimes|required|string|max:255',
                 'email' => 'sometimes|required|email|unique:T_UTILISAT,email,' . $user->id,
                 'password' => 'sometimes|required|min:6',
-                'niveau' => 'sometimes|required|in:1,2,3',
+                'niveau' => 'sometimes|required|in:1,2',
                 'statut' => 'sometimes|required|in:0,1'
             ]);
 

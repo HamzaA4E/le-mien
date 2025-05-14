@@ -14,8 +14,7 @@ const Profile = () => {
     
     const niveauMap = {
       '1': 'Administrateur',
-      '2': 'Utilisateur',
-      '3': 'Technicien'
+      '2': 'Responsable'
     };
     
     return niveauMap[niveau] || 'Non spécifié';

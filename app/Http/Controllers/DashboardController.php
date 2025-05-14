@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Models\Statut;
 use App\Models\Priorite;
 use App\Models\Categorie;
+use App\Models\Utilisateur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -64,6 +65,36 @@ class DashboardController extends Controller
             Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'message' => 'Erreur lors de la récupération des statistiques',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getStatsByUser()
+    {
+        try {
+            Log::info('Début de la récupération des statistiques par utilisateur');
+
+            $stats = Utilisateur::select(
+                'T_UTILISATEUR.id as userId',
+                'T_UTILISATEUR.Nom as userName',
+                DB::raw('COUNT(T_TICKET.id) as totalTickets'),
+                DB::raw('SUM(CASE WHEN T_TICKET.Id_Statut = 1 THEN 1 ELSE 0 END) as openTickets'),
+                DB::raw('SUM(CASE WHEN T_TICKET.Id_Statut = 2 THEN 1 ELSE 0 END) as inProgressTickets'),
+                DB::raw('SUM(CASE WHEN T_TICKET.Id_Statut = 3 THEN 1 ELSE 0 END) as resolvedTickets')
+            )
+            ->leftJoin('T_TICKET', 'T_UTILISATEUR.id', '=', 'T_TICKET.Id_Utilisat')
+            ->groupBy('T_UTILISATEUR.id', 'T_UTILISATEUR.Nom')
+            ->get();
+
+            Log::info('Statistiques par utilisateur récupérées avec succès');
+
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des statistiques par utilisateur: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des statistiques par utilisateur',
                 'error' => $e->getMessage()
             ], 500);
         }

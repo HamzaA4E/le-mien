@@ -10,6 +10,15 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Récupérer le user depuis le localStorage
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('user'));
+  } catch (e) {
+    user = null;
+  }
+  const niveau = user?.niveau;
+
   const isActive = (path) => {
     return location.pathname === path;
   };
@@ -31,16 +40,19 @@ const Sidebar = () => {
       });
       
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       navigate('/login');
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
       // En cas d'erreur, on supprime quand même le token et on redirige
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       navigate('/login');
     }
   };
 
-  const menuItems = [
+  // Menu par défaut (admin)
+  let menuItems = [
     { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
     { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
     { path: '/create-ticket', icon: <FaPlus />, text: 'Créer un ticket' },
@@ -48,6 +60,15 @@ const Sidebar = () => {
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
     { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
   ];
+
+  // Si responsable (niveau 2), on limite le menu
+  if (niveau === '2' || niveau === 2) {
+    menuItems = [
+      { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
+      { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
+      { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
+    ];
+  }
 
   return (
     <div className="bg-gray-800 text-white w-64 min-h-screen p-4 flex flex-col">

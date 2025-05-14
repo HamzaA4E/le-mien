@@ -13,6 +13,10 @@ class Utilisateur extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    // Constantes pour les niveaux d'utilisateur
+    const NIVEAU_ADMINISTRATEUR = 1;
+    const NIVEAU_RESPONSABLE = 2;
+
     protected $table = 'T_UTILISAT';
     protected $primaryKey = 'id';
     public $incrementing = true;
@@ -38,6 +42,22 @@ class Utilisateur extends Authenticatable
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /**
+     * Vérifie si l'utilisateur est un administrateur
+     */
+    public function isAdmin()
+    {
+        return $this->niveau === self::NIVEAU_ADMINISTRATEUR;
+    }
+
+    /**
+     * Vérifie si l'utilisateur est un responsable
+     */
+    public function isResponsable()
+    {
+        return $this->niveau === self::NIVEAU_RESPONSABLE;
+    }
 
     /**
      * Get the tokens that belong to the user.

@@ -24,6 +24,15 @@ const TicketList = () => {
   const [updating, setUpdating] = useState({});
   const [statuts, setStatuts] = useState([]);
 
+  // Récupérer le user depuis le localStorage
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('user'));
+  } catch (e) {
+    user = null;
+  }
+  const niveau = user?.niveau;
+
   const fetchTickets = async () => {
     try {
       // Vérifier si on peut utiliser le cache
@@ -151,12 +160,15 @@ const TicketList = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Liste des Tickets</h1>
-          <Link
-            to="/tickets/create"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Créer un ticket
-          </Link>
+          {/* Masquer le bouton de création pour le responsable */}
+          {!(niveau === '2' || niveau === 2) && (
+            <Link
+              to="/tickets/create"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Créer un ticket
+            </Link>
+          )}
         </div>
 
         {error && (
@@ -166,23 +178,25 @@ const TicketList = () => {
         )}
 
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
+          <div className="flex flex-col gap-4 p-4 sm:p-6">
             {tickets.map((ticket) => (
-              <li key={ticket.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-medium text-gray-900 truncate">
-                        {ticket.Titre}
-                      </h3>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {ticket.statut?.designation || 'Sans statut'}
-                        </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {ticket.priorite?.designation || 'Sans priorité'}
-                        </span>
-                        {/* Dropdown pour changer le statut */}
+              <div
+                key={ticket.id}
+                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow border border-gray-100 flex flex-col md:flex-row items-center justify-between min-h-[120px] px-4 py-3"
+              >
+                <div className="flex-1 flex flex-col md:flex-row md:items-center md:gap-6 w-full">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate">
+                      {ticket.Titre}
+                    </h3>
+                    <div className="flex flex-wrap gap-2 mt-1 mb-1">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {ticket.statut?.designation || 'Sans statut'}
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        {ticket.priorite?.designation || 'Sans priorité'}
+                      </span>
+                      {!(niveau === '2' || niveau === 2) && (
                         <select
                           value={ticket.Id_Statut || ''}
                           onChange={e => handleStatutChange(ticket.id, e.target.value)}
@@ -194,40 +208,32 @@ const TicketList = () => {
                             <option key={s.id} value={s.id}>{s.designation}</option>
                           ))}
                         </select>
+                      )}
+                    </div>
+                    <div className="flex flex-col md:flex-row md:gap-4 text-xs text-gray-500 mb-1">
+                      <span>Demandeur : <span className="font-medium text-gray-700">{ticket.demandeur?.designation || 'Non spécifié'}</span></span>
+                      <span>Créé le : <span className="font-medium text-gray-700">{formatDate(ticket.DateCreation)}</span></span>
+                    </div>
+                    {ticket.description && (
+                      <div className="mt-1">
+                        <p className="text-sm text-gray-500 line-clamp-2">
+                          {ticket.description}
+                        </p>
                       </div>
-                    </div>
-                    <div className="ml-4 flex-shrink-0">
-                      <Link
-                        to={`/tickets/${ticket.id}`}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Voir détails
-                      </Link>
-                    </div>
+                    )}
                   </div>
-                  <div className="mt-2 sm:flex sm:justify-between">
-                    <div className="sm:flex">
-                      <p className="flex items-center text-sm text-gray-500">
-                        Demandeur: {ticket.demandeur?.designation || 'Non spécifié'}
-                      </p>
-                    </div>
-                    <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                      <p>
-                        Créé le: {formatDate(ticket.DateCreation)}
-                      </p>
-                    </div>
-                  </div>
-                  {ticket.description && (
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500 line-clamp-2">
-                        {ticket.description}
-                      </p>
-                    </div>
-                  )}
                 </div>
-              </li>
+                <div className="mt-3 md:mt-0 md:ml-4 flex-shrink-0">
+                  <Link
+                    to={`/tickets/${ticket.id}`}
+                    className="text-blue-600 hover:text-blue-900 text-sm font-medium border border-blue-100 rounded px-3 py-1 transition-colors"
+                  >
+                    Voir détails
+                  </Link>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
     </Layout>

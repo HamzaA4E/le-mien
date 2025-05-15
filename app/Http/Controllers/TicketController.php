@@ -106,6 +106,7 @@ class TicketController extends Controller
                 'id_categorie' => 'required|exists:T_CATEGORIE,id',
                 'id_type_demande' => 'required|exists:T_TYPEDEMANDE,id',
                 'id_statut' => 'required|exists:T_STATUT,id',
+                'id_executant' => 'required|exists:T_EXECUTANT,id',
             ]);
 
             Log::info('Données validées:', $validated);
@@ -143,6 +144,7 @@ class TicketController extends Controller
                     'Id_Categorie' => (int)$validated['id_categorie'],
                     'Id_TypeDemande' => (int)$validated['id_type_demande'],
                     'Id_Utilisat' => (int)$validated['id_utilisateur'],
+                    'Id_Executant' => (int)$validated['id_executant'],
                     'DateDebut' => $dateDebut,
                     'DateFinPrevue' => $dateFinPrevue,
                     'DateFinReelle' => $dateFinReelle,

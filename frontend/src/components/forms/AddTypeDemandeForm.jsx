@@ -15,9 +15,12 @@ const AddTypeDemandeForm = ({ onSuccess, onCancel }) => {
     setLoading(true);
     setError('');
     try {
+      console.log('Tentative d\'ajout type de demande:', designation);
       const response = await axios.post('/api/types-demande', { designation });
+      console.log('Réponse API type de demande:', response);
       onSuccess(response.data);
     } catch (error) {
+      console.error('Erreur lors de la création du type de demande:', error);
       setError(error.response?.data?.message || "Erreur lors de la création du type de demande");
     } finally {
       setLoading(false);

@@ -58,7 +58,7 @@ const CreateTicket = () => {
     emplacement: false,
     priorite: false,
     categorie: false,
-    typeDemande: false,
+    type_demande: false,
     statut: false,
     executant: false
   });
@@ -130,8 +130,10 @@ const CreateTicket = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log('[CreateTicket] handleChange', { name, value });
     if (value === 'add_new') {
       const formType = name.replace('id_', '');
+      console.log('[CreateTicket] Clic sur + Ajouter', formType);
       setShowForms(prev => ({ ...prev, [formType]: true }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value.toString() }));
@@ -150,7 +152,12 @@ const CreateTicket = () => {
       statut: setStatuts
     };
 
-    setters[type](prev => [...prev, newItem]);
+    console.log(`[CreateTicket] Ajout d'une entité`, { type, data: newItem });
+    setters[type](prev => {
+      const updated = [...prev, newItem];
+      console.log(`[CreateTicket] Nouvelle liste pour ${type}:`, updated);
+      return updated;
+    });
     setFormData(prev => ({ ...prev, [`id_${type}`]: newItem.id.toString() }));
     setShowForms(prev => ({ ...prev, [type]: false }));
     invalidateCache(type);
@@ -170,7 +177,7 @@ const CreateTicket = () => {
         id_emplacement: Number(formData.id_emplacement),
         id_categorie: Number(formData.id_categorie),
         id_type_demande: Number(formData.id_type_demande),
-        id_executant: formData.id_executant ? Number(formData.id_executant) : null,
+        id_executant: formData.id_executant ? Number(formData.id_executant) : 1,
         id_utilisateur: 1, // À remplacer par l'ID de l'utilisateur connecté
         date_debut: formData.date_debut ? new Date(formData.date_debut).toISOString().slice(0, 19).replace('T', ' ') : null,
         date_fin_prevue: formData.date_fin_prevue ? new Date(formData.date_fin_prevue).toISOString().slice(0, 19).replace('T', ' ') : null,
@@ -415,12 +422,12 @@ const CreateTicket = () => {
             onCancel={() => setShowForms(prev => ({ ...prev, categorie: false }))}
           />
         )}
-        {showForms.typeDemande && (
+        {showForms.type_demande && (
           <AddTypeDemandeForm
             onSuccess={(data) => {
               handleFormSuccess(data, 'type_demande');
             }}
-            onCancel={() => setShowForms(prev => ({ ...prev, typeDemande: false }))}
+            onCancel={() => setShowForms(prev => ({ ...prev, type_demande: false }))}
           />
         )}
         {showForms.statut && (

@@ -25,6 +25,7 @@ class Ticket extends Model
         'Id_Categorie',
         'Id_TypeDemande',
         'Id_Utilisat',
+        'Id_Executant',
         'DateDebut',
         'DateFinPrevue',
         'DateFinReelle',

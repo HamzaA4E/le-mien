@@ -16,6 +16,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TicketStatsController;
+use App\Http\Controllers\ExecutantController;
 
 // Routes publiques
 Route::post('/login', [AuthController::class, 'login']);
@@ -35,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Routes pour les utilisateurs
     Route::apiResource('utilisateurs', UtilisateurController::class);
+    Route::patch('utilisateurs/{id}/statut', [UtilisateurController::class, 'setStatut']);
 
     // Routes pour les listes déroulantes
     Route::get('/demandeurs', [DemandeurController::class, 'index']);
@@ -57,4 +59,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour la gestion des utilisateurs
     Route::get('/users', [UserController::class, 'index']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
+
+    // Routes pour les entités modifiables
+    Route::apiResource('categories', CategorieController::class);
+    Route::apiResource('emplacements', EmplacementController::class);
+    Route::apiResource('societes', SocieteController::class);
+    Route::apiResource('demandeurs', DemandeurController::class);
+    Route::apiResource('services', ServiceController::class);
+    Route::apiResource('priorites', PrioriteController::class);
+    Route::apiResource('statuts', StatutController::class);
+    Route::apiResource('types', TypeDemandeController::class);
+
+    // Routes pour les exécutants
+    Route::get('/executants', [ExecutantController::class, 'index']);
+    Route::post('/executants', [ExecutantController::class, 'store']);
 }); 

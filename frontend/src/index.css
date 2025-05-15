@@ -119,3 +119,11 @@
     /* Personnalisez ici si besoin */
   }
 }
+
+/* Animation pour l'icône de rafraîchissement */
+.animate-spin-once {
+  animation: spin 0.6s linear 1;
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}

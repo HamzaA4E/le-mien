@@ -10,17 +10,26 @@ class StatutController extends Controller
 {
     public function index()
     {
-        $statuts = Statut::all();
-        return response()->json($statuts);
+        return Statut::all();
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'designation' => 'required|string|max:50',
-        ]);
+        $request->validate(['designation' => 'required|string|max:255']);
+        return Statut::create($request->all());
+    }
 
-        $statut = Statut::create($validated);
-        return response()->json($statut, 201);
+    public function update(Request $request, $id)
+    {
+        $statut = Statut::findOrFail($id);
+        $statut->update($request->all());
+        return $statut;
+    }
+
+    public function destroy($id)
+    {
+        $statut = Statut::findOrFail($id);
+        $statut->delete();
+        return response()->json(['success' => true]);
     }
 } 

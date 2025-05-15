@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt } from 'react-icons/fa';
+import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs } from 'react-icons/fa';
 import axios from 'axios';
 
 // Configuration de la base URL pour axios
@@ -58,6 +58,7 @@ const Sidebar = () => {
     { path: '/create-ticket', icon: <FaPlus />, text: 'Créer un ticket' },
     { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
+    { path: '/admin/entities', icon: <FaCogs />, text: 'Gestion des référentiels' },
     { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
   ];
 
@@ -75,7 +76,7 @@ const Sidebar = () => {
       <div className="mb-8">
         <h1 className="text-2xl font-bold">Gestion Tickets</h1>
       </div>
-      <nav className="flex-grow">
+      <nav>
         <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.path}>
@@ -92,17 +93,17 @@ const Sidebar = () => {
               </Link>
             </li>
           ))}
+          <li>
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 p-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white w-full"
+            >
+              <span className="text-lg"><FaSignOutAlt /></span>
+              <span>Déconnexion</span>
+            </button>
+          </li>
         </ul>
       </nav>
-      <div className="mt-auto pt-4 border-t border-gray-700">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center space-x-2 p-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-        >
-          <span className="text-lg"><FaSignOutAlt /></span>
-          <span>Déconnexion</span>
-        </button>
-      </div>
     </div>
   );
 };

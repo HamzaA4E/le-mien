@@ -10,17 +10,26 @@ class SocieteController extends Controller
 {
     public function index()
     {
-        $societes = Societe::all();
-        return response()->json($societes);
+        return Societe::all();
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'designation' => 'required|string|max:50',
-        ]);
+        $request->validate(['designation' => 'required|string|max:255']);
+        return Societe::create($request->all());
+    }
 
-        $societe = Societe::create($validated);
-        return response()->json($societe, 201);
+    public function update(Request $request, $id)
+    {
+        $societe = Societe::findOrFail($id);
+        $societe->update($request->all());
+        return $societe;
+    }
+
+    public function destroy($id)
+    {
+        $societe = Societe::findOrFail($id);
+        $societe->delete();
+        return response()->json(['success' => true]);
     }
 } 

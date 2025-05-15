@@ -128,4 +128,12 @@ class UtilisateurController extends Controller
             ], 500);
         }
     }
+
+    public function setStatut($id, Request $request)
+    {
+        $user = Utilisateur::findOrFail($id);
+        $user->statut = $request->input('statut');
+        $user->save();
+        return response()->json(['success' => true, 'statut' => $user->statut]);
+    }
 } 

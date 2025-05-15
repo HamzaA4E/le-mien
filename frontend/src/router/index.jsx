@@ -8,6 +8,7 @@ import CreateUser from '../Pages/CreateUser';
 import Profile from '../Pages/Profile';
 import ListUsers from '../Pages/ListUsers';
 import TicketDetails from '../Pages/TicketDetails';
+import AdminEntitiesManagement from '../Pages/AdminEntitiesManagement';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -67,6 +68,11 @@ const router = createBrowserRouter([
   {
     path: '/users',
     element: <PrivateRoute><ListUsers /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/admin/entities',
+    element: <PrivateRoute><AdminEntitiesManagement /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
   {

@@ -17,13 +17,71 @@ use Illuminate\Support\Facades\Log;
 
 class TicketController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $tickets = Ticket::with(['statut', 'priorite', 'demandeur'])
-            ->orderBy('DateCreation', 'desc')
-            ->get();
+        try {
+            $query = Ticket::with([
+            'statut',
+            'priorite',
+            'demandeur',
+            'societe',
+            'emplacement',
+            'categorie',
+            'typeDemande'
+            ]);
+
+            // Appliquer les filtres
+            if ($request->filled('categorie')) {
+                $query->where('Id_Categorie', $request->categorie);
+            }
+            if ($request->filled('demandeur')) {
+                $query->where('Id_Demandeur', $request->demandeur);
+            }
+            if ($request->filled('societe')) {
+                $query->where('Id_Societe', $request->societe);
+            }
+            if ($request->filled('emplacement')) {
+                $query->where('Id_Emplacement', $request->emplacement);
+            }
+            if ($request->filled('statut')) {
+                $query->where('Id_Statut', $request->statut);
+            }
+            if ($request->filled('priorite')) {
+                $query->where('Id_Priorite', $request->priorite);
+            }
+
+            // Filtres de dates
+            if ($request->filled('dateDebut')) {
+                $query->whereDate('DateDebut', '>=', $request->dateDebut);
+            }
+            if ($request->filled('dateDebutFin')) {
+                $query->whereDate('DateDebut', '<=', $request->dateDebutFin);
+            }
+            if ($request->filled('dateFinPrevueDebut')) {
+                $query->whereDate('DateFinPrevue', '>=', $request->dateFinPrevueDebut);
+            }
+            if ($request->filled('dateFinPrevueFin')) {
+                $query->whereDate('DateFinPrevue', '<=', $request->dateFinPrevueFin);
+            }
+            if ($request->filled('dateFinReelleDebut')) {
+                $query->whereDate('DateFinReelle', '>=', $request->dateFinReelleDebut);
+            }
+            if ($request->filled('dateFinReelleFin')) {
+                $query->whereDate('DateFinReelle', '<=', $request->dateFinReelleFin);
+            }
+
+            // Tri par date de création décroissante
+            $query->orderBy('DateCreation', 'desc');
+
+            // Pagination
+            $perPage = $request->input('per_page', 20);
+            $tickets = $query->paginate($perPage);
 
         return response()->json($tickets);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des tickets: ' . $e->getMessage());
+            return response()->json(['error' => 'Erreur lors de la récupération des tickets'], 500);
+        }
     }
 
     public function store(Request $request)
@@ -188,6 +246,20 @@ class TicketController extends Controller
                 'id' => $ticket->id,
                 'statut_actuel' => $ticket->Id_Statut
             ]);
+
+            // Ajout : renseigner DateFinReelle si le ticket passe à Clôturé
+            $statutCloture = Statut::where('designation', 'Clôturé')->first();
+            $idCloture = $statutCloture ? $statutCloture->id : null;
+            if (
+                (
+                    (isset($data['Id_Statut']) && $idCloture && (int)$data['Id_Statut'] === (int)$idCloture)
+                    || $ticket->Id_Statut === $idCloture
+                )
+                && empty($ticket->DateFinReelle)
+            ) {
+                $data['DateFinReelle'] = date('d/m/Y H:i:s');
+            }
+            Log::info('Données finales pour update:', $data);
 
             // Mise à jour du ticket
             DB::beginTransaction();

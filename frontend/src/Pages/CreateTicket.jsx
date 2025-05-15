@@ -8,14 +8,9 @@ import AddPrioriteForm from '../components/forms/AddPrioriteForm';
 import AddCategorieForm from '../components/forms/AddCategorieForm';
 import AddTypeDemandeForm from '../components/forms/AddTypeDemandeForm';
 import AddStatutForm from '../components/forms/AddStatutForm';
+import ExecutantForm from '../components/forms/ExecutantForm.jsx';
 
-// Cache pour stocker les données fréquemment utilisées
-const dataCache = {
-  priorites: null,
-  categories: null,
-  typesDemande: null,
-  statuts: null
-};
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const CreateTicket = () => {
   const [formData, setFormData] = useState({
@@ -26,9 +21,12 @@ const CreateTicket = () => {
     id_categorie: '',
     id_type_demande: '',
     id_statut: '',
+    id_executant: '',
     titre: '',
     description: '',
-    commentaire: ''
+    commentaire: '',
+    date_debut: '',
+    date_fin_prevue: '',
   });
 
   const [demandeurs, setDemandeurs] = useState([]);
@@ -38,8 +36,8 @@ const CreateTicket = () => {
   const [categories, setCategories] = useState([]);
   const [typesDemande, setTypesDemande] = useState([]);
   const [statuts, setStatuts] = useState([]);
+  const [executants, setExecutants] = useState([]);
 
-  // États de chargement individuels
   const [loadingStates, setLoadingStates] = useState({
     demandeurs: true,
     societes: true,
@@ -47,121 +45,115 @@ const CreateTicket = () => {
     priorites: true,
     categories: true,
     typesDemande: true,
-    statuts: true
+    statuts: true,
+    executants: true
   });
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const [showDemandeurForm, setShowDemandeurForm] = useState(false);
-  const [showSocieteForm, setShowSocieteForm] = useState(false);
-  const [showEmplacementForm, setShowEmplacementForm] = useState(false);
-  const [showPrioriteForm, setShowPrioriteForm] = useState(false);
-  const [showCategorieForm, setShowCategorieForm] = useState(false);
-  const [showTypeDemandeForm, setShowTypeDemandeForm] = useState(false);
-  const [showStatutForm, setShowStatutForm] = useState(false);
+  const [showForms, setShowForms] = useState({
+    demandeur: false,
+    societe: false,
+    emplacement: false,
+    priorite: false,
+    categorie: false,
+    typeDemande: false,
+    statut: false,
+    executant: false
+  });
 
-  // Fonction pour charger les données avec mise en cache
-  const fetchDataWithCache = async (endpoint, setter, cacheKey) => {
+  const getCacheKey = (entity) => `create_ticket_${entity}_cache`;
+
+  const fetchDataWithCache = async (endpoint, setter, entity) => {
     try {
-      // Si les données sont en cache, les utiliser
-      if (dataCache[cacheKey]) {
-        setter(dataCache[cacheKey]);
-        setLoadingStates(prev => ({ ...prev, [cacheKey]: false }));
+      setLoadingStates(prev => ({ ...prev, [entity]: true }));
+
+      // Vérifier le cache dans localStorage
+      const cached = localStorage.getItem(getCacheKey(entity));
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          setter(data);
+          setLoadingStates(prev => ({ ...prev, [entity]: false }));
         return;
+        }
       }
 
+      // Si pas de cache valide, faire la requête
       const response = await axios.get(endpoint);
-      const data = response.data.map(d => ({ ...d, id: d.id.toString() }));
+      const data = response.data.map(d => ({
+        ...d,
+        id: d.id ? d.id.toString() : ''
+      }));
       
-      // Mettre en cache les données fréquemment utilisées
-      if (['priorites', 'categories', 'typesDemande', 'statuts'].includes(cacheKey)) {
-        dataCache[cacheKey] = data;
-      }
+      // Mettre à jour le cache
+      localStorage.setItem(getCacheKey(entity), JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
       
       setter(data);
-      setLoadingStates(prev => ({ ...prev, [cacheKey]: false }));
     } catch (err) {
-      console.error(`Erreur lors du chargement des ${cacheKey}:`, err);
-      setError(`Erreur lors du chargement des ${cacheKey}`);
-      setLoadingStates(prev => ({ ...prev, [cacheKey]: false }));
+      console.error(`Erreur lors du chargement des ${entity}:`, err);
+      setError(`Erreur lors du chargement des ${entity}`);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [entity]: false }));
     }
   };
 
+  const invalidateCache = (entity) => {
+    localStorage.removeItem(getCacheKey(entity));
+  };
+
   useEffect(() => {
-    // Charger d'abord les données fréquemment utilisées
-    const loadFrequentData = async () => {
+    const loadData = async () => {
+      // Charger d'abord les données essentielles en parallèle
       await Promise.all([
         fetchDataWithCache('/api/priorites', setPriorites, 'priorites'),
-        fetchDataWithCache('/api/categories', setCategories, 'categories'),
-        fetchDataWithCache('/api/types-demande', setTypesDemande, 'typesDemande'),
-        fetchDataWithCache('/api/statuts', setStatuts, 'statuts')
+        fetchDataWithCache('/api/statuts', setStatuts, 'statuts'),
+        fetchDataWithCache('/api/categories', setCategories, 'categories')
       ]);
-    };
 
-    // Charger ensuite les données moins fréquentes
-    const loadLessFrequentData = async () => {
+      // Charger ensuite les données secondaires en parallèle
       await Promise.all([
+        fetchDataWithCache('/api/types-demande', setTypesDemande, 'typesDemande'),
         fetchDataWithCache('/api/demandeurs', setDemandeurs, 'demandeurs'),
         fetchDataWithCache('/api/societes', setSocietes, 'societes'),
-        fetchDataWithCache('/api/emplacements', setEmplacements, 'emplacements')
+        fetchDataWithCache('/api/emplacements', setEmplacements, 'emplacements'),
+        fetchDataWithCache('/api/executants', setExecutants, 'executants')
       ]);
     };
 
-    loadFrequentData().then(loadLessFrequentData);
+    loadData();
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (value === 'add_new') {
-      switch (name) {
-        case 'id_demandeur': setShowDemandeurForm(true); break;
-        case 'id_societe': setShowSocieteForm(true); break;
-        case 'id_emplacement': setShowEmplacementForm(true); break;
-        case 'id_priorite': setShowPrioriteForm(true); break;
-        case 'id_categorie': setShowCategorieForm(true); break;
-        case 'id_type_demande': setShowTypeDemandeForm(true); break;
-        case 'id_statut': setShowStatutForm(true); break;
-        default: break;
-      }
+      const formType = name.replace('id_', '');
+      setShowForms(prev => ({ ...prev, [formType]: true }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData(prev => ({ ...prev, [name]: value.toString() }));
     }
   };
 
   const handleFormSuccess = (data, type) => {
     const newItem = { ...data, id: data.id.toString() };
-    switch (type) {
-      case 'demandeur':
-        setDemandeurs(prev => [...prev, newItem]);
-        setFormData(prev => ({ ...prev, id_demandeur: newItem.id }));
-        break;
-      case 'societe':
-        setSocietes(prev => [...prev, newItem]);
-        setFormData(prev => ({ ...prev, id_societe: newItem.id }));
-        break;
-      case 'emplacement':
-        setEmplacements(prev => [...prev, newItem]);
-        setFormData(prev => ({ ...prev, id_emplacement: newItem.id }));
-        break;
-      case 'priorite':
-        setPriorites(prev => [...prev, newItem]);
-        setFormData(prev => ({ ...prev, id_priorite: newItem.id }));
-        break;
-      case 'categorie':
-        setCategories(prev => [...prev, newItem]);
-        setFormData(prev => ({ ...prev, id_categorie: newItem.id }));
-        break;
-      case 'type_demande':
-        setTypesDemande(prev => [...prev, newItem]);
-        setFormData(prev => ({ ...prev, id_type_demande: newItem.id }));
-        break;
-      case 'statut':
-        setStatuts(prev => [...prev, newItem]);
-        setFormData(prev => ({ ...prev, id_statut: newItem.id }));
-        break;
-      default: break;
-    }
+    const setters = {
+      demandeur: setDemandeurs,
+      societe: setSocietes,
+      emplacement: setEmplacements,
+      priorite: setPriorites,
+      categorie: setCategories,
+      type_demande: setTypesDemande,
+      statut: setStatuts
+    };
+
+    setters[type](prev => [...prev, newItem]);
+    setFormData(prev => ({ ...prev, [`id_${type}`]: newItem.id.toString() }));
+    setShowForms(prev => ({ ...prev, [type]: false }));
+    invalidateCache(type);
   };
 
   const handleSubmit = async (e) => {
@@ -178,9 +170,10 @@ const CreateTicket = () => {
         id_emplacement: Number(formData.id_emplacement),
         id_categorie: Number(formData.id_categorie),
         id_type_demande: Number(formData.id_type_demande),
+        id_executant: formData.id_executant ? Number(formData.id_executant) : null,
         id_utilisateur: 1, // À remplacer par l'ID de l'utilisateur connecté
-        date_debut: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        date_fin_prevue: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' '),
+        date_debut: formData.date_debut ? new Date(formData.date_debut).toISOString().slice(0, 19).replace('T', ' ') : null,
+        date_fin_prevue: formData.date_fin_prevue ? new Date(formData.date_fin_prevue).toISOString().slice(0, 19).replace('T', ' ') : null,
         date_fin_reelle: null
       };
 
@@ -199,9 +192,12 @@ const CreateTicket = () => {
           id_categorie: '',
           id_type_demande: '',
           id_statut: '',
+          id_executant: '',
           titre: '',
           description: '',
-          commentaire: ''
+          commentaire: '',
+          date_debut: '',
+          date_fin_prevue: '',
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -233,11 +229,12 @@ const CreateTicket = () => {
           className="w-full border rounded px-3 py-2"
         >
           <option value="">Sélectionner {label.toLowerCase()}</option>
-          {options.map(option => (
-            <option key={option.id} value={option.id}>
-              {option.designation}
-            </option>
-          ))}
+          {options
+            .filter(option => typeof option.id === 'string' || typeof option.id === 'number')
+            .filter((option, idx, arr) => arr.findIndex(o => o.id === option.id) === idx)
+            .map(option => (
+              <option key={`option-${option.id}`} value={option.id}>{option.designation}</option>
+            ))}
           <option value="add_new">+ Ajouter {label.toLowerCase()}</option>
         </select>
       )}
@@ -278,6 +275,28 @@ const CreateTicket = () => {
                     rows="3"
                   />
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block mb-1">Date de début</label>
+                    <input
+                      type="datetime-local"
+                      name="date_debut"
+                      value={formData.date_debut}
+                      onChange={handleChange}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1">Date de fin prévue</label>
+                    <input
+                      type="datetime-local"
+                      name="date_fin_prevue"
+                      value={formData.date_fin_prevue}
+                      onChange={handleChange}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -288,6 +307,35 @@ const CreateTicket = () => {
             {/* Emplacement et Priorité */}
             {renderSelect('id_emplacement', 'Emplacement', emplacements, loadingStates.emplacements)}
             {renderSelect('id_priorite', 'Priorité', priorites, loadingStates.priorites)}
+
+            {/* Exécutant */}
+            <div className="md:col-span-2">
+              <label className="block mb-1">Exécutant</label>
+              {loadingStates.executants ? (
+                <div className="w-full border rounded px-3 py-2 bg-gray-100 animate-pulse">Chargement...</div>
+              ) : (
+                <select
+                  name="id_executant"
+                  value={formData.id_executant}
+                  onChange={e => {
+                    if (e.target.value === 'add_new') {
+                      setShowForms(prev => ({ ...prev, executant: true }));
+                    } else {
+                      handleChange(e);
+                    }
+                  }}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">Sélectionner l'exécutant</option>
+                  {executants
+                    .filter((option, idx, arr) => option.id && arr.findIndex(o => o.id === option.id) === idx)
+                    .map(option => (
+                      <option key={`executant-${option.id}`} value={option.id}>{option.designation}</option>
+                    ))}
+                  <option key="add_new_executant" value="add_new">+ Ajouter exécutant</option>
+                </select>
+              )}
+            </div>
 
             {/* Catégorie et Type de demande */}
             {renderSelect('id_categorie', 'Catégorie', categories, loadingStates.categories)}
@@ -327,68 +375,79 @@ const CreateTicket = () => {
         </form>
 
         {/* Modaux d'ajout */}
-        {showDemandeurForm && (
+        {showForms.demandeur && (
           <AddDemandeurForm
             onSuccess={(data) => {
               handleFormSuccess(data, 'demandeur');
-              setShowDemandeurForm(false);
             }}
-            onCancel={() => setShowDemandeurForm(false)}
+            onCancel={() => setShowForms(prev => ({ ...prev, demandeur: false }))}
           />
         )}
-        {showSocieteForm && (
+        {showForms.societe && (
           <AddSocieteForm
             onSuccess={(data) => {
               handleFormSuccess(data, 'societe');
-              setShowSocieteForm(false);
             }}
-            onCancel={() => setShowSocieteForm(false)}
+            onCancel={() => setShowForms(prev => ({ ...prev, societe: false }))}
           />
         )}
-        {showEmplacementForm && (
+        {showForms.emplacement && (
           <AddEmplacementForm
             onSuccess={(data) => {
               handleFormSuccess(data, 'emplacement');
-              setShowEmplacementForm(false);
             }}
-            onCancel={() => setShowEmplacementForm(false)}
+            onCancel={() => setShowForms(prev => ({ ...prev, emplacement: false }))}
           />
         )}
-        {showPrioriteForm && (
+        {showForms.priorite && (
           <AddPrioriteForm
             onSuccess={(data) => {
               handleFormSuccess(data, 'priorite');
-              setShowPrioriteForm(false);
             }}
-            onCancel={() => setShowPrioriteForm(false)}
+            onCancel={() => setShowForms(prev => ({ ...prev, priorite: false }))}
           />
         )}
-        {showCategorieForm && (
+        {showForms.categorie && (
           <AddCategorieForm
             onSuccess={(data) => {
               handleFormSuccess(data, 'categorie');
-              setShowCategorieForm(false);
             }}
-            onCancel={() => setShowCategorieForm(false)}
+            onCancel={() => setShowForms(prev => ({ ...prev, categorie: false }))}
           />
         )}
-        {showTypeDemandeForm && (
+        {showForms.typeDemande && (
           <AddTypeDemandeForm
             onSuccess={(data) => {
               handleFormSuccess(data, 'type_demande');
-              setShowTypeDemandeForm(false);
             }}
-            onCancel={() => setShowTypeDemandeForm(false)}
+            onCancel={() => setShowForms(prev => ({ ...prev, typeDemande: false }))}
           />
         )}
-        {showStatutForm && (
+        {showForms.statut && (
           <AddStatutForm
             onSuccess={(data) => {
               handleFormSuccess(data, 'statut');
-              setShowStatutForm(false);
             }}
-            onCancel={() => setShowStatutForm(false)}
+            onCancel={() => setShowForms(prev => ({ ...prev, statut: false }))}
           />
+        )}
+
+        {/* Modal d'ajout exécutant */}
+        {showForms.executant && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
+            <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+              <h2 className="text-lg font-bold mb-4">Ajouter un exécutant</h2>
+              <ExecutantForm
+                onSuccess={(data) => {
+                  setExecutants(prev => [...prev, { ...data, id: data.id.toString() }]);
+                  setFormData(prev => ({ ...prev, id_executant: data.id.toString() }));
+                  setShowForms(prev => ({ ...prev, executant: false }));
+                  invalidateCache('executants');
+                }}
+                onCancel={() => setShowForms(prev => ({ ...prev, executant: false }))}
+              />
+            </div>
+          </div>
         )}
 
         {/* Debug section */}

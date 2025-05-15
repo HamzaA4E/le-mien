@@ -10,17 +10,26 @@ class TypeDemandeController extends Controller
 {
     public function index()
     {
-        $typesDemande = TypeDemande::all();
-        return response()->json($typesDemande);
+        return TypeDemande::all();
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'designation' => 'required|string|max:50',
-        ]);
+        $request->validate(['designation' => 'required|string|max:255']);
+        return TypeDemande::create($request->all());
+    }
 
-        $typeDemande = TypeDemande::create($validated);
-        return response()->json($typeDemande, 201);
+    public function update(Request $request, $id)
+    {
+        $type = TypeDemande::findOrFail($id);
+        $type->update($request->all());
+        return $type;
+    }
+
+    public function destroy($id)
+    {
+        $type = TypeDemande::findOrFail($id);
+        $type->delete();
+        return response()->json(['success' => true]);
     }
 } 

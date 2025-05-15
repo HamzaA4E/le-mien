@@ -10,17 +10,26 @@ class PrioriteController extends Controller
 {
     public function index()
     {
-        $priorites = Priorite::all();
-        return response()->json($priorites);
+        return Priorite::all();
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'designation' => 'required|string|max:50',
-        ]);
+        $request->validate(['designation' => 'required|string|max:255']);
+        return Priorite::create($request->all());
+    }
 
-        $priorite = Priorite::create($validated);
-        return response()->json($priorite, 201);
+    public function update(Request $request, $id)
+    {
+        $priorite = Priorite::findOrFail($id);
+        $priorite->update($request->all());
+        return $priorite;
+    }
+
+    public function destroy($id)
+    {
+        $priorite = Priorite::findOrFail($id);
+        $priorite->delete();
+        return response()->json(['success' => true]);
     }
 } 

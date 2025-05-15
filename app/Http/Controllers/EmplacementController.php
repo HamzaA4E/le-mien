@@ -10,17 +10,26 @@ class EmplacementController extends Controller
 {
     public function index()
     {
-        $emplacements = Emplacement::all();
-        return response()->json($emplacements);
+        return Emplacement::all();
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'designation' => 'required|string|max:50',
-        ]);
+        $request->validate(['designation' => 'required|string|max:255']);
+        return Emplacement::create($request->all());
+    }
 
-        $emplacement = Emplacement::create($validated);
-        return response()->json($emplacement, 201);
+    public function update(Request $request, $id)
+    {
+        $emplacement = Emplacement::findOrFail($id);
+        $emplacement->update($request->all());
+        return $emplacement;
+    }
+
+    public function destroy($id)
+    {
+        $emplacement = Emplacement::findOrFail($id);
+        $emplacement->delete();
+        return response()->json(['success' => true]);
     }
 } 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
-import { FaUser, FaEnvelope, FaUserShield, FaClock, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaUserShield, FaClock, FaEdit, FaTrash, FaSyncAlt } from 'react-icons/fa';
 
 // Cache pour les utilisateurs
 const userCache = {
@@ -15,6 +15,15 @@ const ListUsers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [spin, setSpin] = useState(false);
+
+  // Récupérer le user courant
+  let currentUser = null;
+  try {
+    currentUser = JSON.parse(localStorage.getItem('user'));
+  } catch (e) {
+    currentUser = null;
+  }
 
   const getNiveauText = (niveau) => {
     if (!niveau) return 'Non spécifié';
@@ -35,32 +44,33 @@ const ListUsers = () => {
     );
   };
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      // Vérifier si on peut utiliser le cache
-      if (userCache.users && userCache.lastFetch) {
-        const now = new Date().getTime();
-        if (now - userCache.lastFetch < userCache.cacheDuration) {
-          setUsers(userCache.users);
-          setLoading(false);
-          return;
-        }
-      }
-      try {
-        const response = await axios.get('/api/users');
-        setUsers(response.data);
-        // Mettre à jour le cache
-        userCache.users = response.data;
-        userCache.lastFetch = new Date().getTime();
-        setError('');
-      } catch (err) {
-        setError('Erreur lors du chargement des utilisateurs');
-        console.error('Erreur:', err);
-      } finally {
+  const fetchUsers = async () => {
+    setSpin(true);
+    if (userCache.users && userCache.lastFetch) {
+      const now = new Date().getTime();
+      if (now - userCache.lastFetch < userCache.cacheDuration) {
+        setUsers(userCache.users);
         setLoading(false);
+        setSpin(false);
+        return;
       }
-    };
+    }
+    try {
+      const response = await axios.get('/api/users');
+      setUsers(response.data);
+      userCache.users = response.data;
+      userCache.lastFetch = new Date().getTime();
+      setError('');
+    } catch (err) {
+      setError('Erreur lors du chargement des utilisateurs');
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSpin(false), 600);
+    }
+  };
 
+  useEffect(() => {
     fetchUsers();
   }, []);
 
@@ -78,6 +88,11 @@ const ListUsers = () => {
         console.error('Erreur:', err);
       }
     }
+  };
+
+  const handleSetStatut = async (id, statut) => {
+    await axios.patch(`/api/utilisateurs/${id}/statut`, { statut });
+    fetchUsers();
   };
 
   const renderSkeleton = () => (
@@ -121,6 +136,13 @@ const ListUsers = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-bold">Liste des Utilisateurs</h1>
+          <button
+            onClick={fetchUsers}
+            className="ml-4 p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
+            title="Rafraîchir"
+          >
+            <FaSyncAlt className={spin ? 'animate-spin-once' : ''} />
+          </button>
         </div>
 
         {success && (
@@ -173,9 +195,25 @@ const ListUsers = () => {
                       <div className="text-sm text-gray-900">{getNiveauText(user.niveau)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge()}
+                      {user.statut === 1 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Actif
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Inactif
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {currentUser?.niveau === 1 && (
+                        <button
+                          onClick={() => handleSetStatut(user.id, user.statut === 1 ? 0 : 1)}
+                          className={user.statut === 1 ? 'text-red-600 hover:text-red-900 ml-4' : 'text-green-600 hover:text-green-900 ml-4'}
+                        >
+                          {user.statut === 1 ? 'Désactiver' : 'Activer'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(user.id)}
                         className="text-red-600 hover:text-red-900 ml-4"

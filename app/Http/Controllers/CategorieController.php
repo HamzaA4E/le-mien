@@ -10,17 +10,26 @@ class CategorieController extends Controller
 {
     public function index()
     {
-        $categories = Categorie::all();
-        return response()->json($categories);
+        return Categorie::all();
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'designation' => 'required|string|max:50',
-        ]);
+        $request->validate(['designation' => 'required|string|max:255']);
+        return Categorie::create($request->all());
+    }
 
-        $categorie = Categorie::create($validated);
-        return response()->json($categorie, 201);
+    public function update(Request $request, $id)
+    {
+        $categorie = Categorie::findOrFail($id);
+        $categorie->update($request->all());
+        return $categorie;
+    }
+
+    public function destroy($id)
+    {
+        $categorie = Categorie::findOrFail($id);
+        $categorie->delete();
+        return response()->json(['success' => true]);
     }
 } 

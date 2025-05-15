@@ -10,36 +10,26 @@ class ServiceController extends Controller
 {
     public function index()
     {
-        try {
-            $services = Service::all();
-            return response()->json($services);
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des services: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-            return response()->json([
-                'message' => 'Erreur lors de la récupération des services',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return Service::all();
     }
 
     public function store(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'designation' => 'required|string|max:50'
-            ]);
+        $request->validate(['designation' => 'required|string|max:255']);
+        return Service::create($request->all());
+    }
 
-            $service = Service::create($validated);
+    public function update(Request $request, $id)
+    {
+        $service = Service::findOrFail($id);
+        $service->update($request->all());
+        return $service;
+    }
 
-            return response()->json($service, 201);
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la création du service: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-            return response()->json([
-                'message' => 'Erreur lors de la création du service',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+    public function destroy($id)
+    {
+        $service = Service::findOrFail($id);
+        $service->delete();
+        return response()->json(['success' => true]);
     }
 } 

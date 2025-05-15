@@ -10,18 +10,34 @@ class DemandeurController extends Controller
 {
     public function index()
     {
-        $demandeurs = Demandeur::with('service')->get();
-        return response()->json($demandeurs);
+        return Demandeur::all();
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'designation' => 'required|string|max:50',
-            'id_service' => 'required|exists:T_SERVICE,id',
-        ]);
+        $request->validate(['designation' => 'required|string|max:255']);
+        return Demandeur::create($request->all());
+    }
 
-        $demandeur = Demandeur::create($validated);
-        return response()->json($demandeur, 201);
+    public function update(Request $request, $id)
+    {
+        $demandeur = Demandeur::findOrFail($id);
+        $demandeur->update($request->all());
+        return $demandeur;
+    }
+
+    public function destroy($id)
+    {
+        $demandeur = Demandeur::findOrFail($id);
+        try {
+            $demandeur->delete();
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Impossible de supprimer ce demandeur car il est utilisé ailleurs.',
+                'error' => $e->getMessage()
+            ], 400);
+        }
     }
 } 

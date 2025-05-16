@@ -44,9 +44,9 @@ const ListUsers = () => {
     );
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (force = false) => {
     setSpin(true);
-    if (userCache.users && userCache.lastFetch) {
+    if (userCache.users && userCache.lastFetch && !force) {
       const now = new Date().getTime();
       if (now - userCache.lastFetch < userCache.cacheDuration) {
         setUsers(userCache.users);
@@ -91,8 +91,18 @@ const ListUsers = () => {
   };
 
   const handleSetStatut = async (id, statut) => {
-    await axios.patch(`/api/utilisateurs/${id}/statut`, { statut });
-    fetchUsers();
+    try {
+      setSpin(true);
+      await axios.patch(`/api/utilisateurs/${id}/statut`, { statut });
+      await fetchUsers(true);
+      setSuccess(statut === 1 ? 'Utilisateur activé avec succès' : 'Utilisateur désactivé avec succès');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Erreur lors du changement de statut');
+      console.error('Erreur:', err);
+    } finally {
+      setTimeout(() => setSpin(false), 600);
+    }
   };
 
   const renderSkeleton = () => (
@@ -137,7 +147,10 @@ const ListUsers = () => {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-bold">Liste des Utilisateurs</h1>
           <button
-            onClick={fetchUsers}
+            onClick={() => {
+              setSpin(true);
+              fetchUsers(true);
+            }}
             className="ml-4 p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
             title="Rafraîchir"
           >

@@ -12,7 +12,7 @@ class Societe extends Model
 
     protected $fillable = [
         'designation',
-        
+        'is_active',
     ];
 
    

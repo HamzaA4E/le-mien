@@ -93,4 +93,9 @@ class Ticket extends Model
     {
         return $this->belongsTo(Utilisateur::class, 'Id_Utilisat');
     }
+
+    public function executant()
+    {
+        return $this->belongsTo(Executant::class, 'Id_Executant');
+    }
 } 

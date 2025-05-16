@@ -10,17 +10,19 @@ const EditTicket = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    titre: '',
-    description: '',
-    id_priorite: '',
-    id_statut: '',
-    id_demandeur: '',
-    id_societe: '',
-    id_emplacement: '',
-    id_categorie: '',
-    id_type_demande: '',
-    date_debut: '',
-    date_fin_prevue: '',
+    Titre: '',
+    Description: '',
+    Commentaire: '',
+    Id_Priorite: '',
+    Id_Statut: '',
+    Id_Demandeur: '',
+    Id_Societe: '',
+    Id_Emplacement: '',
+    Id_Categorie: '',
+    Id_TypeDemande: '',
+    Id_Executant: '',
+    DateDebut: '',
+    DateFinPrevue: '',
   });
   const [options, setOptions] = useState({
     priorites: [],
@@ -30,37 +32,57 @@ const EditTicket = () => {
     emplacements: [],
     categories: [],
     typesDemande: [],
+    executants: []
   });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [ticketResponse, optionsResponse] = await Promise.all([
-          axios.get(`/api/tickets/${id}`),
-          axios.get('/api/tickets/options'),
-        ]);
+        setError('');
 
+        // Charger d'abord le ticket
+        const ticketResponse = await axios.get(`/api/tickets/${id}`);
         const ticket = ticketResponse.data;
+
+        // Mettre à jour le formulaire avec les données du ticket
         setFormData({
-          titre: ticket.titre || '',
-          description: ticket.description || '',
-          id_priorite: ticket.id_priorite || '',
-          id_statut: ticket.id_statut || '',
-          id_demandeur: ticket.id_demandeur || '',
-          id_societe: ticket.id_societe || '',
-          id_emplacement: ticket.id_emplacement || '',
-          id_categorie: ticket.id_categorie || '',
-          id_type_demande: ticket.id_type_demande || '',
-          date_debut: ticket.date_debut ? new Date(ticket.date_debut).toISOString().slice(0, 16) : '',
-          date_fin_prevue: ticket.date_fin_prevue ? new Date(ticket.date_fin_prevue).toISOString().slice(0, 16) : '',
+          Titre: ticket.Titre || '',
+          Description: ticket.Description || '',
+          Commentaire: ticket.Commentaire || '',
+          Id_Priorite: ticket.Id_Priorite || '',
+          Id_Statut: ticket.Id_Statut || '',
+          Id_Demandeur: ticket.Id_Demandeur || '',
+          Id_Societe: ticket.Id_Societe || '',
+          Id_Emplacement: ticket.Id_Emplacement || '',
+          Id_Categorie: ticket.Id_Categorie || '',
+          Id_TypeDemande: ticket.Id_TypeDemande || '',
+          Id_Executant: ticket.Id_Executant || '',
+          DateDebut: ticket.DateDebut ? new Date(ticket.DateDebut.date || ticket.DateDebut).toISOString().slice(0, 16) : '',
+          DateFinPrevue: ticket.DateFinPrevue ? new Date(ticket.DateFinPrevue.date || ticket.DateFinPrevue).toISOString().slice(0, 16) : '',
         });
 
-        setOptions(optionsResponse.data);
-        setError('');
+        // Charger ensuite les options
+        const optionsResponse = await axios.get('/api/tickets/options');
+        const executantsResponse = await axios.get('/api/executants');
+
+        // Filtrer les entités actives
+        const filteredOptions = {
+          priorites: optionsResponse.data.priorites.filter(item => item.is_active !== false),
+          statuts: optionsResponse.data.statuts.filter(item => item.is_active !== false),
+          demandeurs: optionsResponse.data.demandeurs.filter(item => item.is_active !== false),
+          societes: optionsResponse.data.societes.filter(item => item.is_active !== false),
+          emplacements: optionsResponse.data.emplacements.filter(item => item.is_active !== false),
+          categories: optionsResponse.data.categories.filter(item => item.is_active !== false),
+          typesDemande: optionsResponse.data.typesDemande.filter(item => item.is_active !== false),
+          executants: executantsResponse.data.filter(item => item.is_active !== false)
+        };
+
+        // Mettre à jour les options
+        setOptions(filteredOptions);
       } catch (err) {
-        setError('Erreur lors du chargement des données');
         console.error('Erreur:', err);
+        setError(err.response?.data?.error || 'Erreur lors du chargement des données');
       } finally {
         setLoading(false);
       }
@@ -83,30 +105,14 @@ const EditTicket = () => {
     setSaving(true);
 
     try {
-      // Récupérer le token CSRF depuis le cookie
-      const token = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='))?.split('=')[1];
-      
-      // Préparer les données avec le format de date correct
       const dataToSend = {
         ...formData,
-        date_debut: formData.date_debut ? new Date(formData.date_debut).toISOString() : null,
-        date_fin_prevue: formData.date_fin_prevue ? new Date(formData.date_fin_prevue).toISOString() : null,
+        DateDebut: formData.DateDebut ? new Date(formData.DateDebut).toISOString() : null,
+        DateFinPrevue: formData.DateFinPrevue ? new Date(formData.DateFinPrevue).toISOString() : null,
       };
 
-      // Ajouter le token CSRF dans les headers
-      const response = await axios.put(`/api/tickets/${id}`, dataToSend, {
-        headers: {
-          'X-XSRF-TOKEN': decodeURIComponent(token),
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-
-      if (response.data.success) {
-        navigate(`/tickets/${id}`);
-      } else {
-        setError(response.data.message || 'Erreur lors de la modification du ticket');
-      }
+      await axios.put(`/api/tickets/${id}`, dataToSend);
+      navigate(`/tickets/${id}`);
     } catch (err) {
       console.error('Erreur complète:', err);
       setError(err.response?.data?.message || 'Erreur lors de la modification du ticket');
@@ -147,29 +153,29 @@ const EditTicket = () => {
         <form onSubmit={handleSubmit} className="space-y-6 bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
-              <label htmlFor="titre" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="Titre" className="block text-sm font-medium text-gray-700">
                 Titre
               </label>
               <input
                 type="text"
-                name="titre"
-                id="titre"
+                name="Titre"
+                id="Titre"
                 required
-                value={formData.titre}
+                value={formData.Titre}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
 
             <div>
-              <label htmlFor="id_priorite" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="Id_Priorite" className="block text-sm font-medium text-gray-700">
                 Priorité
               </label>
               <select
-                name="id_priorite"
-                id="id_priorite"
+                name="Id_Priorite"
+                id="Id_Priorite"
                 required
-                value={formData.id_priorite}
+                value={formData.Id_Priorite}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
@@ -183,14 +189,14 @@ const EditTicket = () => {
             </div>
 
             <div>
-              <label htmlFor="id_statut" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="Id_Statut" className="block text-sm font-medium text-gray-700">
                 Statut
               </label>
               <select
-                name="id_statut"
-                id="id_statut"
+                name="Id_Statut"
+                id="Id_Statut"
                 required
-                value={formData.id_statut}
+                value={formData.Id_Statut}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
@@ -204,14 +210,35 @@ const EditTicket = () => {
             </div>
 
             <div>
-              <label htmlFor="id_demandeur" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="Id_Executant" className="block text-sm font-medium text-gray-700">
+                Exécutant
+              </label>
+              <select
+                name="Id_Executant"
+                id="Id_Executant"
+                required
+                value={formData.Id_Executant}
+                onChange={handleChange}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="">Sélectionner un exécutant</option>
+                {options.executants.map(executant => (
+                  <option key={executant.id} value={executant.id}>
+                    {executant.designation}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="Id_Demandeur" className="block text-sm font-medium text-gray-700">
                 Demandeur
               </label>
               <select
-                name="id_demandeur"
-                id="id_demandeur"
+                name="Id_Demandeur"
+                id="Id_Demandeur"
                 required
-                value={formData.id_demandeur}
+                value={formData.Id_Demandeur}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
@@ -225,14 +252,14 @@ const EditTicket = () => {
             </div>
 
             <div>
-              <label htmlFor="id_societe" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="Id_Societe" className="block text-sm font-medium text-gray-700">
                 Société
               </label>
               <select
-                name="id_societe"
-                id="id_societe"
+                name="Id_Societe"
+                id="Id_Societe"
                 required
-                value={formData.id_societe}
+                value={formData.Id_Societe}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
@@ -246,14 +273,14 @@ const EditTicket = () => {
             </div>
 
             <div>
-              <label htmlFor="id_emplacement" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="Id_Emplacement" className="block text-sm font-medium text-gray-700">
                 Emplacement
               </label>
               <select
-                name="id_emplacement"
-                id="id_emplacement"
+                name="Id_Emplacement"
+                id="Id_Emplacement"
                 required
-                value={formData.id_emplacement}
+                value={formData.Id_Emplacement}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
@@ -267,14 +294,14 @@ const EditTicket = () => {
             </div>
 
             <div>
-              <label htmlFor="id_categorie" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="Id_Categorie" className="block text-sm font-medium text-gray-700">
                 Catégorie
               </label>
               <select
-                name="id_categorie"
-                id="id_categorie"
+                name="Id_Categorie"
+                id="Id_Categorie"
                 required
-                value={formData.id_categorie}
+                value={formData.Id_Categorie}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
@@ -288,14 +315,14 @@ const EditTicket = () => {
             </div>
 
             <div>
-              <label htmlFor="id_type_demande" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="Id_TypeDemande" className="block text-sm font-medium text-gray-700">
                 Type de demande
               </label>
               <select
-                name="id_type_demande"
-                id="id_type_demande"
+                name="Id_TypeDemande"
+                id="Id_TypeDemande"
                 required
-                value={formData.id_type_demande}
+                value={formData.Id_TypeDemande}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
@@ -309,53 +336,77 @@ const EditTicket = () => {
             </div>
 
             <div>
-              <label htmlFor="date_debut" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="DateDebut" className="block text-sm font-medium text-gray-700">
                 Date de début
               </label>
               <input
                 type="datetime-local"
-                name="date_debut"
-                id="date_debut"
-                value={formData.date_debut}
+                name="DateDebut"
+                id="DateDebut"
+                required
+                value={formData.DateDebut}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
 
             <div>
-              <label htmlFor="date_fin_prevue" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="DateFinPrevue" className="block text-sm font-medium text-gray-700">
                 Date de fin prévue
               </label>
               <input
                 type="datetime-local"
-                name="date_fin_prevue"
-                id="date_fin_prevue"
-                value={formData.date_fin_prevue}
+                name="DateFinPrevue"
+                id="DateFinPrevue"
+                required
+                value={formData.DateFinPrevue}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
           </div>
 
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+          <div className="sm:col-span-2">
+            <label htmlFor="Description" className="block text-sm font-medium text-gray-700">
               Description
             </label>
             <textarea
-              name="description"
-              id="description"
-              rows={4}
-              value={formData.description}
+              name="Description"
+              id="Description"
+              rows="3"
+              required
+              value={formData.Description}
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
           </div>
 
-          <div className="flex justify-end">
+          <div className="sm:col-span-2">
+            <label htmlFor="Commentaire" className="block text-sm font-medium text-gray-700">
+              Commentaire
+            </label>
+            <textarea
+              name="Commentaire"
+              id="Commentaire"
+              rows="3"
+              value={formData.Commentaire}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={() => navigate(`/tickets/${id}`)}
+              className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Annuler
+            </button>
             <button
               type="submit"
               disabled={saving}
-              className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>

@@ -14,6 +14,7 @@ class TypeDemande extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'designation'
+        'designation',
+        'is_active'
     ];
 } 

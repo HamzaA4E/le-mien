@@ -30,27 +30,40 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [spin, setSpin] = useState(false);
 
-  const fetchStats = async () => {
-    setSpin(true);
-    setLoading(true);
-    try {
-      const response = await axios.get('/api/dashboard/stats');
-      const newStats = response.data || {};
-      dashboardCache.stats = newStats;
-      dashboardCache.lastFetch = new Date().getTime();
-      setStats(newStats);
-      setError('');
-    } catch (err) {
-      setError('Erreur lors du chargement des statistiques');
-      console.error('Erreur:', err);
-    } finally {
-      setLoading(false);
-      setTimeout(() => setSpin(false), 600);
-    }
-  };
-
   useEffect(() => {
-    fetchStats();
+    const fetchSequentialStats = async () => {
+      setSpin(true);
+      setLoading(true);
+      try {
+        // Charger d'abord le total
+        const totalRes = await axios.get('/api/dashboard/total');
+        setStats(s => ({ ...s, total: totalRes.data.total }));
+        // Puis en cours
+        const enCoursRes = await axios.get('/api/dashboard/en-cours');
+        setStats(s => ({ ...s, en_cours: enCoursRes.data.total }));
+        // Puis en instance
+        const enInstanceRes = await axios.get('/api/dashboard/en-instance');
+        setStats(s => ({ ...s, en_instance: enInstanceRes.data.total }));
+        // Puis clôturés
+        const clotureRes = await axios.get('/api/dashboard/cloture');
+        setStats(s => ({ ...s, cloture: clotureRes.data.total }));
+        // Puis les stats détaillées (graphes)
+        const statsRes = await axios.get('/api/dashboard/stats');
+        setStats(s => ({
+          ...s,
+          par_priorite: statsRes.data.par_priorite || [],
+          par_categorie: statsRes.data.par_categorie || [],
+          par_demandeur: statsRes.data.par_demandeur || []
+        }));
+        setError('');
+      } catch (err) {
+        setError('Erreur lors du chargement des statistiques');
+      } finally {
+        setLoading(false);
+        setTimeout(() => setSpin(false), 600);
+      }
+    };
+    fetchSequentialStats();
   }, []);
 
   const renderSkeleton = () => (
@@ -84,7 +97,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-2xl font-bold">Tableau de bord</h1>
             <button
-              onClick={() => fetchStats()}
+              onClick={() => window.location.reload()}
               className="ml-2 p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
               title="Rafraîchir"
             >
@@ -170,7 +183,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold">Tableau de bord</h1>
           <button
-            onClick={() => fetchStats()}
+            onClick={() => window.location.reload()}
             className="ml-2 p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
             title="Rafraîchir"
           >

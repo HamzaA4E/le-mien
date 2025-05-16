@@ -8,6 +8,7 @@ import CreateUser from '../Pages/CreateUser';
 import Profile from '../Pages/Profile';
 import ListUsers from '../Pages/ListUsers';
 import TicketDetails from '../Pages/TicketDetails';
+import EditTicket from '../Pages/EditTicket';
 import AdminEntitiesManagement from '../Pages/AdminEntitiesManagement';
 
 const PrivateRoute = ({ children }) => {
@@ -48,6 +49,11 @@ const router = createBrowserRouter([
   {
     path: '/tickets/:id',
     element: <PrivateRoute><TicketDetails /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/tickets/:id/edit',
+    element: <PrivateRoute><EditTicket /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
   {

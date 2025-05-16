@@ -3,6 +3,7 @@ import axios from '../../utils/axios';
 
 const AddEmplacementForm = ({ onSuccess, onCancel }) => {
   const [designation, setDesignation] = useState('');
+  const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,7 +17,10 @@ const AddEmplacementForm = ({ onSuccess, onCancel }) => {
     setError('');
 
     try {
-      const response = await axios.post('/api/emplacements', { designation });
+      const response = await axios.post('/api/emplacements', { 
+        designation,
+        is_active: isActive 
+      });
       onSuccess(response.data);
     } catch (error) {
       setError(error.response?.data?.message || "Erreur lors de la création de l'emplacement");
@@ -46,6 +50,18 @@ const AddEmplacementForm = ({ onSuccess, onCancel }) => {
                 required
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Statut</label>
+              <select
+                name="is_active"
+                value={isActive}
+                onChange={(e) => setIsActive(e.target.value === 'true')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                <option value="true">Actif</option>
+                <option value="false">Inactif</option>
+              </select>
             </div>
             <div className="flex justify-end space-x-4 mt-4">
               <button

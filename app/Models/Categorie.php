@@ -14,6 +14,7 @@ class Categorie extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'designation'
+        'designation',
+        'is_active'
     ];
 } 

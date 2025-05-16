@@ -12,6 +12,13 @@ const STATUTS = [
   { id: 3, label: 'Clôturé' },
 ];
 
+// Mapping des couleurs pour les types de demande
+const TYPE_COLORS = {
+  'Tâche': { bg: 'bg-fuchsia-300', text: 'text-fuchsia-950', border: 'border-fuchsia-200' },
+  'Projet': { bg: 'bg-stone-300', text: 'text-stone-900', border: 'border-stone-200' },
+  'default': { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' }
+};
+
 // Cache pour les tickets et les filtres
 const ticketCache = {
   tickets: null,
@@ -19,18 +26,9 @@ const ticketCache = {
   cacheDuration: 5 * 60 * 1000 // 5 minutes
 };
 const filterCache = {
-  categories: null,
-  categoriesLastFetch: null,
-  demandeurs: null,
-  demandeursLastFetch: null,
-  societes: null,
-  societesLastFetch: null,
-  emplacements: null,
-  emplacementsLastFetch: null,
-  statuts: null,
-  statutsLastFetch: null,
-  priorites: null,
-  prioritesLastFetch: null,
+  data: null,
+  lastFetch: null,
+  cacheDuration: 5 * 60 * 1000 // 5 minutes
 };
 
 const TicketList = () => {
@@ -53,6 +51,7 @@ const TicketList = () => {
     emplacement: '',
     statut: '',
     priorite: '',
+    executant: '',
     dateDebut: '',
     dateDebutFin: '',
     dateFinPrevueDebut: '',
@@ -66,6 +65,7 @@ const TicketList = () => {
   const [societes, setSocietes] = useState([]);
   const [emplacements, setEmplacements] = useState([]);
   const [priorites, setPriorites] = useState([]);
+  const [executants, setExecutants] = useState([]);
 
   // Récupérer le user depuis le localStorage
   let user = null;
@@ -174,64 +174,63 @@ const TicketList = () => {
     }
   };
 
-  // Fonction pour récupérer les données des filtres avec cache
-  const fetchFilterData = async () => {
+  // Fonction optimisée pour récupérer toutes les données de filtrage en une seule fois
+  const fetchAllFilterData = async (force = false) => {
     const now = new Date().getTime();
+    
+    // Vérifier si les données en cache sont encore valides
+    if (!force && filterCache.data && filterCache.lastFetch && 
+        (now - filterCache.lastFetch < filterCache.cacheDuration)) {
+      setCategories(filterCache.data.categories);
+      setDemandeurs(filterCache.data.demandeurs);
+      setSocietes(filterCache.data.societes);
+      setEmplacements(filterCache.data.emplacements);
+      setStatuts(filterCache.data.statuts);
+      setPriorites(filterCache.data.priorites);
+      setExecutants(filterCache.data.executants);
+      return;
+    }
+
     try {
-      // Catégories
-      if (filterCache.categories && filterCache.categoriesLastFetch && (now - filterCache.categoriesLastFetch < ticketCache.cacheDuration)) {
-        setCategories(filterCache.categories);
-      } else {
-        const categoriesRes = await axios.get('/api/categories');
-        setCategories(categoriesRes.data);
-        filterCache.categories = categoriesRes.data;
-        filterCache.categoriesLastFetch = now;
-      }
-      // Demandeurs
-      if (filterCache.demandeurs && filterCache.demandeursLastFetch && (now - filterCache.demandeursLastFetch < ticketCache.cacheDuration)) {
-        setDemandeurs(filterCache.demandeurs);
-      } else {
-        const demandeursRes = await axios.get('/api/demandeurs');
-        setDemandeurs(demandeursRes.data);
-        filterCache.demandeurs = demandeursRes.data;
-        filterCache.demandeursLastFetch = now;
-      }
-      // Sociétés
-      if (filterCache.societes && filterCache.societesLastFetch && (now - filterCache.societesLastFetch < ticketCache.cacheDuration)) {
-        setSocietes(filterCache.societes);
-      } else {
-        const societesRes = await axios.get('/api/societes');
-        setSocietes(societesRes.data);
-        filterCache.societes = societesRes.data;
-        filterCache.societesLastFetch = now;
-      }
-      // Emplacements
-      if (filterCache.emplacements && filterCache.emplacementsLastFetch && (now - filterCache.emplacementsLastFetch < ticketCache.cacheDuration)) {
-        setEmplacements(filterCache.emplacements);
-      } else {
-        const emplacementsRes = await axios.get('/api/emplacements');
-        setEmplacements(emplacementsRes.data);
-        filterCache.emplacements = emplacementsRes.data;
-        filterCache.emplacementsLastFetch = now;
-      }
-      // Statuts
-      if (filterCache.statuts && filterCache.statutsLastFetch && (now - filterCache.statutsLastFetch < ticketCache.cacheDuration)) {
-        setStatuts(filterCache.statuts);
-      } else {
-        const statutsRes = await axios.get('/api/statuts');
-        setStatuts(statutsRes.data);
-        filterCache.statuts = statutsRes.data;
-        filterCache.statutsLastFetch = now;
-      }
-      // Priorités
-      if (filterCache.priorites && filterCache.prioritesLastFetch && (now - filterCache.prioritesLastFetch < ticketCache.cacheDuration)) {
-        setPriorites(filterCache.priorites);
-      } else {
-        const prioritesRes = await axios.get('/api/priorites');
-        setPriorites(prioritesRes.data);
-        filterCache.priorites = prioritesRes.data;
-        filterCache.prioritesLastFetch = now;
-      }
+      // Faire tous les appels API en parallèle
+      const [
+        categoriesRes,
+        demandeursRes,
+        societesRes,
+        emplacementsRes,
+        statutsRes,
+        prioritesRes,
+        executantsRes
+      ] = await Promise.all([
+        axios.get('/api/categories'),
+        axios.get('/api/demandeurs'),
+        axios.get('/api/societes'),
+        axios.get('/api/emplacements'),
+        axios.get('/api/statuts'),
+        axios.get('/api/priorites'),
+        axios.get('/api/executants')
+      ]);
+
+      // Mettre à jour le cache avec toutes les données
+      filterCache.data = {
+        categories: categoriesRes.data,
+        demandeurs: demandeursRes.data,
+        societes: societesRes.data,
+        emplacements: emplacementsRes.data,
+        statuts: statutsRes.data,
+        priorites: prioritesRes.data,
+        executants: executantsRes.data
+      };
+      filterCache.lastFetch = now;
+
+      // Mettre à jour les états
+      setCategories(categoriesRes.data.filter(item => item.is_active !== false));
+      setDemandeurs(demandeursRes.data.filter(item => item.is_active !== false));
+      setSocietes(societesRes.data.filter(item => item.is_active !== false));
+      setEmplacements(emplacementsRes.data.filter(item => item.is_active !== false));
+      setStatuts(statutsRes.data.filter(item => item.is_active !== false));
+      setPriorites(prioritesRes.data.filter(item => item.is_active !== false));
+      setExecutants(executantsRes.data.filter(item => item.is_active !== false));
     } catch (err) {
       console.error('Erreur lors du chargement des données de filtrage:', err);
     }
@@ -245,17 +244,41 @@ const TicketList = () => {
     }
   };
 
-  // Optimiser le filtrage en le déléguant au backend
+  const fetchFilterData = async () => {
+    try {
+      const [categoriesRes, demandeursRes, societesRes, emplacementsRes, prioritesRes, statutsRes, executantsRes] = await Promise.all([
+        axios.get('/api/categories'),
+        axios.get('/api/demandeurs'),
+        axios.get('/api/societes'),
+        axios.get('/api/emplacements'),
+        axios.get('/api/priorites'),
+        axios.get('/api/statuts'),
+        axios.get('/api/executants')
+      ]);
+
+      // Filtrer les entités actives
+      setCategories(categoriesRes.data.filter(item => item.is_active !== false));
+      setDemandeurs(demandeursRes.data.filter(item => item.is_active !== false));
+      setSocietes(societesRes.data.filter(item => item.is_active !== false));
+      setEmplacements(emplacementsRes.data.filter(item => item.is_active !== false));
+      setPriorites(prioritesRes.data.filter(item => item.is_active !== false));
+      setStatuts(statutsRes.data.filter(item => item.is_active !== false));
+      setExecutants(executantsRes.data.filter(item => item.is_active !== false));
+    } catch (err) {
+      console.error('Erreur lors du chargement des données de filtrage:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchFilterData();
+    fetchTickets();
+  }, []);
+
+  // Gérer les changements de filtres
   useEffect(() => {
     setPage(1);
     fetchTickets(true, 1);
   }, [filters]);
-
-  useEffect(() => {
-    fetchTickets();
-    fetchStatuts();
-    fetchFilterData();
-  }, []);
 
   // Fonction pour réinitialiser les filtres
   const resetFilters = () => {
@@ -266,6 +289,7 @@ const TicketList = () => {
       emplacement: '',
       statut: '',
       priorite: '',
+      executant: '',
       dateDebut: '',
       dateDebutFin: '',
       dateFinPrevueDebut: '',
@@ -335,7 +359,8 @@ const TicketList = () => {
         (!filters.societe || String(ticket.Id_Societe) === String(filters.societe)) &&
         (!filters.emplacement || String(ticket.Id_Emplacement) === String(filters.emplacement)) &&
         (!filters.statut || String(ticket.Id_Statut) === String(filters.statut)) &&
-        (!filters.priorite || String(ticket.Id_Priorite) === String(filters.priorite))
+        (!filters.priorite || String(ticket.Id_Priorite) === String(filters.priorite)) &&
+        (!filters.executant || String(ticket.Id_Executant) === String(filters.executant))
       );
 
       if (!baseFilters) return false;
@@ -396,9 +421,7 @@ const TicketList = () => {
     return isNaN(date) ? '-' : date.toLocaleString('fr-FR', {
       year: 'numeric',
       month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: '2-digit'
     });
   };
 
@@ -445,7 +468,7 @@ const TicketList = () => {
             </button>
             {!(niveau === '2' || niveau === 2) && (
               <Link
-                to="/tickets/create"
+                to="create-ticket"
                 className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
               >
                 Créer un ticket
@@ -493,23 +516,6 @@ const TicketList = () => {
                   {demandeurs.map(dem => (
                     <option key={dem.id} value={dem.id}>{dem.designation}</option>
                   ))}
-                </select>
-              </div>
-              {/* Service (si disponible dans les objets demandeur) */}
-              <div className="flex flex-col w-full gap-2">
-                <label className="text-sm font-medium text-gray-700">Service</label>
-                <select
-                  value={filters.service || ''}
-                  onChange={(e) => setFilters(prev => ({ ...prev, service: e.target.value }))}
-                  className="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Tous</option>
-                  {/* Extraire dynamiquement les services uniques à partir des demandeurs */}
-                  {Array.from(new Set(demandeurs.map(dem => dem.id_service)))
-                    .filter(id_service => id_service)
-                    .map(id_service => (
-                      <option key={id_service} value={id_service}>Service {id_service}</option>
-                    ))}
                 </select>
               </div>
               {/* Catégorie */}
@@ -565,6 +571,20 @@ const TicketList = () => {
                   <option value="">Toutes</option>
                   {priorites.map(p => (
                     <option key={p.id} value={p.id}>{p.designation}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Exécutant */}
+              <div className="flex flex-col w-full gap-2">
+                <label className="text-sm font-medium text-gray-700">Exécutant</label>
+                <select
+                  value={filters.executant}
+                  onChange={(e) => setFilters(prev => ({ ...prev, executant: e.target.value }))}
+                  className="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option value="">Tous</option>
+                  {executants.map(exec => (
+                    <option key={exec.id} value={exec.id}>{exec.nom}</option>
                   ))}
                 </select>
               </div>
@@ -641,24 +661,45 @@ const TicketList = () => {
                 >
                   <div className="flex-1 flex flex-col w-full">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-1 uppercase tracking-wide group-hover:text-blue-700 transition-colors">
-                        {ticket.Titre}
-                      </h3>
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <h3 className="text-2xl font-bold text-gray-900 uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+                          {ticket.Titre}
+                        </h3>
+                        <div className="flex gap-2">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                            {ticket.statut?.designation || 'Sans statut'}
+                          </span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 border border-green-200">
+                            {ticket.priorite?.designation || 'Sans priorité'}
+                          </span>
+                          {(() => {
+                            const typeColors = ticket.type_demande?.designation 
+                              ? (TYPE_COLORS[ticket.type_demande.designation] || TYPE_COLORS.default)
+                              : TYPE_COLORS.default;
+                            return (
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${typeColors.bg} ${typeColors.text} border ${typeColors.border}`}>
+                                {ticket.type_demande?.designation || 'Sans type'}
+                              </span>
+                            );
+                          })()}
+                          {ticket.statut?.designation === 'Clôturé' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-gray-700 border border-gray-200">
+                              Clôturé le : {formatDate(ticket.DateFinReelle)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <p className="text-base text-gray-700 mb-4 line-clamp-2">
                         {ticket.Description || 'Aucune description'}
                       </p>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-                          {ticket.statut?.designation || 'Sans statut'}
-                        </span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
-                          {ticket.priorite?.designation || 'Sans priorité'}
-                        </span>
-                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm">
                         <div>
                           <span className="text-gray-500">Demandeur :</span>
                           <span className="font-semibold text-gray-900 ml-1">{ticket.demandeur?.designation || 'Non spécifié'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Exécutant :</span>
+                          <span className="font-semibold text-gray-900 ml-1">{ticket.executant?.designation || 'Non assigné'}</span>
                         </div>
                         <div>
                           <span className="text-gray-500">Date début :</span>
@@ -684,8 +725,8 @@ const TicketList = () => {
                     </div>
                   </div>
               <div className="mt-6 md:mt-0 md:ml-6 flex-shrink-0 flex flex-col items-end justify-between h-full gap-2">
-                {/* Menu déroulant pour changer le statut (toujours visible) */}
-                {statuts.length > 0 && (
+                {/* Menu déroulant pour changer le statut (visible uniquement pour l'administrateur) */}
+                {statuts.length > 0 && (niveau === '1' || niveau === 1) && (
                   <select
                     value={ticket.Id_Statut}
                     onChange={e => handleStatutChange(ticket.id, e.target.value)}
@@ -696,6 +737,12 @@ const TicketList = () => {
                       <option key={s.id} value={s.id}>{s.designation}</option>
                     ))}
                   </select>
+                )}
+                {/* Pour les non-administrateurs, afficher simplement le statut actuel */}
+                {!(niveau === '1' || niveau === 1) && (
+                  <div className="mb-2 px-2 py-1 text-sm text-gray-700">
+                    Statut : {ticket.statut?.designation || 'Non défini'}
+                  </div>
                 )}
                     <Link
                       to={`/tickets/${ticket.id}`}

@@ -15,6 +15,12 @@ const entities = [
 
 const AdminEntitiesManagement = () => {
   const [activeTab, setActiveTab] = useState(entities[0].entity);
+  const [loadedTabs, setLoadedTabs] = useState([entities[0].entity]);
+
+  const handleTabClick = (entity) => {
+    setActiveTab(entity);
+    setLoadedTabs(prev => prev.includes(entity) ? prev : [...prev, entity]);
+  };
 
   return (
     <Layout>
@@ -24,7 +30,7 @@ const AdminEntitiesManagement = () => {
           {entities.map(e => (
             <button
               key={e.entity}
-              onClick={() => setActiveTab(e.entity)}
+              onClick={() => handleTabClick(e.entity)}
               className={`px-4 py-2 rounded font-semibold border transition-colors ${activeTab === e.entity ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-100'}`}
             >
               {e.label}s
@@ -33,7 +39,10 @@ const AdminEntitiesManagement = () => {
         </div>
         <div>
           {entities.map(e => (
-            <div key={e.entity} style={{ display: activeTab === e.entity ? 'block' : 'none' }}>
+            <div
+              key={e.entity}
+              style={{ display: activeTab === e.entity ? 'block' : 'none' }}
+            >
               <EntityManagement entity={e.entity} label={e.label} />
             </div>
           ))}

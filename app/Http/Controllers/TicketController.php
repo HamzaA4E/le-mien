@@ -21,13 +21,14 @@ class TicketController extends Controller
     {
         try {
             $query = Ticket::with([
-            'statut',
-            'priorite',
-            'demandeur',
-            'societe',
-            'emplacement',
-            'categorie',
-            'typeDemande'
+                'statut',
+                'priorite',
+                'demandeur',
+                'societe',
+                'emplacement',
+                'categorie',
+                'typeDemande',
+                'executant'
             ]);
 
             // Appliquer les filtres
@@ -48,6 +49,9 @@ class TicketController extends Controller
             }
             if ($request->filled('priorite')) {
                 $query->where('Id_Priorite', $request->priorite);
+            }
+            if ($request->filled('executant')) {
+                $query->where('Id_Executant', $request->executant);
             }
 
             // Filtres de dates
@@ -198,7 +202,8 @@ class TicketController extends Controller
                 'typeDemande',
                 'demandeur',
                 'societe',
-                'emplacement'
+                'emplacement',
+                'executant'
             ])->findOrFail($id);
 
             return response()->json($ticket);
@@ -222,6 +227,7 @@ class TicketController extends Controller
                 'description' => 'sometimes|string',
                 'id_priorite' => 'sometimes|exists:T_PRIORITE,id',
                 'id_statut' => 'sometimes|exists:T_STATUT,id',
+                'id_executant' => 'sometimes|exists:T_EXECUTANT,id',
             ]);
 
             Log::info('Données validées:', $validated);
@@ -235,6 +241,9 @@ class TicketController extends Controller
                         break;
                     case 'id_priorite':
                         $data['Id_Priorite'] = (int)$value;
+                        break;
+                    case 'id_executant':
+                        $data['Id_Executant'] = (int)$value;
                         break;
                     default:
                         $data[$key] = $value;

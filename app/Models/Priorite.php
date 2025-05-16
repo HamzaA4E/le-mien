@@ -15,6 +15,7 @@ class Priorite extends Model
 
     protected $fillable = [
         'designation',
-        'ordre'
+        'ordre',
+        'is_active'
     ];
 } 

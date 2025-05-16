@@ -16,7 +16,8 @@ class Demandeur extends Model
     protected $fillable = [
         'designation',
         'id_service',
-        'statut'
+        'statut',
+        'is_active'
     ];
 
     protected $casts = [

@@ -14,6 +14,7 @@ class Emplacement extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'designation'
+        'designation',
+        'is_active'
     ];
 } 

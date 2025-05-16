@@ -28,6 +28,10 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Routes pour le dashboard
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
+    Route::get('/dashboard/total', [DashboardController::class, 'total']);
+    Route::get('/dashboard/en-cours', [DashboardController::class, 'enCours']);
+    Route::get('/dashboard/en-instance', [DashboardController::class, 'enInstance']);
+    Route::get('/dashboard/cloture', [DashboardController::class, 'cloture']);
     Route::get('/tickets/stats', [DashboardController::class, 'getStatsByUser']);
     
     // Routes pour les tickets

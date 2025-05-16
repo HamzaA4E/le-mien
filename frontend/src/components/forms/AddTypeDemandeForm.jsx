@@ -3,6 +3,7 @@ import axios from '../../utils/axios';
 
 const AddTypeDemandeForm = ({ onSuccess, onCancel }) => {
   const [designation, setDesignation] = useState('');
+  const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,7 +17,10 @@ const AddTypeDemandeForm = ({ onSuccess, onCancel }) => {
     setError('');
     try {
       console.log('Tentative d\'ajout type de demande:', designation);
-      const response = await axios.post('/api/types-demande', { designation });
+      const response = await axios.post('/api/types', { 
+        designation,
+        is_active: isActive 
+      });
       console.log('Réponse API type de demande:', response);
       onSuccess(response.data);
     } catch (error) {
@@ -48,6 +52,18 @@ const AddTypeDemandeForm = ({ onSuccess, onCancel }) => {
                 required
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Statut</label>
+              <select
+                name="is_active"
+                value={isActive}
+                onChange={(e) => setIsActive(e.target.value === 'true')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                <option value="true">Actif</option>
+                <option value="false">Inactif</option>
+              </select>
             </div>
             <div className="flex justify-end space-x-4 mt-4">
               <button

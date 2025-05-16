@@ -8,6 +8,7 @@ const EntityManagement = ({ entity, label }) => {
   const [designation, setDesignation] = useState('');
   const [editId, setEditId] = useState(null);
   const [editDesignation, setEditDesignation] = useState('');
+  const [editIsActive, setEditIsActive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -32,7 +33,7 @@ const EntityManagement = ({ entity, label }) => {
       }
 
       // Si pas de cache valide, faire la requête
-      const res = await axios.get(`/api/${entity}`);
+      const res = await axios.get(`/api/${entity}?all=1`);
       setItems(res.data);
       
       // Mettre à jour le cache
@@ -56,12 +57,34 @@ const EntityManagement = ({ entity, label }) => {
     localStorage.removeItem(getCacheKey(entity));
   };
 
+  // Invalider le cache de la page de création de ticket pour cette entité
+  const invalidateCreateTicketCache = () => {
+    // Correspondance entre les entités et les clés de cache utilisées dans CreateTicket.jsx
+    const cacheKeyMap = {
+      categories: 'create_ticket_categories_cache',
+      emplacements: 'create_ticket_emplacements_cache',
+      societes: 'create_ticket_societes_cache',
+      demandeurs: 'create_ticket_demandeurs_cache',
+      services: 'create_ticket_services_cache',
+      priorites: 'create_ticket_priorites_cache',
+      statuts: 'create_ticket_statuts_cache',
+      types: 'create_ticket_typesDemande_cache',
+      executants: 'create_ticket_executants_cache',
+    };
+    const key = cacheKeyMap[entity];
+    if (key) localStorage.removeItem(key);
+  };
+
   const handleAdd = async () => {
     if (!designation.trim()) return;
     try {
-      await axios.post(`/api/${entity}`, { designation });
+      await axios.post(`/api/${entity}`, { 
+        designation,
+        is_active: true 
+      });
       setDesignation('');
       invalidateCache();
+      invalidateCreateTicketCache();
       await fetchItems();
     } catch (err) {
       console.error(`Erreur lors de l'ajout:`, err);
@@ -72,15 +95,21 @@ const EntityManagement = ({ entity, label }) => {
   const handleEdit = (item) => {
     setEditId(item.id);
     setEditDesignation(item.designation);
+    setEditIsActive(item.is_active);
   };
 
   const handleUpdate = async () => {
     if (!editDesignation.trim()) return;
     try {
-      await axios.put(`/api/${entity}/${editId}`, { designation: editDesignation });
+      await axios.put(`/api/${entity}/${editId}`, { 
+        designation: editDesignation,
+        is_active: editIsActive
+      });
       setEditId(null);
       setEditDesignation('');
+      setEditIsActive(true);
       invalidateCache();
+      invalidateCreateTicketCache();
       await fetchItems();
     } catch (err) {
       console.error(`Erreur lors de la mise à jour:`, err);
@@ -88,34 +117,45 @@ const EntityManagement = ({ entity, label }) => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm(`Supprimer ce/cette ${label.toLowerCase()} ?`)) {
-      try {
-        await axios.delete(`/api/${entity}/${id}`);
-        invalidateCache();
-        await fetchItems();
-      } catch (err) {
-        console.error(`Erreur lors de la suppression:`, err);
-        alert(`Erreur lors de la suppression du/de la ${label.toLowerCase()}`);
-      }
+  const handleToggleActive = async (id, currentStatus) => {
+    try {
+      const item = items.find(i => i.id === id);
+      if (!item) throw new Error('Item not found');
+
+      // Optimisme : on met à jour l'état local tout de suite
+      setItems(prev =>
+        prev.map(i =>
+          i.id === id ? { ...i, is_active: !currentStatus } : i
+        )
+      );
+
+      await axios.put(`/api/${entity}/${id}`, {
+        designation: item.designation,
+        is_active: !currentStatus
+      });
+
+      invalidateCache();
+      invalidateCreateTicketCache();
+      // PAS besoin de fetchItems() ici
+    } catch (err) {
+      // En cas d'erreur, on peut recharger la liste ou afficher un message
+      fetchItems();
+      alert('Erreur lors de la mise à jour du statut');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-2xl mx-auto p-6 bg-white rounded shadow">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="h-10 bg-gray-200 rounded mb-4"></div>
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-8 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleDelete = async (id) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ce/cette ${label.toLowerCase()} ?`)) return;
+    try {
+      await axios.delete(`/api/${entity}/${id}`);
+      invalidateCache();
+      invalidateCreateTicketCache();
+      await fetchItems();
+    } catch (err) {
+      console.error(`Erreur lors de la suppression:`, err);
+      alert(`Erreur lors de la suppression du/de la ${label.toLowerCase()}`);
+    }
+  };
 
   if (error) {
     return (
@@ -153,48 +193,74 @@ const EntityManagement = ({ entity, label }) => {
         <thead>
           <tr>
             <th className="border px-2 py-1">Nom</th>
+            <th className="border px-2 py-1">Statut</th>
             <th className="border px-2 py-1">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {items.map(item => (
-            <tr key={item.id}>
-              <td className="border px-2 py-1">
-                {editId === item.id ? (
-                  <input
-                    value={editDesignation}
-                    onChange={e => setEditDesignation(e.target.value)}
-                    className="border rounded px-2 py-1 w-full"
-                  />
-                ) : (
-                  item.designation
-                )}
-              </td>
-              <td className="border px-2 py-1">
-                {editId === item.id ? (
-                  <button 
-                    onClick={handleUpdate} 
-                    className="bg-green-600 text-white px-2 py-1 rounded mr-2 hover:bg-green-700 transition-colors"
-                  >
-                    Valider
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => handleEdit(item)} 
-                    className="bg-yellow-500 text-white px-2 py-1 rounded mr-2 hover:bg-yellow-600 transition-colors"
-                  >
-                    Modifier
-                  </button>
-                )}
-                <button 
-                  onClick={() => handleDelete(item.id)} 
-                  className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 transition-colors"
-                >
-                  Supprimer
-                </button>
-              </td>
-            </tr>
-          ))}
+          {loading ? (
+            // Afficher 3 lignes de squelette
+            Array.from({ length: 3 }).map((_, idx) => (
+              <tr key={idx}>
+                <td className="border px-2 py-1">
+                  <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+                </td>
+                <td className="border px-2 py-1 text-center">
+                  <div className="h-6 w-16 mx-auto bg-gray-200 rounded animate-pulse"></div>
+                </td>
+                <td className="border px-2 py-1">
+                  <div className="h-6 w-24 bg-gray-200 rounded animate-pulse"></div>
+                </td>
+              </tr>
+            ))
+          ) : (
+            items.map(item => (
+              <tr key={item.id}>
+                <td className="border px-2 py-1">
+                  {editId === item.id ? (
+                    <input
+                      value={editDesignation}
+                      onChange={e => setEditDesignation(e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                    />
+                  ) : (
+                    item.designation
+                  )}
+                </td>
+                <td className="border px-2 py-1 text-center">
+                  <span className={
+                    item.is_active
+                      ? 'inline-block px-2 py-1 text-base font-semibold bg-green-100 text-green-800 rounded-full'
+                      : 'inline-block px-2 py-1 text-base font-semibold bg-red-100 text-red-800 rounded-full'
+                  }>
+                    {item.is_active ? 'Actif' : 'Inactif'}
+                  </span>
+                </td>
+                <td className="border px-2 py-1">
+                  {editId === item.id ? (
+                    <button 
+                      onClick={handleUpdate} 
+                      className="bg-green-600 text-white px-2 py-1 rounded mr-2 hover:bg-green-700 transition-colors"
+                    >
+                      Valider
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleToggleActive(item.id, item.is_active)}
+                      className={
+                        (item.is_active
+                          ? 'bg-red-500 hover:bg-red-600'
+                          : 'bg-green-500 hover:bg-green-600') +
+                        ' text-white px-3 py-1 rounded transition-colors font-semibold'
+                      }
+                    >
+                      {item.is_active ? 'Désactiver' : 'Activer'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

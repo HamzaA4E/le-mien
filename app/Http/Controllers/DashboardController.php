@@ -146,4 +146,36 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
+    public function total() {
+        $total = \App\Models\Ticket::count();
+        return response()->json(['total' => $total]);
+    }
+
+    public function enCours() {
+        $statut = \App\Models\Statut::where('designation', 'En cours')->first();
+        $total = 0;
+        if ($statut) {
+            $total = \App\Models\Ticket::where('Id_Statut', $statut->id)->count();
+        }
+        return response()->json(['total' => $total]);
+    }
+
+    public function enInstance() {
+        $statut = \App\Models\Statut::where('designation', 'En instance')->first();
+        $total = 0;
+        if ($statut) {
+            $total = \App\Models\Ticket::where('Id_Statut', $statut->id)->count();
+        }
+        return response()->json(['total' => $total]);
+    }
+
+    public function cloture() {
+        $statut = \App\Models\Statut::where('designation', 'Clôturé')->first();
+        $total = 0;
+        if ($statut) {
+            $total = \App\Models\Ticket::where('Id_Statut', $statut->id)->count();
+        }
+        return response()->json(['total' => $total]);
+    }
 } 

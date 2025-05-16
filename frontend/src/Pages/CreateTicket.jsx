@@ -74,9 +74,11 @@ const CreateTicket = () => {
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_DURATION) {
-          setter(data);
+          // Filtrer les entités actives
+          const activeData = data.filter(item => item.is_active !== false);
+          setter(activeData);
           setLoadingStates(prev => ({ ...prev, [entity]: false }));
-        return;
+          return;
         }
       }
 
@@ -87,13 +89,16 @@ const CreateTicket = () => {
         id: d.id ? d.id.toString() : ''
       }));
       
-      // Mettre à jour le cache
+      // Filtrer les entités actives avant de mettre en cache
+      const activeData = data.filter(item => item.is_active !== false);
+      
+      // Mettre à jour le cache avec uniquement les entités actives
       localStorage.setItem(getCacheKey(entity), JSON.stringify({
-        data,
+        data: activeData,
         timestamp: Date.now()
       }));
       
-      setter(data);
+      setter(activeData);
     } catch (err) {
       console.error(`Erreur lors du chargement des ${entity}:`, err);
       setError(`Erreur lors du chargement des ${entity}`);
@@ -108,21 +113,14 @@ const CreateTicket = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      // Charger d'abord les données essentielles en parallèle
-      await Promise.all([
-        fetchDataWithCache('/api/priorites', setPriorites, 'priorites'),
-        fetchDataWithCache('/api/statuts', setStatuts, 'statuts'),
-        fetchDataWithCache('/api/categories', setCategories, 'categories')
-      ]);
-
-      // Charger ensuite les données secondaires en parallèle
-      await Promise.all([
-        fetchDataWithCache('/api/types-demande', setTypesDemande, 'typesDemande'),
-        fetchDataWithCache('/api/demandeurs', setDemandeurs, 'demandeurs'),
-        fetchDataWithCache('/api/societes', setSocietes, 'societes'),
-        fetchDataWithCache('/api/emplacements', setEmplacements, 'emplacements'),
-        fetchDataWithCache('/api/executants', setExecutants, 'executants')
-      ]);
+      await fetchDataWithCache('/api/demandeurs', setDemandeurs, 'demandeurs');
+      await fetchDataWithCache('/api/societes', setSocietes, 'societes');
+      await fetchDataWithCache('/api/emplacements', setEmplacements, 'emplacements');
+      await fetchDataWithCache('/api/priorites', setPriorites, 'priorites');
+      await fetchDataWithCache('/api/categories', setCategories, 'categories');
+      await fetchDataWithCache('/api/types-demande', setTypesDemande, 'typesDemande');
+      await fetchDataWithCache('/api/statuts', setStatuts, 'statuts');
+      await fetchDataWithCache('/api/executants', setExecutants, 'executants');
     };
 
     loadData();
@@ -179,8 +177,8 @@ const CreateTicket = () => {
         id_type_demande: Number(formData.id_type_demande),
         id_executant: formData.id_executant ? Number(formData.id_executant) : 1,
         id_utilisateur: 1, // À remplacer par l'ID de l'utilisateur connecté
-        date_debut: formData.date_debut ? new Date(formData.date_debut).toISOString().slice(0, 19).replace('T', ' ') : null,
-        date_fin_prevue: formData.date_fin_prevue ? new Date(formData.date_fin_prevue).toISOString().slice(0, 19).replace('T', ' ') : null,
+        date_debut: formData.date_debut ? `${formData.date_debut} 00:00:00` : null,
+        date_fin_prevue: formData.date_fin_prevue ? `${formData.date_fin_prevue} 00:00:00` : null,
         date_fin_reelle: null
       };
 
@@ -286,7 +284,7 @@ const CreateTicket = () => {
                   <div>
                     <label className="block mb-1">Date de début</label>
                     <input
-                      type="datetime-local"
+                      type="date"
                       name="date_debut"
                       value={formData.date_debut}
                       onChange={handleChange}
@@ -296,7 +294,7 @@ const CreateTicket = () => {
                   <div>
                     <label className="block mb-1">Date de fin prévue</label>
                     <input
-                      type="datetime-local"
+                      type="date"
                       name="date_fin_prevue"
                       value={formData.date_fin_prevue}
                       onChange={handleChange}

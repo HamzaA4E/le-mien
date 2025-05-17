@@ -360,6 +360,15 @@ const CreateTicket = () => {
                 rows="3"
               />
             </div>
+            <div className="md:col-span-2">
+              <label className="block mb-1">Pièce jointe</label>
+              <input
+                type="file"
+                name="attachment"
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
           </div>
 
           <div className="mt-6 flex justify-end space-x-4">

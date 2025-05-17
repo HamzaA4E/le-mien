@@ -99,6 +99,7 @@ class TicketController extends Controller
                 'titre' => 'required|string|max:255',
                 'description' => 'required|string',
                 'commentaire' => 'nullable|string',
+                'attachment' => 'nullable|file|max:10240', // max 10MB
                 'date_debut' => 'required|date',
                 'date_fin_prevue' => 'required|date',
                 'date_fin_reelle' => 'nullable|date',
@@ -136,10 +137,17 @@ class TicketController extends Controller
                     'date_creation' => $dateCreation
                 ]);
 
+                $attachmentPath = null;
+                if ($request->hasFile('attachment')) {
+                    $file = $request->file('attachment');
+                    $attachmentPath = $file->store('attachments', 'public');
+                }
+
                 $data = [
                     'Titre' => $validated['titre'],
                     'Description' => $validated['description'],
                     'Commentaire' => $validated['commentaire'] ?? null,
+                    'attachment_path' => $attachmentPath,
                     'Id_Priorite' => (int)$validated['id_priorite'],
                     'Id_Statut' => (int)$validated['id_statut'],
                     'Id_Demandeur' => (int)$validated['id_demandeur'],
@@ -467,5 +475,13 @@ class TicketController extends Controller
         $query->orderBy('T_TICKET.DateCreation', 'desc');
 
         return $query->get();
+    }
+
+    // Utilitaire pour la commande de rappel
+    public static function ticketsFinPrevueDans24hNonCloture()
+    {
+        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'typeDemande', 'executant'])
+            ->finPrevueDans24hNonCloture()
+            ->get();
     }
 } 

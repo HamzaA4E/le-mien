@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('Titre', 200);
             $table->string('Description', 800)->nullable();
             $table->text('Commentaire')->nullable();
+            $table->string('attachment_path')->nullable();
             $table->dateTime('DateDebut')->nullable();
             $table->dateTime('DateFinPrevue')->nullable();
             $table->dateTime('DateFinReelle')->nullable();

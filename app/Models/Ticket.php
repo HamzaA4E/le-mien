@@ -98,4 +98,16 @@ class Ticket extends Model
     {
         return $this->belongsTo(Executant::class, 'Id_Executant');
     }
+
+    public function scopeFinPrevueDans24hNonCloture($query)
+    {
+        $now = now();
+        $in24h = $now->copy()->addDay();
+        $clotureId = \App\Models\Statut::where('designation', 'Clôturé')->value('id');
+        return $query->where('Id_Statut', '!=', $clotureId)
+            ->whereRaw("CONVERT(datetime, DateFinPrevue, 103) BETWEEN ? AND ?", [
+                $now->format('d/m/Y H:i:s'),
+                $in24h->format('d/m/Y H:i:s')
+            ]);
+    }
 } 

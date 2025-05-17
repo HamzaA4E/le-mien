@@ -11,6 +11,7 @@ const EntityManagement = ({ entity, label }) => {
   const [editIsActive, setEditIsActive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
 
   const getCacheKey = (entity) => `entity_cache_${entity}`;
 
@@ -118,29 +119,29 @@ const EntityManagement = ({ entity, label }) => {
   };
 
   const handleToggleActive = async (id, currentStatus) => {
+    setLoadingId(id);
     try {
       const item = items.find(i => i.id === id);
       if (!item) throw new Error('Item not found');
-
-      // Optimisme : on met à jour l'état local tout de suite
-      setItems(prev =>
-        prev.map(i =>
-          i.id === id ? { ...i, is_active: !currentStatus } : i
-        )
-      );
 
       await axios.put(`/api/${entity}/${id}`, {
         designation: item.designation,
         is_active: !currentStatus
       });
 
+      // Mettre à jour l'état local seulement après la réussite de la requête
+      setItems(prev =>
+        prev.map(i =>
+          i.id === id ? { ...i, is_active: !currentStatus } : i
+        )
+      );
+
       invalidateCache();
       invalidateCreateTicketCache();
-      // PAS besoin de fetchItems() ici
     } catch (err) {
-      // En cas d'erreur, on peut recharger la liste ou afficher un message
-      fetchItems();
       alert('Erreur lors de la mise à jour du statut');
+    } finally {
+      setLoadingId(null);
     }
   };
 
@@ -247,14 +248,18 @@ const EntityManagement = ({ entity, label }) => {
                   ) : (
                     <button
                       onClick={() => handleToggleActive(item.id, item.is_active)}
+                      disabled={loadingId === item.id}
                       className={
                         (item.is_active
                           ? 'bg-red-500 hover:bg-red-600'
                           : 'bg-green-500 hover:bg-green-600') +
-                        ' text-white px-3 py-1 rounded transition-colors font-semibold'
+                        ' text-white px-3 py-1 rounded transition-colors font-semibold' +
+                        (loadingId === item.id ? ' opacity-60 cursor-not-allowed' : '')
                       }
                     >
-                      {item.is_active ? 'Désactiver' : 'Activer'}
+                      {loadingId === item.id
+                        ? 'Changement...'
+                        : item.is_active ? 'Désactiver' : 'Activer'}
                     </button>
                   )}
                 </td>

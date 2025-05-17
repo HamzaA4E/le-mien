@@ -425,4 +425,47 @@ class TicketController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Récupère les tickets filtrés par statut
+     */
+    public function getByStatut($statut)
+    {
+        $query = Ticket::query()
+            ->select([
+                'T_TICKET.*',
+                'T_STATUT.designation as statut_designation',
+                'T_PRIORITE.designation as priorite_designation',
+                'T_CATEGORIE.designation as categorie_designation',
+                'T_DEMDEUR.designation as demandeur_designation'
+            ])
+            ->join('T_STATUT', 'T_TICKET.id_statut', '=', 'T_STATUT.id')
+            ->join('T_PRIORITE', 'T_TICKET.id_priorite', '=', 'T_PRIORITE.id')
+            ->join('T_CATEGORIE', 'T_TICKET.id_categorie', '=', 'T_CATEGORIE.id')
+            ->join('T_DEMDEUR', 'T_TICKET.id_demandeur', '=', 'T_DEMDEUR.id');
+
+        // Filtrage optimisé par statut
+        switch ($statut) {
+            case 'en-cours':
+                $query->where('T_TICKET.id_statut', 2); // Statut "En cours"
+                break;
+            case 'en-instance':
+                $query->where('T_TICKET.id_statut', 3); // Statut "En instance"
+                break;
+            case 'cloture':
+                $query->where('T_TICKET.id_statut', 4); // Statut "Clôturé"
+                break;
+            case 'tous':
+                // Pas de filtre sur le statut
+                break;
+            default:
+                // Par défaut, on montre les tickets en cours
+                $query->where('T_TICKET.id_statut', 2);
+        }
+
+        // Tri par date de création décroissante
+        $query->orderBy('T_TICKET.DateCreation', 'desc');
+
+        return $query->get();
+    }
 } 

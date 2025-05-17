@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Statut;
+use App\Traits\ReferentialControllerTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class StatutController extends Controller
 {
+    use ReferentialControllerTrait;
+
+    protected function getModel()
+    {
+        return Statut::class;
+    }
+
     public function index(Request $request)
     {
         $query = Statut::query();

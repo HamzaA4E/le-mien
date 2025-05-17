@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\TypeDemande;
+use App\Traits\ReferentialControllerTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class TypeDemandeController extends Controller
 {
+    use ReferentialControllerTrait;
+
+    protected function getModel()
+    {
+        return TypeDemande::class;
+    }
+
     public function index()
     {
         return TypeDemande::all();

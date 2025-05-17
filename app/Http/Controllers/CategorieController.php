@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Categorie;
+use App\Traits\ReferentialControllerTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class CategorieController extends Controller
 {
+    use ReferentialControllerTrait;
+
+    protected function getModel()
+    {
+        return Categorie::class;
+    }
+
     public function index(Request $request)
     {
         $query = Categorie::query();

@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Emplacement;
+use App\Traits\ReferentialControllerTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class EmplacementController extends Controller
 {
+    use ReferentialControllerTrait;
+
+    protected function getModel()
+    {
+        return Emplacement::class;
+    }
+
     public function index(Request $request)
     {
         $query = Emplacement::query();

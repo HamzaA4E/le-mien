@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Priorite;
+use App\Traits\ReferentialControllerTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class PrioriteController extends Controller
 {
+    use ReferentialControllerTrait;
+
+    protected function getModel()
+    {
+        return Priorite::class;
+    }
+
     public function index(Request $request)
     {
         $query = Priorite::query();

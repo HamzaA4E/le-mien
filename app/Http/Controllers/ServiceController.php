@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Service;
+use App\Traits\ReferentialControllerTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class ServiceController extends Controller
 {
+    use ReferentialControllerTrait;
+
+    protected function getModel()
+    {
+        return Service::class;
+    }
+
     public function index(Request $request)
     {
         $query = Service::query();

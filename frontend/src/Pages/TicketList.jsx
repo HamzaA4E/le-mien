@@ -57,7 +57,8 @@ const TicketList = () => {
     dateFinPrevueDebut: '',
     dateFinPrevueFin: '',
     dateFinReelleDebut: '',
-    dateFinReelleFin: ''
+    dateFinReelleFin: '',
+    type_demande: ''
   });
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -66,6 +67,7 @@ const TicketList = () => {
   const [emplacements, setEmplacements] = useState([]);
   const [priorites, setPriorites] = useState([]);
   const [executants, setExecutants] = useState([]);
+  const [allTickets, setAllTickets] = useState([]);
 
   // Récupérer le user depuis le localStorage
   let user = null;
@@ -83,6 +85,7 @@ const TicketList = () => {
         const now = new Date().getTime();
         if (now - ticketCache.lastFetch < ticketCache.cacheDuration) {
           setTickets(ticketCache.tickets);
+          setAllTickets(ticketCache.tickets);
           setLoading(false);
           setSpin(false);
           return;
@@ -93,7 +96,7 @@ const TicketList = () => {
         params: {
           page: pageNum,
           per_page: itemsPerPage,
-          ...filters // Envoyer les filtres au backend
+          ...filters
         }
       });
 
@@ -102,11 +105,13 @@ const TicketList = () => {
       const lastPage = response.data.last_page || 1;
 
       if (pageNum === 1) {
-      ticketCache.tickets = newTickets;
-      ticketCache.lastFetch = new Date().getTime();
-      setTickets(newTickets);
+        ticketCache.tickets = newTickets;
+        ticketCache.lastFetch = new Date().getTime();
+        setTickets(newTickets);
+        setAllTickets(newTickets);
       } else {
         setTickets(prev => [...prev, ...newTickets]);
+        setAllTickets(prev => [...prev, ...newTickets]);
       }
 
       setTotalPages(lastPage);
@@ -236,14 +241,6 @@ const TicketList = () => {
     }
   };
 
-  const loadMore = () => {
-    if (page < totalPages && !isLoadingMore) {
-      setIsLoadingMore(true);
-      setPage(prev => prev + 1);
-      fetchTickets(false, page + 1);
-    }
-  };
-
   const fetchFilterData = async () => {
     try {
       const [categoriesRes, demandeursRes, societesRes, emplacementsRes, prioritesRes, statutsRes, executantsRes] = await Promise.all([
@@ -274,12 +271,6 @@ const TicketList = () => {
     fetchTickets();
   }, []);
 
-  // Gérer les changements de filtres
-  useEffect(() => {
-    setPage(1);
-    fetchTickets(true, 1);
-  }, [filters]);
-
   // Fonction pour réinitialiser les filtres
   const resetFilters = () => {
     setFilters({
@@ -295,7 +286,8 @@ const TicketList = () => {
       dateFinPrevueDebut: '',
       dateFinPrevueFin: '',
       dateFinReelleDebut: '',
-      dateFinReelleFin: ''
+      dateFinReelleFin: '',
+      type_demande: ''
     });
   };
 
@@ -352,7 +344,6 @@ const TicketList = () => {
   // Optimisation du filtrage avec useMemo
   const filteredTickets = useMemo(() => {
     return tickets.filter(ticket => {
-      // Filtres non-date
       const baseFilters = (
         (!filters.categorie || String(ticket.Id_Categorie) === String(filters.categorie)) &&
         (!filters.demandeur || String(ticket.Id_Demandeur) === String(filters.demandeur)) &&
@@ -360,7 +351,8 @@ const TicketList = () => {
         (!filters.emplacement || String(ticket.Id_Emplacement) === String(filters.emplacement)) &&
         (!filters.statut || String(ticket.Id_Statut) === String(filters.statut)) &&
         (!filters.priorite || String(ticket.Id_Priorite) === String(filters.priorite)) &&
-        (!filters.executant || String(ticket.Id_Executant) === String(filters.executant))
+        (!filters.executant || String(ticket.Id_Executant) === String(filters.executant)) &&
+        (!filters.type_demande || (ticket.type_demande && ticket.type_demande.designation === filters.type_demande))
       );
 
       if (!baseFilters) return false;
@@ -433,6 +425,25 @@ const TicketList = () => {
     </div>
   );
 
+  // Fonction pour gérer le clic sur les boutons de statut
+  const handleStatutButtonClick = (statutId) => {
+    setFilters(prev => ({
+      ...prev,
+      statut: prev.statut === statutId ? '' : statutId
+    }));
+  };
+
+  // Modifier useEffect pour ne pas déclencher de rechargement lors du changement de statut
+  useEffect(() => {
+    const hasOtherFilters = Object.entries(filters).some(([key, value]) => 
+      key !== 'statut' && value !== ''
+    );
+
+    if (hasOtherFilters) {
+      fetchTickets(true);
+    }
+  }, [filters]);
+
   if (loading && !tickets.length) {
     return (
       <Layout>
@@ -474,6 +485,49 @@ const TicketList = () => {
                 Créer un ticket
               </Link>
             )}
+          </div>
+        </div>
+
+        {/* Boutons de statut rapides */}
+        <div className="flex flex-wrap justify-between items-center mb-6 gap-2">
+          {/* Groupe Statuts à gauche */}
+          <div className="flex gap-2">
+            {statuts.map((statut) => (
+              <button
+                key={statut.id}
+                onClick={() => handleStatutButtonClick(statut.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  filters.statut === statut.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {statut.designation}
+              </button>
+            ))}
+          </div>
+          {/* Groupe Type de demande à droite */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFilters(prev => ({ ...prev, type_demande: prev.type_demande === 'Tâche' ? '' : 'Tâche' }))}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                filters.type_demande === 'Tâche'
+                  ? 'bg-fuchsia-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Tâche
+            </button>
+            <button
+              onClick={() => setFilters(prev => ({ ...prev, type_demande: prev.type_demande === 'Projet' ? '' : 'Projet' }))}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                filters.type_demande === 'Projet'
+                  ? 'bg-stone-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Projet
+            </button>
           </div>
         </div>
 
@@ -543,20 +597,6 @@ const TicketList = () => {
                   <option value="">Tous</option>
                   {emplacements.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.designation}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Statut */}
-              <div className="flex flex-col w-full gap-2">
-                <label className="text-sm font-medium text-gray-700">Statut</label>
-                <select
-                  value={filters.statut}
-                  onChange={(e) => setFilters(prev => ({ ...prev, statut: e.target.value }))}
-                  className="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Tous</option>
-                  {statuts.map(s => (
-                    <option key={s.id} value={s.id}>{s.designation}</option>
                   ))}
                 </select>
               </div>
@@ -754,24 +794,6 @@ const TicketList = () => {
                   </div>
                 </div>
           ))}
-          
-          {!loading && page < totalPages && (
-            <div className="flex justify-center mt-4">
-              <button
-                onClick={loadMore}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                disabled={isLoadingMore}
-              >
-                {isLoadingMore ? 'Chargement...' : 'Charger plus'}
-              </button>
-            </div>
-          )}
-          
-          {isLoadingMore && (
-            <div className="mt-4">
-              {renderTicketSkeleton()}
-          </div>
-          )}
         </div>
       </div>
     </Layout>

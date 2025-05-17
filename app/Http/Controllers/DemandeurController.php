@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Demandeur;
+use App\Traits\ReferentialControllerTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class DemandeurController extends Controller
 {
+    use ReferentialControllerTrait;
+
+    protected function getModel()
+    {
+        return Demandeur::class;
+    }
+
     public function index(Request $request)
     {
         $query = Demandeur::query();

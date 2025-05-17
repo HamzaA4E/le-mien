@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les tickets
     Route::apiResource('tickets', TicketController::class);
     Route::get('/tickets/options', [TicketController::class, 'getOptions']);
+    Route::get('/tickets/statut/{statut}', [TicketController::class, 'getByStatut']);
 
     // Routes pour les utilisateurs
     Route::apiResource('utilisateurs', UtilisateurController::class);
@@ -77,4 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les exécutants
     Route::get('/executants', [ExecutantController::class, 'index']);
     Route::post('/executants', [ExecutantController::class, 'store']);
+
+    // Nouvelle route pour les tests de performance
+    Route::get('/test-performance/{id}', [SocieteController::class, 'testPerformance']);
 }); 

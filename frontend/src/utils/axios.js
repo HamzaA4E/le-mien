@@ -1,7 +1,10 @@
 import axios from "axios";
 
+// Ensure we have a valid base URL
+const API_URL = "http://localhost:8000";
+
 const instance = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "/",
+    baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -13,14 +16,23 @@ const instance = axios.create({
 // Fonction pour obtenir un nouveau token CSRF
 const getCsrfToken = async () => {
     try {
-        await instance.get('/sanctum/csrf-cookie');
+        const response = await instance.get('/sanctum/csrf-cookie');
+        console.log('CSRF Token Response:', response);
+        return response;
     } catch (error) {
         console.error('Erreur lors de la récupération du token CSRF:', error);
+        // Don't throw the error, just log it
+        return;
     }
 };
 
 // Intercepteur pour ajouter le token CSRF à chaque requête
 instance.interceptors.request.use(async function (config) {
+    // Ensure we're using the correct base URL
+    if (!config.url.startsWith('http')) {
+        config.url = `${API_URL}${config.url}`;
+    }
+
     // Obtenir un nouveau token CSRF pour les requêtes POST, PUT, DELETE
     if (['post', 'put', 'delete'].includes(config.method?.toLowerCase())) {
         await getCsrfToken();
@@ -36,6 +48,22 @@ instance.interceptors.request.use(async function (config) {
     if (authToken) {
         config.headers.Authorization = `Bearer ${authToken}`;
     }
+
+    // Check if the request contains a file
+    if (config.data instanceof FormData) {
+        // Remove the Content-Type header to let the browser set it with the boundary
+        delete config.headers['Content-Type'];
+        // Ensure we're not using application/x-www-form-urlencoded
+        config.headers['Accept'] = 'application/json';
+        config.headers['X-Requested-With'] = 'XMLHttpRequest';
+    }
+
+    console.log('Request Config:', {
+        url: config.url,
+        method: config.method,
+        headers: config.headers,
+        data: config.data instanceof FormData ? 'FormData' : config.data
+    });
 
     return config;
 });

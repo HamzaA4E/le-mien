@@ -127,9 +127,12 @@ const CreateTicket = () => {
   }, []);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    console.log('[CreateTicket] handleChange', { name, value });
-    if (value === 'add_new') {
+    const { name, value, type, files } = e.target;
+    console.log('[CreateTicket] handleChange', { name, value, type, files });
+    
+    if (type === 'file') {
+      setFormData(prev => ({ ...prev, [name]: files[0] }));
+    } else if (value === 'add_new') {
       const formType = name.replace('id_', '');
       console.log('[CreateTicket] Clic sur + Ajouter', formType);
       setShowForms(prev => ({ ...prev, [formType]: true }));
@@ -166,25 +169,43 @@ const CreateTicket = () => {
     setError('');
     setSuccess('');
     try {
-      const payload = {
-        ...formData,
-        id_priorite: Number(formData.id_priorite),
-        id_statut: Number(formData.id_statut),
-        id_demandeur: Number(formData.id_demandeur),
-        id_societe: Number(formData.id_societe),
-        id_emplacement: Number(formData.id_emplacement),
-        id_categorie: Number(formData.id_categorie),
-        id_type_demande: Number(formData.id_type_demande),
-        id_executant: formData.id_executant ? Number(formData.id_executant) : 1,
-        id_utilisateur: 1, // À remplacer par l'ID de l'utilisateur connecté
-        date_debut: formData.date_debut ? `${formData.date_debut} 00:00:00` : null,
-        date_fin_prevue: formData.date_fin_prevue ? `${formData.date_fin_prevue} 00:00:00` : null,
-        date_fin_reelle: null
-      };
+      // Create FormData object
+      const formDataObj = new FormData();
+      
+      // Add all form fields to FormData
+      Object.keys(formData).forEach(key => {
+        if (key === 'attachment' && formData[key]) {
+          // If it's a file input, get the actual file
+          const fileInput = document.querySelector('input[name="attachment"]');
+          if (fileInput && fileInput.files[0]) {
+            formDataObj.append('attachment', fileInput.files[0]);
+          }
+        } else if (formData[key] !== '') {
+          // Convert numeric fields
+          if (key.startsWith('id_')) {
+            formDataObj.append(key, Number(formData[key]));
+          } else if (key === 'date_debut' || key === 'date_fin_prevue') {
+            // Format dates as YYYY-MM-DD
+            const date = formData[key].split(' ')[0];
+            formDataObj.append(key, date);
+          } else {
+            formDataObj.append(key, formData[key]);
+          }
+        }
+      });
 
-      console.log('Payload envoyé:', JSON.stringify(payload, null, 2));
+      // Add user ID and other required fields
+      formDataObj.append('id_utilisateur', 1);
+      formDataObj.append('date_fin_reelle', ''); // Add empty string for date_fin_reelle
 
-      const response = await axios.post('/api/tickets', payload);
+      // Log the FormData contents for debugging
+      console.log('FormData contents:');
+      for (let pair of formDataObj.entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
+
+      const response = await axios.post('/api/tickets', formDataObj);
+
       console.log('Réponse du serveur:', response.data);
 
       if (response.data) {
@@ -211,9 +232,20 @@ const CreateTicket = () => {
       console.error('Détails de l\'erreur:', {
         message: err.message,
         response: err.response,
-        status: err.response?.status
+        status: err.response?.status,
+        data: err.response?.data,
+        errors: err.response?.data?.errors
       });
-      setError(err.response?.data?.message || 'Une erreur est survenue lors de la création du ticket');
+      
+      // Display validation errors if they exist
+      if (err.response?.data?.errors) {
+        const errorMessages = Object.entries(err.response.data.errors)
+          .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+          .join('\n');
+        setError(`Erreurs de validation:\n${errorMessages}`);
+      } else {
+        setError(err.response?.data?.message || 'Une erreur est survenue lors de la création du ticket');
+      }
     }
   };
 

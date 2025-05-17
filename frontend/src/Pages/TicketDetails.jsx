@@ -16,7 +16,8 @@ const TicketDetails = () => {
         setLoading(true);
         const response = await axios.get(`/api/tickets/${id}`);
         setTicket(response.data);
-        console.log('Ticket reçu:', response.data);
+        console.log('Ticket complet reçu:', response.data);
+        console.log('Pièce jointe:', response.data.attachment);
         setError('');
       } catch (err) {
         setError('Erreur lors du chargement du ticket');
@@ -205,6 +206,24 @@ const TicketDetails = () => {
                   <dt className="text-sm font-medium text-gray-500">Date de fin réelle</dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                     {formatDate(ticket.DateFinReelle)}
+                  </dd>
+                </div>
+              )}
+              {ticket.attachment_path && (
+                <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                  <dt className="text-sm font-medium text-gray-500">Pièce jointe</dt>
+                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    <a
+                      href={`${axios.defaults.baseURL}/storage/${ticket.attachment_path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      {ticket.attachment_path.split('/').pop()}
+                    </a>
                   </dd>
                 </div>
               )}

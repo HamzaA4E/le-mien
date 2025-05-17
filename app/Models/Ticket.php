@@ -17,6 +17,7 @@ class Ticket extends Model
         'Titre',
         'Description',
         'Commentaire',
+        'attachment_path',
         'Id_Priorite',
         'Id_Statut',
         'Id_Demandeur',

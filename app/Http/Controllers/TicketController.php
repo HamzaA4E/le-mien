@@ -140,7 +140,24 @@ class TicketController extends Controller
                 $attachmentPath = null;
                 if ($request->hasFile('attachment')) {
                     $file = $request->file('attachment');
-                    $attachmentPath = $file->store('attachments', 'public');
+                    Log::info('Fichier reçu:', [
+                        'name' => $file->getClientOriginalName(),
+                        'size' => $file->getSize(),
+                        'mime' => $file->getMimeType()
+                    ]);
+                    
+                    try {
+                        $attachmentPath = $file->store('attachments', 'public');
+                        Log::info('Fichier stocké avec succès:', ['path' => $attachmentPath]);
+                    } catch (\Exception $e) {
+                        Log::error('Erreur lors du stockage du fichier:', [
+                            'error' => $e->getMessage(),
+                            'file' => $file->getClientOriginalName()
+                        ]);
+                        throw $e;
+                    }
+                } else {
+                    Log::info('Aucun fichier n\'a été envoyé');
                 }
 
                 $data = [

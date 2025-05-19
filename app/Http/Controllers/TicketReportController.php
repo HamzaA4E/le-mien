@@ -59,6 +59,28 @@ class TicketReportController extends Controller
 
                 DB::commit();
                 
+                // Envoyer l'e-mail à l'exécutant
+                try {
+                    $executant = $ticket->executant;
+                    $responsable = \App\Models\Utilisateur::find($userId);
+
+                    // Temporarily send to a specific email for testing if executant email is missing
+                    $recipientEmail = $executant && $executant->email ? $executant->email : 'herohamza24@gmail.com';
+
+                    if ($recipientEmail) {
+                        \Illuminate\Support\Facades\Mail::to($recipientEmail)->send(new \App\Mail\ReportCreatedNotification($ticket, $responsable, $validated['raison']));
+                        Log::info('Report notification email sent', ['ticketId' => $ticket->id, 'recipientEmail' => $recipientEmail]);
+                    } else {
+                        Log::warning('Executant not found and no fallback email provided for report notification', ['ticketId' => $ticket->id]);
+                    }
+                } catch (\Exception $mailException) {
+                    Log::error('Error sending report notification email', [
+                        'error' => $mailException->getMessage(),
+                        'ticketId' => $ticket->id,
+                        'trace' => $mailException->getTraceAsString()
+                    ]);
+                }
+
                 return response()->json([
                     'message' => 'Report créé avec succès',
                     'report' => $report

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
+import TicketReport from '../components/TicketReport';
 
 const TicketDetails = () => {
   const { id } = useParams();
@@ -9,6 +10,27 @@ const TicketDetails = () => {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportRaison, setReportRaison] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportSuccess, setReportSuccess] = useState('');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await axios.get('/api/user');
+        setUser(response.data);
+        console.log('User data fetched:', response.data);
+        console.log('User access level:', response.data?.niveau_acces);
+      } catch (err) {
+        console.error('Erreur lors de la récupération des informations utilisateur:', err);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     const fetchTicket = async () => {
@@ -58,6 +80,25 @@ const TicketDetails = () => {
       month: '2-digit',
       day: '2-digit'
     });
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    setReportLoading(true);
+    setReportError('');
+    setReportSuccess('');
+    try {
+      const response = await axios.post(`/api/tickets/${ticket.id}/reports`, { raison: reportRaison });
+      setReportSuccess('Report créé avec succès !');
+      setReportRaison('');
+      setTimeout(() => setShowReportModal(false), 1000);
+    } catch (err) {
+      console.error('Erreur complète:', err);
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Erreur lors de la création du report';
+      setReportError(errorMessage);
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   if (loading) {
@@ -120,18 +161,28 @@ const TicketDetails = () => {
         </div>
 
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
-              {ticket.Titre}
-            </h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {ticket.statut?.designation || 'Sans statut'}
-              </span>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                {ticket.priorite?.designation || 'Sans priorité'}
-              </span>
+          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <div>
+              <h3 className="text-lg leading-6 font-medium text-gray-900">
+                {ticket.Titre}
+              </h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {ticket.statut?.designation || 'Sans statut'}
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {ticket.priorite?.designation || 'Sans priorité'}
+                </span>
+              </div>
             </div>
+            {user?.niveau === 2 && (
+              <button
+                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                onClick={() => setShowReportModal(true)}
+              >
+                Report
+              </button>
+            )}
           </div>
           <div className="border-t border-gray-200">
             <dl>
@@ -230,6 +281,55 @@ const TicketDetails = () => {
             </dl>
           </div>
         </div>
+
+        {/* Modal Report */}
+        {showReportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl"
+                onClick={() => setShowReportModal(false)}
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+              <h2 className="text-lg font-bold mb-4">Créer un report pour ce ticket</h2>
+              <form onSubmit={handleReportSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="raison" className="block text-sm font-medium text-gray-700 mb-1">
+                    Raison du report
+                  </label>
+                  <textarea
+                    id="raison"
+                    value={reportRaison}
+                    onChange={e => setReportRaison(e.target.value)}
+                    required
+                    rows={4}
+                    className="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+                  />
+                </div>
+                {reportError && <p className="text-red-500 text-sm">{reportError}</p>}
+                {reportSuccess && <p className="text-green-600 text-sm">{reportSuccess}</p>}
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                    onClick={() => setShowReportModal(false)}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    disabled={reportLoading}
+                  >
+                    {reportLoading ? 'Création...' : 'Créer'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

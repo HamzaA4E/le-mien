@@ -111,4 +111,9 @@ class Ticket extends Model
                 $in24h->format('d/m/Y H:i:s')
             ]);
     }
+
+    public function reports()
+    {
+        return $this->hasMany(TicketReport::class, 'Id_Ticket');
+    }
 } 

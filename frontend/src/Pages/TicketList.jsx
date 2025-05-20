@@ -1,16 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { FaSyncAlt, FaFilter, FaTimes } from 'react-icons/fa';
 import { BiCategory } from 'react-icons/bi';
 import { MdPerson, MdBusinessCenter, MdLocationOn, MdDateRange } from 'react-icons/md';
-
-const STATUTS = [
-  { id: 1, label: 'En instance' },
-  { id: 2, label: 'En cours' },
-  { id: 3, label: 'Clôturé' },
-];
 
 // Mapping des couleurs pour les types de demande
 const TYPE_COLORS = {
@@ -18,6 +12,15 @@ const TYPE_COLORS = {
   'Projet': { bg: 'bg-stone-300', text: 'text-stone-900', border: 'border-stone-200' },
   'default': { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' }
 };
+
+// Fonction pour supprimer les accents d'une chaîne et remplacer les espaces par underscores
+const normalizeString = (str) => {
+  if (!str) return '';
+  // Use NFD normalization to separate base characters and combining marks
+  // Then remove all combining diacritical marks (range U+0300 to U+036F)
+  // Then convert to lowercase and replace spaces with underscores
+  return str.normalize("NFD").replace(/\u0300-\u036f/g, "").toLowerCase().replace(/ /g, '_');
+}
 
 // Cache pour les tickets et les filtres
 const ticketCache = {
@@ -32,6 +35,8 @@ const filterCache = {
 };
 
 const TicketList = () => {
+  console.log('TicketList component rendered');
+  const [searchParams] = useSearchParams();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,25 +45,34 @@ const TicketList = () => {
   const [itemsPerPage] = useState(20);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [updating, setUpdating] = useState({});
+  
+  // Initialiser l'état des statuts comme null ou vide en attendant le chargement
   const [statuts, setStatuts] = useState([]);
+  
   const [spin, setSpin] = useState(false);
   
-  // États pour les filtres
-  const [filters, setFilters] = useState({
-    categorie: '',
-    demandeur: '',
-    societe: '',
-    emplacement: '',
-    statut: '',
-    priorite: '',
-    executant: '',
-    dateDebut: '',
-    dateDebutFin: '',
-    dateFinPrevueDebut: '',
-    dateFinPrevueFin: '',
-    dateFinReelleDebut: '',
-    dateFinReelleFin: '',
-    type_demande: ''
+  // Ajouter une référence pour suivre si le chargement initial est terminé
+  const isInitialLoad = React.useRef(true);
+
+  // États pour les filtres - Initialisés depuis l'URL
+  const [filters, setFilters] = useState(() => {
+    const initialStatut = searchParams.get('statut');
+    return {
+      categorie: searchParams.get('categorie') || '',
+      demandeur: searchParams.get('demandeur') || '',
+      societe: searchParams.get('societe') || '',
+      emplacement: searchParams.get('emplacement') || '',
+      statut: initialStatut !== null && initialStatut !== '' ? parseInt(initialStatut, 10) : '', // Convertir en nombre
+      priorite: searchParams.get('priorite') || '',
+      executant: searchParams.get('executant') || '',
+      dateDebut: searchParams.get('dateDebut') || '',
+      dateDebutFin: searchParams.get('dateDebutFin') || '',
+      dateFinPrevueDebut: searchParams.get('dateFinPrevueDebut') || '',
+      dateFinPrevueFin: searchParams.get('dateFinPrevueFin') || '',
+      dateFinReelleDebut: searchParams.get('dateFinReelleDebut') || '',
+      dateFinReelleFin: searchParams.get('dateFinReelleFin') || '',
+      type_demande: searchParams.get('type_demande') || ''
+    };
   });
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -78,12 +92,87 @@ const TicketList = () => {
   }
   const niveau = user?.niveau;
 
-  const fetchTickets = async (force = false, pageNum = page) => {
+  // Effet pour lire les paramètres d'URL et mettre à jour l'état des filtres.
+  // Cet effet NE déclenche PAS la récupération initiale des tickets.
+  // Rendu inutile car l'état initial des filtres est déjà basé sur l'URL.
+  /*
+  useEffect(() => {
+    const statusFromUrl = searchParams.get('status');
+    console.log('useEffect [searchParams] - URL changed', statusFromUrl);
+  }, [searchParams]);
+  */
+
+  // Effet unique pour le chargement initial des données de filtre ET des tickets
+  useEffect(() => {
+    console.log('useEffect [] - Running initial load effect');
+    const initialLoad = async () => {
+        setLoading(true);
+        setSpin(true);
+        try {
+            console.log('initialLoad useEffect - Starting initial load');
+            
+            // 1. Fetch all filter data first, including statuts
+            const filterData = await fetchAllFilterData(true); 
+            console.log('initialLoad useEffect - Filter data fetched:', filterData);
+            
+            // filterData contains statuts, which will update the `statuts` state via setStatuts inside fetchAllFilterData
+
+            // 2. Now that filters (including statuts list) are potentially loaded,
+            //    use the filters state (initialized from URL) to fetch tickets.
+            console.log('initialLoad useEffect - Calling fetchTickets with initial state filters:', filters);
+            await fetchTickets(true, 1, filters); // Pass the initial `filters` state directly
+
+            // isInitialLoad.current = false; // Marquer le chargement initial comme terminé si nécessaire pour d'autres logiques
+
+        } catch (err) {
+            setError('Erreur lors du chargement initial des données');
+            console.error('Erreur:', err);
+            // Ensure loading indicators are hidden even on error
+            setLoading(false);
+            setSpin(false);
+        }
+    };
+    initialLoad();
+
+  }, []); // Exécuté une seule fois au montage
+
+  // Effet pour charger les tickets lorsque les filtres changent (interactif) APRES le chargement initial
+  useEffect(() => {
+    // Utiliser une référence pour s'assurer que cet effet ne s'exécute pas au montage initial
+    if (isInitialLoad.current) {
+        isInitialLoad.current = false; // Marquer le chargement initial comme terminé
+        console.log('useEffect [filters, statuts] - Skipping initial fetch because isInitialLoad is true');
+        return; 
+    }
+
+    console.log('useEffect [filters, statuts] - filters or statuts state changed (interactive):', filters);
+    
+    // S'assurer que nous ne lançons pas un fetch avec des filtres incomplets si les statuts ne sont pas encore chargés
+    // et que l'on a un filtre de statut sélectionné.
+    if (filters.statut && statuts.length === 0) {
+        console.log('useEffect [filters, statuts] - Statut filter set but statuts not loaded, skipping fetchTickets');
+        return; // Attendre que les statuts soient chargés
+    }
+
+    console.log('useEffect [filters, statuts] - Calling fetchTickets due to filters change (interactive)');
+    fetchTickets(true, 1, filters); // Utiliser l'état `filters` actuel pour le fetch
+    
+  }, [filters, statuts]); // Dépend de l'état local `filters` et `statuts`
+
+  // Modifier fetchTickets pour accepter des filtres optionnels
+  const fetchTickets = async (force = false, pageNum = page, appliedFilters = null) => {
+    console.log('fetchTickets called - force:', force, 'pageNum:', pageNum, 'appliedFilters:', appliedFilters);
     setSpin(true);
+    // Utiliser les filtres passés en argument, sinon utiliser l'état local filters
+    const currentFilters = appliedFilters || filters;
+    
+    // Log pour vérifier les filtres envoyés à l'API
+    console.log('fetchTickets - Using filters:', currentFilters);
     try {
       if (!force && ticketCache.tickets && ticketCache.lastFetch) {
         const now = new Date().getTime();
         if (now - ticketCache.lastFetch < ticketCache.cacheDuration) {
+          console.log('fetchTickets - Using ticket cache');
           setTickets(ticketCache.tickets);
           setAllTickets(ticketCache.tickets);
           setLoading(false);
@@ -92,24 +181,32 @@ const TicketList = () => {
         }
       }
 
+      console.log('fetchTickets - Fetching from API with params:', { ...currentFilters, page: pageNum, per_page: itemsPerPage });
+
       const response = await axios.get(`/api/tickets`, {
-        params: {
+        params: { 
+          ...currentFilters,
           page: pageNum,
           per_page: itemsPerPage,
-          ...filters
-        }
+          // S'assurer que le statut est envoyé comme un entier ou null si vide
+          statut: currentFilters.statut !== '' ? parseInt(currentFilters.statut, 10) : null
+         }
       });
 
       const newTickets = response.data.data || [];
       const total = response.data.total || 0;
       const lastPage = response.data.last_page || 1;
 
+      console.log('fetchTickets - Received tickets:', newTickets.length, 'Total:', total);
+
       if (pageNum === 1) {
         ticketCache.tickets = newTickets;
         ticketCache.lastFetch = new Date().getTime();
+        console.log('fetchTickets - Setting tickets and allTickets (page 1)');
         setTickets(newTickets);
         setAllTickets(newTickets);
       } else {
+        console.log('fetchTickets - Appending tickets');
         setTickets(prev => [...prev, ...newTickets]);
         setAllTickets(prev => [...prev, ...newTickets]);
       }
@@ -129,53 +226,13 @@ const TicketList = () => {
   const fetchStatuts = async () => {
     try {
       const response = await axios.get('/api/statuts');
+      // Mettre à jour le cache des filtres avec les statuts si nécessaire
+       if (filterCache.data) {
+          filterCache.data.statuts = response.data;
+       }
       setStatuts(response.data);
     } catch (err) {
       console.error('Erreur lors du chargement des statuts:', err);
-    }
-  };
-
-  const handleStatutChange = async (ticketId, newStatutId) => {
-    if (!newStatutId) return; // Ne rien faire si aucun statut n'est sélectionné
-    
-    setUpdating((prev) => ({ ...prev, [ticketId]: true }));
-    try {
-      // Chercher la désignation du statut sélectionné
-      const statutCloture = statuts.find(s => s.designation === 'Clôturé');
-      const isCloture = statutCloture && String(statutCloture.id) === String(newStatutId);
-
-      const payload = { id_statut: newStatutId };
-      if (isCloture) {
-        payload.DateFinReelle = new Date().toISOString().slice(0, 19).replace('T', ' ');
-      }
-
-      console.log('Envoi de la requête de mise à jour:', {
-        ticketId,
-        newStatutId,
-        url: `/api/tickets/${ticketId}`,
-        data: payload
-      });
-
-      const response = await axios.put(`/api/tickets/${ticketId}`, payload);
-      
-      console.log('Réponse du serveur:', response.data);
-
-      // Mettre à jour le statut localement avec les données complètes du ticket
-      setTickets((prevTickets) => {
-        const updatedTickets = prevTickets.map((t) =>
-          t.id === ticketId
-            ? { ...t, Id_Statut: response.data.Id_Statut, statut: response.data.statut }
-            : t
-        );
-        // Mettre à jour le cache pour garder la cohérence
-        ticketCache.tickets = updatedTickets;
-        return updatedTickets;
-      });
-    } catch (err) {
-      console.error('Erreur détaillée:', err.response?.data || err.message);
-      alert(`Erreur lors du changement de statut: ${err.response?.data?.message || err.message}`);
-    } finally {
-      setUpdating((prev) => ({ ...prev, [ticketId]: false }));
     }
   };
 
@@ -186,6 +243,7 @@ const TicketList = () => {
     // Vérifier si les données en cache sont encore valides
     if (!force && filterCache.data && filterCache.lastFetch && 
         (now - filterCache.lastFetch < filterCache.cacheDuration)) {
+      console.log('Using filter data cache');
       setCategories(filterCache.data.categories);
       setDemandeurs(filterCache.data.demandeurs);
       setSocietes(filterCache.data.societes);
@@ -193,20 +251,19 @@ const TicketList = () => {
       setStatuts(filterCache.data.statuts);
       setPriorites(filterCache.data.priorites);
       setExecutants(filterCache.data.executants);
-      return;
+      return filterCache.data; // Retourner les données du cache
     }
 
+    console.log('Fetching all filter data from API');
     try {
       // Faire tous les appels API en parallèle
-      const [
-        categoriesRes,
+      const [ categoriesRes,
         demandeursRes,
         societesRes,
         emplacementsRes,
         statutsRes,
         prioritesRes,
-        executantsRes
-      ] = await Promise.all([
+        executantsRes ] = await Promise.all([
         axios.get('/api/categories'),
         axios.get('/api/demandeurs'),
         axios.get('/api/societes'),
@@ -217,7 +274,7 @@ const TicketList = () => {
       ]);
 
       // Mettre à jour le cache avec toutes les données
-      filterCache.data = {
+      const fetchedData = {
         categories: categoriesRes.data,
         demandeurs: demandeursRes.data,
         societes: societesRes.data,
@@ -226,50 +283,28 @@ const TicketList = () => {
         priorites: prioritesRes.data,
         executants: executantsRes.data
       };
+      filterCache.data = fetchedData;
       filterCache.lastFetch = now;
 
       // Mettre à jour les états
-      setCategories(categoriesRes.data.filter(item => item.is_active !== false));
-      setDemandeurs(demandeursRes.data.filter(item => item.is_active !== false));
-      setSocietes(societesRes.data.filter(item => item.is_active !== false));
-      setEmplacements(emplacementsRes.data.filter(item => item.is_active !== false));
-      setStatuts(statutsRes.data.filter(item => item.is_active !== false));
-      setPriorites(prioritesRes.data.filter(item => item.is_active !== false));
-      setExecutants(executantsRes.data.filter(item => item.is_active !== false));
+      setCategories(fetchedData.categories.filter(item => item.is_active !== false));
+      setDemandeurs(fetchedData.demandeurs.filter(item => item.is_active !== false));
+      setSocietes(fetchedData.societes.filter(item => item.is_active !== false));
+      setEmplacements(fetchedData.emplacements.filter(item => item.is_active !== false));
+      setStatuts(fetchedData.statuts.filter(item => item.is_active !== false));
+      setPriorites(fetchedData.priorites.filter(item => item.is_active !== false));
+      setExecutants(fetchedData.executants.filter(item => item.is_active !== false));
+
+      return fetchedData; // Retourner les données chargées
+
     } catch (err) {
       console.error('Erreur lors du chargement des données de filtrage:', err);
+       // Effacer le cache en cas d'erreur
+       filterCache.data = null;
+       filterCache.lastFetch = null;
+       throw err; // Propager l'erreur
     }
   };
-
-  const fetchFilterData = async () => {
-    try {
-      const [categoriesRes, demandeursRes, societesRes, emplacementsRes, prioritesRes, statutsRes, executantsRes] = await Promise.all([
-        axios.get('/api/categories'),
-        axios.get('/api/demandeurs'),
-        axios.get('/api/societes'),
-        axios.get('/api/emplacements'),
-        axios.get('/api/priorites'),
-        axios.get('/api/statuts'),
-        axios.get('/api/executants')
-      ]);
-
-      // Filtrer les entités actives
-      setCategories(categoriesRes.data.filter(item => item.is_active !== false));
-      setDemandeurs(demandeursRes.data.filter(item => item.is_active !== false));
-      setSocietes(societesRes.data.filter(item => item.is_active !== false));
-      setEmplacements(emplacementsRes.data.filter(item => item.is_active !== false));
-      setPriorites(prioritesRes.data.filter(item => item.is_active !== false));
-      setStatuts(statutsRes.data.filter(item => item.is_active !== false));
-      setExecutants(executantsRes.data.filter(item => item.is_active !== false));
-    } catch (err) {
-      console.error('Erreur lors du chargement des données de filtrage:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchFilterData();
-    fetchTickets();
-  }, []);
 
   // Fonction pour réinitialiser les filtres
   const resetFilters = () => {
@@ -289,6 +324,9 @@ const TicketList = () => {
       dateFinReelleFin: '',
       type_demande: ''
     });
+    // Note: La navigation vers une URL sans paramètre pourrait être ajoutée ici
+    // si vous souhaitez que la réinitialisation modifie également l'URL.
+    // navigate('/tickets'); 
   };
 
   // Fonction pour extraire la date d'un objet date Laravel ou d'une chaîne
@@ -427,22 +465,21 @@ const TicketList = () => {
 
   // Fonction pour gérer le clic sur les boutons de statut
   const handleStatutButtonClick = (statutId) => {
+    const newStatut = filters.statut === statutId ? '' : statutId;
     setFilters(prev => ({
       ...prev,
-      statut: prev.statut === statutId ? '' : statutId
+      statut: newStatut // statutId est déjà un nombre ici
     }));
-  };
-
-  // Modifier useEffect pour ne pas déclencher de rechargement lors du changement de statut
-  useEffect(() => {
-    const hasOtherFilters = Object.entries(filters).some(([key, value]) => 
-      key !== 'statut' && value !== ''
-    );
-
-    if (hasOtherFilters) {
-      fetchTickets(true);
+    // Mettre à jour l'URL lors du clic sur un bouton de statut rapide
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (newStatut !== '') {
+      newSearchParams.set('statut', newStatut.toString()); // Convertir en chaîne pour l'URL
+    } else {
+      newSearchParams.delete('statut');
     }
-  }, [filters]);
+    // Remplace l'historique pour ne pas empiler les clics rapides
+    window.history.replaceState(null, '', `?${newSearchParams.toString()}`);
+  };
 
   if (loading && !tickets.length) {
     return (

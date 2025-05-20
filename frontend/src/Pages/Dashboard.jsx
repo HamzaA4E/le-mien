@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
 import { FaSyncAlt, FaFilter } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 // Enregistrement des composants Chart.js nécessaires
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
@@ -193,22 +194,22 @@ const Dashboard = () => {
 
         {/* Cartes de statistiques */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow flex flex-col items-start">
+          <Link to="/tickets" className="bg-white p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer">
             <h3 className="text-sm font-medium text-gray-500">Total tickets</h3>
             <p className="mt-2 text-3xl font-extrabold text-blue-600">{stats.total}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow flex flex-col items-start">
+          </Link>
+          <Link to="/tickets?statut=2" className="bg-white p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer">
             <h3 className="text-sm font-medium text-gray-500">En cours</h3>
             <p className="mt-2 text-3xl font-extrabold text-yellow-500">{stats.en_cours}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow flex flex-col items-start">
+          </Link>
+          <Link to="/tickets?statut=1" className="bg-white p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer">
             <h3 className="text-sm font-medium text-gray-500">En instance</h3>
             <p className="mt-2 text-3xl font-extrabold text-orange-500">{stats.en_instance}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow flex flex-col items-start">
+          </Link>
+          <Link to="/tickets?statut=3" className="bg-white p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer">
             <h3 className="text-sm font-medium text-gray-500">Clôturés</h3>
             <p className="mt-2 text-3xl font-extrabold text-green-600">{stats.cloture}</p>
-          </div>
+          </Link>
         </div>
 
         {/* Graphiques */}

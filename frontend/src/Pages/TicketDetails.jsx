@@ -118,26 +118,53 @@ const TicketDetails = () => {
 
   const handleDownload = async () => {
     try {
-      const response = await axios.get(`/api/tickets/${ticket.id}/download`, {
-        responseType: 'blob'
-      });
-      
-      // Créer un URL pour le blob
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      
-      // Créer un lien temporaire et cliquer dessus
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', ticket.attachment_path.split('/').pop());
-      document.body.appendChild(link);
-      link.click();
-      
-      // Nettoyer
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
+        setError('');
+        const fileName = ticket.attachment_path.split('/').pop();
+        const isPdf = fileName.toLowerCase().endsWith('.pdf');
+        
+        // Approche unifiée pour tous les fichiers
+        const response = await axios.get(`/api/tickets/${ticket.id}/download`, {
+            responseType: 'blob',
+            headers: {
+                'Accept': isPdf ? 'application/pdf' : '*/*'
+            }
+        });
+
+        // Vérification du blob
+        if (!(response.data instanceof Blob) || response.data.size === 0) {
+            throw new Error('Fichier vide ou invalide');
+        }
+
+        // Création de l'URL
+        const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+        
+        // Création du lien de téléchargement
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute('download', fileName);
+        
+        // Déclenchement du téléchargement
+        document.body.appendChild(link);
+        link.click();
+        
+        // Nettoyage
+        setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+
     } catch (error) {
-      console.error('Erreur lors du téléchargement:', error);
-      setError('Erreur lors du téléchargement du fichier');
+        console.error('Erreur téléchargement:', error);
+        setError(`Échec du téléchargement: ${error.message}`);
+        
+        // Journalisation supplémentaire pour le débogage
+        if (error.response) {
+            console.error('Détails erreur:', {
+                status: error.response.status,
+                headers: error.response.headers,
+                data: error.response.data
+            });
+        }
     }
   };
 

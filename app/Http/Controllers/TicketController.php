@@ -507,20 +507,32 @@ class TicketController extends Controller
     {
         try {
             $ticket = Ticket::findOrFail($id);
-            
+
             if (!$ticket->attachment_path) {
                 return response()->json(['message' => 'Aucune pièce jointe trouvée'], 404);
             }
 
             $path = storage_path('app/public/' . $ticket->attachment_path);
-            
+
             if (!file_exists($path)) {
                 return response()->json(['message' => 'Le fichier n\'existe plus'], 404);
             }
 
-            return response()->download($path, basename($ticket->attachment_path));
+            $mimeType = mime_content_type($path) ?: 'application/octet-stream';
+
+            return response()->download($path, basename($path), [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'attachment; filename="'.basename($path).'"',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0',
+                'Pragma' => 'no-cache'
+            ]);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Erreur lors du téléchargement du fichier'], 500);
+            \Log::error('Erreur téléchargement fichier', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id,
+                'path' => $path ?? null
+            ]);
+            return response()->json(['message' => 'Erreur lors du téléchargement'], 500);
         }
     }
 } 

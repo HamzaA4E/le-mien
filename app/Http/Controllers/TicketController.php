@@ -228,7 +228,8 @@ class TicketController extends Controller
                 'demandeur',
                 'societe',
                 'emplacement',
-                'executant'
+                'executant',
+                'reports.responsable'
             ])->findOrFail($id);
 
             return response()->json($ticket);

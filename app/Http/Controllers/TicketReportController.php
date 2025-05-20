@@ -59,25 +59,41 @@ class TicketReportController extends Controller
 
                 DB::commit();
                 
-                // Envoyer l'e-mail à l'exécutant
+                // Envoyer l'e-mail au créateur du ticket
                 try {
-                    $executant = $ticket->executant;
+                    // Get the ticket creator using the correct relationship
+                    $creator = $ticket->utilisateur;
                     $responsable = \App\Models\Utilisateur::find($userId);
 
-                    // Temporarily send to a specific email for testing if executant email is missing
-                    $recipientEmail = $executant && $executant->email ? $executant->email : 'herohamza24@gmail.com';
+                    Log::info('Email notification details:', [
+                        'ticketId' => $ticket->id,
+                        'creatorEmail' => $creator ? $creator->email : 'Not found',
+                        'creatorName' => $creator ? $creator->designation : 'Not found',
+                        'responsableEmail' => $responsable ? $responsable->email : 'Not found',
+                        'responsableName' => $responsable ? $responsable->designation : 'Not found',
+                        'message' => $validated['raison']
+                    ]);
 
-                    if ($recipientEmail) {
-                        \Illuminate\Support\Facades\Mail::to($recipientEmail)->send(new \App\Mail\ReportCreatedNotification($ticket, $responsable, $validated['raison']));
-                        Log::info('Report notification email sent', ['ticketId' => $ticket->id, 'recipientEmail' => $recipientEmail]);
+                    if ($creator && $creator->email) {
+                        \Illuminate\Support\Facades\Mail::to($creator->email)
+                            ->send(new \App\Mail\ReportCreatedNotification($ticket, $responsable, $validated['raison']));
+                            
+                        Log::info('Email sent successfully to ticket creator', [
+                            'creatorEmail' => $creator->email,
+                            'ticketId' => $ticket->id
+                        ]);
                     } else {
-                        Log::warning('Executant not found and no fallback email provided for report notification', ['ticketId' => $ticket->id]);
+                        Log::warning('Cannot send email: Creator not found or has no email', [
+                            'ticketId' => $ticket->id,
+                            'creatorExists' => $creator ? 'yes' : 'no',
+                            'hasEmail' => $creator && $creator->email ? 'yes' : 'no'
+                        ]);
                     }
                 } catch (\Exception $mailException) {
-                    Log::error('Error sending report notification email', [
+                    Log::error('Failed to send email', [
                         'error' => $mailException->getMessage(),
                         'ticketId' => $ticket->id,
-                        'trace' => $mailException->getTraceAsString()
+                        'creatorEmail' => $creator ? $creator->email : 'not found'
                     ]);
                 }
 

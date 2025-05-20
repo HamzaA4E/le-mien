@@ -16,6 +16,7 @@ const TicketDetails = () => {
   const [reportError, setReportError] = useState('');
   const [reportSuccess, setReportSuccess] = useState('');
   const [user, setUser] = useState(null);
+  const [filteredReports, setFilteredReports] = useState([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -51,6 +52,20 @@ const TicketDetails = () => {
 
     fetchTicket();
   }, [id]);
+
+  useEffect(() => {
+    if (ticket?.reports) {
+      // Display all reports for now, as both creator and responsable need to see them.
+      // Further filtering logic can be added here if needed in the future.
+      setFilteredReports(ticket.reports);
+    } else if (ticket && !ticket?.reports) {
+       // If ticket data is loaded but no reports, set to empty array
+       setFilteredReports([]);
+    } else {
+        // If ticket is null or still loading, set to empty array
+        setFilteredReports([]);
+    }
+  }, [ticket, user]);
 
   const parseFrDate = (frDate) => {
     if (!frDate || typeof frDate !== 'string') return null;
@@ -280,6 +295,33 @@ const TicketDetails = () => {
               )}
             </dl>
           </div>
+        </div>
+
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-6">
+            <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Reports</h3>
+            </div>
+            <div className="border-t border-gray-200">
+                {filteredReports.length > 0 ? (
+                    <ul className="divide-y divide-gray-200">
+                        {filteredReports.map(report => {
+                            console.log('Inspecting Report Object:', report);
+                            return (
+                                <li key={report.id} className="px-4 py-4 sm:px-6">
+                                    <div className="text-sm text-gray-800">{report.Raison}</div>
+                                    <div className="text-sm text-gray-500 mt-1">
+                                        Reporté par {report.responsable?.designation} le {formatDate(report.DateReport)}
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                ) : (
+                    <div className="px-4 py-4 sm:px-6 text-sm text-gray-500">
+                        Aucun report disponible.
+                    </div>
+                )}
+            </div>
         </div>
 
         {/* Modal Report */}

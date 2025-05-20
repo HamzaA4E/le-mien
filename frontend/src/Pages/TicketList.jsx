@@ -481,6 +481,29 @@ const TicketList = () => {
     window.history.replaceState(null, '', `?${newSearchParams.toString()}`);
   };
 
+  // Fonction pour gérer le changement de statut d'un ticket (pour admin)
+  const handleStatutChange = async (ticketId, newStatutId) => {
+    setUpdating(prev => ({ ...prev, [ticketId]: true }));
+    try {
+      const response = await axios.put(`/api/tickets/${ticketId}`, {
+        id_statut: parseInt(newStatutId, 10)
+      });
+      // Mettre à jour l'état local des tickets avec la réponse
+      setTickets(prevTickets => prevTickets.map(ticket =>
+        ticket.id === ticketId ? response.data : ticket // Utiliser l'objet ticket complet de la réponse
+      ));
+      setAllTickets(prevTickets => prevTickets.map(ticket =>
+        ticket.id === ticketId ? response.data : ticket // Utiliser l'objet ticket complet de la réponse
+      ));
+      console.log('Statut updated successfully:', response.data);
+    } catch (error) {
+      console.error('Error updating statut:', error);
+      setError('Erreur lors de la mise à jour du statut du ticket.');
+    } finally {
+      setUpdating(prev => ({ ...prev, [ticketId]: false }));
+    }
+  };
+
   if (loading && !tickets.length) {
     return (
       <Layout>

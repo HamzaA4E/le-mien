@@ -1,7 +1,8 @@
 import axios from "axios";
 
 // Ensure we have a valid base URL
-const API_URL = "http://localhost:8000";
+// Use environment variable VITE_API_URL, default to localhost if not set
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const instance = axios.create({
     baseURL: API_URL,
@@ -29,9 +30,10 @@ const getCsrfToken = async () => {
 // Intercepteur pour ajouter le token CSRF à chaque requête
 instance.interceptors.request.use(async function (config) {
     // Ensure we're using the correct base URL
-    if (!config.url.startsWith('http')) {
-        config.url = `${API_URL}${config.url}`;
-    }
+    // This is now handled by baseURL configuration on the instance
+    // if (!config.url.startsWith('http')) {
+    //     config.url = `${API_URL}${config.url}`;
+    // }
 
     // Obtenir un nouveau token CSRF pour les requêtes POST, PUT, DELETE
     if (['post', 'put', 'delete'].includes(config.method?.toLowerCase())) {

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs } from 'react-icons/fa';
 import axios from 'axios';
+import { useState } from 'react';
 
 // Configuration de la base URL pour axios
 axios.defaults.baseURL = 'http://localhost:8000';
@@ -9,6 +10,7 @@ axios.defaults.baseURL = 'http://localhost:8000';
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   // Récupérer le user depuis le localStorage
   let user = null;
@@ -24,6 +26,7 @@ const Sidebar = () => {
   };
 
   const handleLogout = async () => {
+    setLoading(true); // Activer l'animation de chargement
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -47,7 +50,9 @@ const Sidebar = () => {
       // En cas d'erreur, on supprime quand même le token et on redirige
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      navigate('/login');
+    } finally {
+      setLoading(false); // Désactiver l'animation en cas d'erreur ou avant redirection
+      navigate('/login'); // Assurer la redirection même en cas d'erreur
     }
   };
 
@@ -97,9 +102,19 @@ const Sidebar = () => {
             <button
               onClick={handleLogout}
               className="flex items-center space-x-2 p-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white w-full"
+              disabled={loading}
             >
-              <span className="text-lg"><FaSignOutAlt /></span>
-              <span>Déconnexion</span>
+              <span className="text-lg">
+                {loading ? (
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.908l2-2.617zm10 0l2 2.617A7.962 7 0 0020 12h-4a8 8 0 01-2 5.291z"></path>
+                  </svg>
+                ) : (
+                  <FaSignOutAlt />
+                )}
+              </span>
+              <span>{loading ? 'Déconnexion...' : 'Déconnexion'}</span>
             </button>
           </li>
         </ul>

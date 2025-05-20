@@ -310,7 +310,7 @@ class TicketController extends Controller
                 ]);
 
                 // Recharger le ticket avec ses relations
-                $ticket = Ticket::with(['statut', 'priorite'])->find($ticket->id);
+                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'typeDemande', 'executant'])->find($ticket->id);
                 
                 return response()->json($ticket);
             } catch (\Exception $e) {
@@ -501,5 +501,26 @@ class TicketController extends Controller
         return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'typeDemande', 'executant'])
             ->finPrevueDans24hNonCloture()
             ->get();
+    }
+
+    public function downloadAttachment($id)
+    {
+        try {
+            $ticket = Ticket::findOrFail($id);
+            
+            if (!$ticket->attachment_path) {
+                return response()->json(['message' => 'Aucune pièce jointe trouvée'], 404);
+            }
+
+            $path = storage_path('app/public/' . $ticket->attachment_path);
+            
+            if (!file_exists($path)) {
+                return response()->json(['message' => 'Le fichier n\'existe plus'], 404);
+            }
+
+            return response()->download($path, basename($ticket->attachment_path));
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur lors du téléchargement du fichier'], 500);
+        }
     }
 } 

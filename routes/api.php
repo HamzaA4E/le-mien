@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('tickets', TicketController::class);
     Route::get('/tickets/options', [TicketController::class, 'getOptions']);
     Route::get('/tickets/statut/{statut}', [TicketController::class, 'getByStatut']);
+    Route::get('/tickets/{id}/download', [TicketController::class, 'downloadAttachment']);
 
     // Routes pour les utilisateurs
     Route::apiResource('utilisateurs', UtilisateurController::class);

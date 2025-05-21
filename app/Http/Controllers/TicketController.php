@@ -383,25 +383,42 @@ class TicketController extends Controller
 
             // Vérification de l'existence des tables
             $tables = [
+                'T_STATUT' => ['model' => Statut::class, 'key' => 'statuts'],
                 'T_DEMDEUR' => ['model' => Demandeur::class, 'key' => 'demandeurs'],
                 'T_SOCIETE' => ['model' => Societe::class, 'key' => 'societes'],
                 'T_EMPLACEMENT' => ['model' => Emplacement::class, 'key' => 'emplacements'],
                 'T_PRIORITE' => ['model' => Priorite::class, 'key' => 'priorites'],
                 'T_CATEGORIE' => ['model' => Categorie::class, 'key' => 'categories'],
                 'T_TYPEDEMANDE' => ['model' => TypeDemande::class, 'key' => 'typesDemande'],
-                'T_STATUT' => ['model' => Statut::class, 'key' => 'statuts'],
             ];
 
             $options = [];
             $errors = [];
+
+            // Charger d'abord les statuts car ils sont critiques
+            try {
+                Log::info("Récupération des données pour la table T_STATUT");
+                $statuts = Statut::where('is_active', true)->get();
+                Log::info("Statuts récupérés avec succès", ['count' => $statuts->count()]);
+                $options['statuts'] = $statuts;
+            } catch (\Exception $e) {
+                Log::error("Erreur lors de la récupération des statuts: " . $e->getMessage());
+                Log::error("Stack trace: " . $e->getTraceAsString());
+                $errors['statuts'] = $e->getMessage();
+                $options['statuts'] = collect([]);
+            }
+
+            // Charger les autres options
             foreach ($tables as $tableName => $config) {
+                if ($tableName === 'T_STATUT') continue; // Déjà traité
+
                 try {
                     Log::info("Récupération des données pour la table {$tableName}");
                     
                     if ($tableName === 'T_DEMDEUR') {
-                        $options[$config['key']] = $config['model']::with('service')->get();
+                        $options[$config['key']] = $config['model']::where('is_active', true)->with('service')->get();
                     } else {
-                        $options[$config['key']] = $config['model']::all();
+                        $options[$config['key']] = $config['model']::where('is_active', true)->get();
                     }
                     
                     Log::info("Données récupérées pour {$tableName}", [
@@ -411,7 +428,7 @@ class TicketController extends Controller
                     Log::error("Erreur lors de la récupération des données de la table {$tableName}: " . $e->getMessage());
                     Log::error("Stack trace: " . $e->getTraceAsString());
                     $errors[$config['key']] = $e->getMessage();
-                    $options[$config['key']] = collect([]); // Retourner une collection vide en cas d'erreur
+                    $options[$config['key']] = collect([]);
                 }
             }
 
@@ -448,7 +465,7 @@ class TicketController extends Controller
                 'options' => $emptyOptions,
                 'errors' => ['general' => $e->getMessage()],
                 'hasErrors' => true
-            ]);
+            ], 200); // Retourner 200 même en cas d'erreur pour éviter le blocage du frontend
         }
     }
 

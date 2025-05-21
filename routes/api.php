@@ -36,10 +36,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tickets/stats', [DashboardController::class, 'getStatsByUser']);
     
     // Routes pour les tickets
-    Route::apiResource('tickets', TicketController::class);
     Route::get('/tickets/options', [TicketController::class, 'getOptions']);
     Route::get('/tickets/statut/{statut}', [TicketController::class, 'getByStatut']);
     Route::get('/tickets/{id}/download', [TicketController::class, 'downloadAttachment']);
+    Route::apiResource('tickets', TicketController::class);
 
     // Routes pour les utilisateurs
     Route::apiResource('utilisateurs', UtilisateurController::class);

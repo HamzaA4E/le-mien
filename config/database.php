@@ -104,13 +104,16 @@ return [
     'password' => env('DB_PASSWORD', ''),
     'charset' => 'utf8',
     'prefix' => '',
-    'options' => [ 
+    'options' => [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::SQLSRV_ATTR_FORMAT_DECIMALS => true,
         PDO::SQLSRV_ATTR_DECIMAL_PLACES => 2,
         PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE => true,
         PDO::SQLSRV_ATTR_FETCHES_DATETIME_TYPE => true,
+        PDO::SQLSRV_ATTR_DIRECT_QUERY => true,
     ],
+    // Alternative pour l'authentification Windows :
+    'dsn' => 'sqlsrv:Server=(local);Database=SI;TrustServerCertificate=yes;Authentication=ActiveDirectoryIntegrated',
 ],
 
 

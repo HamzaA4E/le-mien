@@ -239,28 +239,44 @@ const EntityManagement = ({ entity, label }) => {
                 </td>
                 <td className="border px-2 py-1">
                   {editId === item.id ? (
-                    <button 
-                      onClick={handleUpdate} 
-                      className="bg-green-600 text-white px-2 py-1 rounded mr-2 hover:bg-green-700 transition-colors"
-                    >
-                      Valider
-                    </button>
+                    <>
+                      <button 
+                        onClick={handleUpdate} 
+                        className="bg-green-600 text-white px-2 py-1 rounded mr-2 hover:bg-green-700 transition-colors"
+                      >
+                        Valider
+                      </button>
+                      <button
+                        onClick={() => setEditId(null)}
+                        className="bg-gray-400 text-white px-2 py-1 rounded hover:bg-gray-500 transition-colors"
+                      >
+                        Annuler
+                      </button>
+                    </>
                   ) : (
-                    <button
-                      onClick={() => handleToggleActive(item.id, item.is_active)}
-                      disabled={loadingId === item.id}
-                      className={
-                        (item.is_active
-                          ? 'bg-red-500 hover:bg-red-600'
-                          : 'bg-green-500 hover:bg-green-600') +
-                        ' text-white px-3 py-1 rounded transition-colors font-semibold' +
-                        (loadingId === item.id ? ' opacity-60 cursor-not-allowed' : '')
-                      }
-                    >
-                      {loadingId === item.id
-                        ? 'Changement...'
-                        : item.is_active ? 'Désactiver' : 'Activer'}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleToggleActive(item.id, item.is_active)}
+                        disabled={loadingId === item.id}
+                        className={
+                          (item.is_active
+                            ? 'bg-red-500 hover:bg-red-600'
+                            : 'bg-green-500 hover:bg-green-600') +
+                          ' text-white px-3 py-1 rounded transition-colors font-semibold mr-2' +
+                          (loadingId === item.id ? ' opacity-60 cursor-not-allowed' : '')
+                        }
+                      >
+                        {loadingId === item.id
+                          ? 'Changement...'
+                          : item.is_active ? 'Désactiver' : 'Activer'}
+                      </button>
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors font-semibold"
+                      >
+                        Modifier
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>

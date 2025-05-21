@@ -7,7 +7,6 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const instance = axios.create({
     baseURL: API_URL,
     headers: {
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
     },
@@ -27,37 +26,19 @@ const getCsrfToken = async () => {
     }
 };
 
-// Intercepteur pour ajouter le token CSRF à chaque requête
+// Intercepteur pour ajouter le token d'authentification
 instance.interceptors.request.use(async function (config) {
-    // Ensure we're using the correct base URL
-    // This is now handled by baseURL configuration on the instance
-    // if (!config.url.startsWith('http')) {
-    //     config.url = `${API_URL}${config.url}`;
-    // }
-
-    // Obtenir un nouveau token CSRF pour les requêtes POST, PUT, DELETE
-    if (['post', 'put', 'delete'].includes(config.method?.toLowerCase())) {
-        await getCsrfToken();
-    }
-
-    const token = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='))?.split('=')[1];
-    if (token) {
-        config.headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
-    }
-
     // Ajouter le token d'authentification si présent
     const authToken = localStorage.getItem('token');
     if (authToken) {
         config.headers.Authorization = `Bearer ${authToken}`;
     }
 
-    // Check if the request contains a file
+    // Si c'est une requête avec FormData, laisser le navigateur gérer le Content-Type
     if (config.data instanceof FormData) {
-        // Remove the Content-Type header to let the browser set it with the boundary
         delete config.headers['Content-Type'];
-        // Ensure we're not using application/x-www-form-urlencoded
-        config.headers['Accept'] = 'application/json';
-        config.headers['X-Requested-With'] = 'XMLHttpRequest';
+    } else {
+        config.headers['Content-Type'] = 'application/json';
     }
 
     console.log('Request Config:', {

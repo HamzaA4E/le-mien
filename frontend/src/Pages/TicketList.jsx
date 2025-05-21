@@ -244,65 +244,80 @@ const TicketList = () => {
     if (!force && filterCache.data && filterCache.lastFetch && 
         (now - filterCache.lastFetch < filterCache.cacheDuration)) {
       console.log('Using filter data cache');
-      setCategories(filterCache.data.categories);
-      setDemandeurs(filterCache.data.demandeurs);
-      setSocietes(filterCache.data.societes);
-      setEmplacements(filterCache.data.emplacements);
-      setStatuts(filterCache.data.statuts);
-      setPriorites(filterCache.data.priorites);
-      setExecutants(filterCache.data.executants);
-      return filterCache.data; // Retourner les données du cache
+      setCategories(filterCache.data.categories || []);
+      setDemandeurs(filterCache.data.demandeurs || []);
+      setSocietes(filterCache.data.societes || []);
+      setEmplacements(filterCache.data.emplacements || []);
+      setStatuts(filterCache.data.statuts || []);
+      setPriorites(filterCache.data.priorites || []);
+      setExecutants(filterCache.data.executants || []);
+      return filterCache.data;
     }
 
     console.log('Fetching all filter data from API');
     try {
-      // Faire tous les appels API en parallèle
-      const [ categoriesRes,
-        demandeursRes,
-        societesRes,
-        emplacementsRes,
-        statutsRes,
-        prioritesRes,
-        executantsRes ] = await Promise.all([
-        axios.get('/api/categories'),
-        axios.get('/api/demandeurs'),
-        axios.get('/api/societes'),
-        axios.get('/api/emplacements'),
-        axios.get('/api/statuts'),
-        axios.get('/api/priorites'),
-        axios.get('/api/executants')
-      ]);
+      // Définir les endpoints à appeler
+      const endpoints = [
+        { key: 'categories', url: '/api/categories' },
+        { key: 'demandeurs', url: '/api/demandeurs' },
+        { key: 'societes', url: '/api/societes' },
+        { key: 'emplacements', url: '/api/emplacements' },
+        { key: 'statuts', url: '/api/statuts' },
+        { key: 'priorites', url: '/api/priorites' },
+        { key: 'executants', url: '/api/executants' }
+      ];
 
-      // Mettre à jour le cache avec toutes les données
+      // Créer un objet pour stocker les résultats
       const fetchedData = {
-        categories: categoriesRes.data,
-        demandeurs: demandeursRes.data,
-        societes: societesRes.data,
-        emplacements: emplacementsRes.data,
-        statuts: statutsRes.data,
-        priorites: prioritesRes.data,
-        executants: executantsRes.data
+        categories: [],
+        demandeurs: [],
+        societes: [],
+        emplacements: [],
+        statuts: [],
+        priorites: [],
+        executants: []
       };
+
+      // Faire les appels API en parallèle avec gestion d'erreur individuelle
+      const results = await Promise.allSettled(
+        endpoints.map(endpoint => 
+          axios.get(endpoint.url)
+            .then(response => ({ key: endpoint.key, data: response.data }))
+            .catch(error => {
+              console.error(`Error fetching ${endpoint.key}:`, error);
+              return { key: endpoint.key, data: [] };
+            })
+        )
+      );
+
+      // Traiter les résultats
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          fetchedData[result.value.key] = result.value.data.filter(item => item.is_active !== false);
+        }
+      });
+
+      // Mettre à jour le cache
       filterCache.data = fetchedData;
       filterCache.lastFetch = now;
 
       // Mettre à jour les états
-      setCategories(fetchedData.categories.filter(item => item.is_active !== false));
-      setDemandeurs(fetchedData.demandeurs.filter(item => item.is_active !== false));
-      setSocietes(fetchedData.societes.filter(item => item.is_active !== false));
-      setEmplacements(fetchedData.emplacements.filter(item => item.is_active !== false));
-      setStatuts(fetchedData.statuts.filter(item => item.is_active !== false));
-      setPriorites(fetchedData.priorites.filter(item => item.is_active !== false));
-      setExecutants(fetchedData.executants.filter(item => item.is_active !== false));
+      setCategories(fetchedData.categories);
+      setDemandeurs(fetchedData.demandeurs);
+      setSocietes(fetchedData.societes);
+      setEmplacements(fetchedData.emplacements);
+      setStatuts(fetchedData.statuts);
+      setPriorites(fetchedData.priorites);
+      setExecutants(fetchedData.executants);
 
-      return fetchedData; // Retourner les données chargées
+      return fetchedData;
 
     } catch (err) {
       console.error('Erreur lors du chargement des données de filtrage:', err);
-       // Effacer le cache en cas d'erreur
-       filterCache.data = null;
-       filterCache.lastFetch = null;
-       throw err; // Propager l'erreur
+      // Ne pas effacer le cache en cas d'erreur partielle
+      // filterCache.data = null;
+      // filterCache.lastFetch = null;
+      throw err;
     }
   };
 
@@ -485,20 +500,58 @@ const TicketList = () => {
   const handleStatutChange = async (ticketId, newStatutId) => {
     setUpdating(prev => ({ ...prev, [ticketId]: true }));
     try {
-      const response = await axios.put(`/api/tickets/${ticketId}`, {
-        id_statut: parseInt(newStatutId, 10)
-      });
+      console.log('Updating ticket status:', { ticketId, newStatutId });
+      
+      // Trouver le statut sélectionné pour vérifier s'il s'agit d'une clôture
+      const selectedStatut = statuts.find(s => s.id === parseInt(newStatutId, 10));
+      const isCloture = selectedStatut?.designation === 'Clôturé';
+
+      // Préparer les données à envoyer
+      const updateData = {
+        Id_Statut: parseInt(newStatutId, 10)
+      };
+
+      // Si c'est une clôture, ajouter la date de fin réelle
+      if (isCloture) {
+        updateData.DateFinReelle = new Date().toISOString().split('T')[0];
+      }
+
+      const response = await axios.put(`/api/tickets/${ticketId}`, updateData);
+
+      console.log('Server response:', response.data);
+
       // Mettre à jour l'état local des tickets avec la réponse
-      setTickets(prevTickets => prevTickets.map(ticket =>
-        ticket.id === ticketId ? response.data : ticket // Utiliser l'objet ticket complet de la réponse
-      ));
-      setAllTickets(prevTickets => prevTickets.map(ticket =>
-        ticket.id === ticketId ? response.data : ticket // Utiliser l'objet ticket complet de la réponse
-      ));
-      console.log('Statut updated successfully:', response.data);
+      setTickets(prevTickets => prevTickets.map(ticket => {
+        if (ticket.id === ticketId) {
+          // Mettre à jour le ticket avec les nouvelles données
+          const updatedTicket = {
+            ...ticket,
+            Id_Statut: parseInt(newStatutId, 10),
+            statut: response.data.statut, // Mettre à jour l'objet statut complet
+            DateFinReelle: isCloture ? updateData.DateFinReelle : ticket.DateFinReelle // Mettre à jour la date de fin réelle si clôture
+          };
+          console.log('Updated ticket:', updatedTicket);
+          return updatedTicket;
+        }
+        return ticket;
+      }));
+
+      setAllTickets(prevTickets => prevTickets.map(ticket => {
+        if (ticket.id === ticketId) {
+          return {
+            ...ticket,
+            Id_Statut: parseInt(newStatutId, 10),
+            statut: response.data.statut,
+            DateFinReelle: isCloture ? updateData.DateFinReelle : ticket.DateFinReelle
+          };
+        }
+        return ticket;
+      }));
+
+      console.log('Status updated successfully');
     } catch (error) {
-      console.error('Error updating statut:', error);
-      setError('Erreur lors de la mise à jour du statut du ticket.');
+      console.error('Error updating status:', error);
+      setError(error.response?.data?.message || 'Erreur lors de la mise à jour du statut du ticket.');
     } finally {
       setUpdating(prev => ({ ...prev, [ticketId]: false }));
     }

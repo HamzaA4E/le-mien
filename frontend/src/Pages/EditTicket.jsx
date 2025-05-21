@@ -23,6 +23,7 @@ const EditTicket = () => {
     Id_Executant: '',
     DateDebut: '',
     DateFinPrevue: '',
+    attachment: null
   });
   const [options, setOptions] = useState({
     priorites: [],
@@ -34,6 +35,8 @@ const EditTicket = () => {
     typesDemande: [],
     executants: []
   });
+  const [currentAttachment, setCurrentAttachment] = useState(null);
+  const API_BASE_URL = 'http://localhost:8000';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,6 +47,19 @@ const EditTicket = () => {
         // Charger d'abord le ticket
         const ticketResponse = await axios.get(`/api/tickets/${id}`);
         const ticket = ticketResponse.data;
+        
+        console.log('Réponse du backend:', ticket);
+
+        // Fonction pour formater la date
+        const formatDate = (dateObj) => {
+          if (!dateObj) return '';
+          if (typeof dateObj === 'string') return dateObj;
+          if (dateObj.date) {
+            // Extraire seulement la date (YYYY-MM-DD) du format backend
+            return dateObj.date.split(' ')[0];
+          }
+          return '';
+        };
 
         // Mettre à jour le formulaire avec les données du ticket
         setFormData({
@@ -58,28 +74,47 @@ const EditTicket = () => {
           Id_Categorie: ticket.Id_Categorie || '',
           Id_TypeDemande: ticket.Id_TypeDemande || '',
           Id_Executant: ticket.Id_Executant || '',
-          DateDebut: ticket.DateDebut ? new Date(ticket.DateDebut.date || ticket.DateDebut).toISOString().slice(0, 16) : '',
-          DateFinPrevue: ticket.DateFinPrevue ? new Date(ticket.DateFinPrevue.date || ticket.DateFinPrevue).toISOString().slice(0, 16) : '',
+          DateDebut: formatDate(ticket.DateDebut),
+          DateFinPrevue: formatDate(ticket.DateFinPrevue),
+          attachment: ticket.attachment ? new Blob([ticket.attachment]) : null
         });
 
-        // Charger ensuite les options
-        const optionsResponse = await axios.get('/api/tickets/options');
-        const executantsResponse = await axios.get('/api/executants');
+        // Charger toutes les options disponibles
+        const [prioritesResponse, statutsResponse, demandeursResponse, societesResponse, 
+               emplacementsResponse, categoriesResponse, typesDemandeResponse, executantsResponse] = await Promise.all([
+          axios.get('/api/priorites'),
+          axios.get('/api/statuts'),
+          axios.get('/api/demandeurs'),
+          axios.get('/api/societes'),
+          axios.get('/api/emplacements'),
+          axios.get('/api/categories'),
+          axios.get('/api/types-demande'),
+          axios.get('/api/executants')
+        ]);
 
-        // Filtrer les entités actives
-        const filteredOptions = {
-          priorites: optionsResponse.data.priorites.filter(item => item.is_active !== false),
-          statuts: optionsResponse.data.statuts.filter(item => item.is_active !== false),
-          demandeurs: optionsResponse.data.demandeurs.filter(item => item.is_active !== false),
-          societes: optionsResponse.data.societes.filter(item => item.is_active !== false),
-          emplacements: optionsResponse.data.emplacements.filter(item => item.is_active !== false),
-          categories: optionsResponse.data.categories.filter(item => item.is_active !== false),
-          typesDemande: optionsResponse.data.typesDemande.filter(item => item.is_active !== false),
+        // Mettre à jour les options avec toutes les valeurs disponibles
+        setOptions({
+          priorites: prioritesResponse.data.filter(item => item.is_active !== false),
+          statuts: statutsResponse.data.filter(item => item.is_active !== false),
+          demandeurs: demandeursResponse.data.filter(item => item.is_active !== false),
+          societes: societesResponse.data.filter(item => item.is_active !== false),
+          emplacements: emplacementsResponse.data.filter(item => item.is_active !== false),
+          categories: categoriesResponse.data.filter(item => item.is_active !== false),
+          typesDemande: typesDemandeResponse.data.filter(item => item.is_active !== false),
           executants: executantsResponse.data.filter(item => item.is_active !== false)
-        };
+        });
 
-        // Mettre à jour les options
-        setOptions(filteredOptions);
+        // Afficher le nom de la pièce jointe existante
+        if (ticket.attachment_path) {
+          const fileName = ticket.attachment_path.split('/').pop();
+          setCurrentAttachment({
+            name: fileName,
+            url: `${API_BASE_URL}/api/tickets/${id}/download`
+          });
+        } else {
+          setCurrentAttachment(null);
+        }
+
       } catch (err) {
         console.error('Erreur:', err);
         setError(err.response?.data?.error || 'Erreur lors du chargement des données');
@@ -99,25 +134,126 @@ const EditTicket = () => {
     }));
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData(prev => ({
+        ...prev,
+        attachment: file
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSaving(true);
 
     try {
-      const dataToSend = {
-        ...formData,
-        DateDebut: formData.DateDebut ? new Date(formData.DateDebut).toISOString() : null,
-        DateFinPrevue: formData.DateFinPrevue ? new Date(formData.DateFinPrevue).toISOString() : null,
+      // Formater les dates au format attendu par le backend
+      const formatDateForBackend = (dateStr) => {
+        if (!dateStr) return null;
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
       };
 
-      await axios.put(`/api/tickets/${id}`, dataToSend);
-      navigate(`/tickets/${id}`);
+      // Créer un objet avec les données formatées
+      const dataToSend = {
+        Titre: formData.Titre,
+        Description: formData.Description,
+        Commentaire: formData.Commentaire,
+        Id_Priorite: parseInt(formData.Id_Priorite),
+        Id_Statut: parseInt(formData.Id_Statut),
+        Id_Demandeur: parseInt(formData.Id_Demandeur),
+        Id_Societe: parseInt(formData.Id_Societe),
+        Id_Emplacement: parseInt(formData.Id_Emplacement),
+        Id_Categorie: parseInt(formData.Id_Categorie),
+        Id_TypeDemande: parseInt(formData.Id_TypeDemande),
+        Id_Executant: parseInt(formData.Id_Executant),
+        DateDebut: formatDateForBackend(formData.DateDebut),
+        DateFinPrevue: formatDateForBackend(formData.DateFinPrevue)
+      };
+
+      // Debug logs
+      console.log('Données envoyées au backend:', dataToSend);
+
+      let response;
+      
+      // Si nous avons une pièce jointe, utiliser FormData
+      if (formData.attachment) {
+        const formDataToSend = new FormData();
+        Object.keys(dataToSend).forEach(key => {
+          formDataToSend.append(key, dataToSend[key]);
+        });
+        formDataToSend.append('attachment', formData.attachment);
+        
+        response = await axios.put(`/api/tickets/${id}`, formDataToSend);
+      } else {
+        // Sinon, envoyer les données en JSON
+        response = await axios.put(`/api/tickets/${id}`, dataToSend);
+      }
+
+      console.log('Réponse du backend:', response.data);
+      
+      if (response.data && response.data.id) {
+        // Rafraîchir la page après la mise à jour
+        window.location.href = `/tickets/${id}`;
+      } else {
+        throw new Error('Erreur lors de la modification du ticket');
+      }
     } catch (err) {
       console.error('Erreur complète:', err);
-      setError(err.response?.data?.message || 'Erreur lors de la modification du ticket');
+      console.error('Détails de l\'erreur:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        headers: err.response?.headers
+      });
+      let message = 'Erreur lors de la modification du ticket';
+      if (err.response?.data?.message) {
+        message = err.response.data.message;
+      } else if (err.response?.data?.errors) {
+        message = Object.values(err.response.data.errors).flat().join(' ');
+      } else if (err.message) {
+        message = err.message;
+      }
+      setError(message);
+      alert('Erreur lors de la modification du ticket : ' + message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      if (!currentAttachment) return;
+      const fileName = currentAttachment.name;
+      const isPdf = fileName.toLowerCase().endsWith('.pdf');
+      const response = await axios.get(`${API_BASE_URL}/api/tickets/${id}/download`, {
+        responseType: 'blob',
+        headers: {
+          'Accept': isPdf ? 'application/pdf' : '*/*'
+        }
+      });
+      if (!(response.data instanceof Blob) || response.data.size === 0) {
+        throw new Error('Fichier vide ou invalide');
+      }
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch (error) {
+      alert('Erreur lors du téléchargement de la pièce jointe');
+      console.error(error);
     }
   };
 
@@ -340,7 +476,7 @@ const EditTicket = () => {
                 Date de début
               </label>
               <input
-                type="datetime-local"
+                type="date"
                 name="DateDebut"
                 id="DateDebut"
                 required
@@ -355,7 +491,7 @@ const EditTicket = () => {
                 Date de fin prévue
               </label>
               <input
-                type="datetime-local"
+                type="date"
                 name="DateFinPrevue"
                 id="DateFinPrevue"
                 required
@@ -393,6 +529,39 @@ const EditTicket = () => {
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label htmlFor="attachment" className="block text-sm font-medium text-gray-700">
+              Pièce jointe
+            </label>
+            {currentAttachment && (
+              <div className="mt-2 mb-4">
+                <p className="text-sm text-gray-500">Pièce jointe actuelle : {currentAttachment.name}</p>
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  className="text-blue-600 hover:text-blue-800 text-sm underline"
+                >
+                  Télécharger
+                </button>
+              </div>
+            )}
+            <input
+              type="file"
+              name="attachment"
+              id="attachment"
+              onChange={handleFileChange}
+              className="mt-1 block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              Taille maximale : 10MB
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3">

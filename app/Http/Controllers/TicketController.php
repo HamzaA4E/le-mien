@@ -249,11 +249,20 @@ class TicketController extends Controller
 
             // Validation des données
             $validated = $request->validate([
-                'titre' => 'sometimes|string|max:255',
-                'description' => 'sometimes|string',
-                'id_priorite' => 'sometimes|exists:T_PRIORITE,id',
-                'id_statut' => 'sometimes|exists:T_STATUT,id',
-                'id_executant' => 'sometimes|exists:T_EXECUTANT,id',
+                'Titre' => 'sometimes|string|max:255',
+                'Description' => 'sometimes|string',
+                'Commentaire' => 'nullable|string',
+                'Id_Priorite' => 'sometimes|exists:T_PRIORITE,id',
+                'Id_Statut' => 'sometimes|exists:T_STATUT,id',
+                'Id_Demandeur' => 'sometimes|exists:T_DEMDEUR,id',
+                'Id_Societe' => 'sometimes|exists:T_SOCIETE,id',
+                'Id_Emplacement' => 'sometimes|exists:T_EMPLACEMENT,id',
+                'Id_Categorie' => 'sometimes|exists:T_CATEGORIE,id',
+                'Id_TypeDemande' => 'sometimes|exists:T_TYPEDEMANDE,id',
+                'Id_Executant' => 'sometimes|exists:T_EXECUTANT,id',
+                'DateDebut' => 'sometimes|date_format:d/m/Y',
+                'DateFinPrevue' => 'sometimes|date_format:d/m/Y',
+                'attachment' => 'nullable|file|max:10240', // max 10MB
             ]);
 
             Log::info('Données validées:', $validated);
@@ -261,18 +270,42 @@ class TicketController extends Controller
             // Préparation des données pour la mise à jour
             $data = [];
             foreach ($validated as $key => $value) {
-                switch ($key) {
-                    case 'id_statut':
-                        $data['Id_Statut'] = (int)$value;
-                        break;
-                    case 'id_priorite':
-                        $data['Id_Priorite'] = (int)$value;
-                        break;
-                    case 'id_executant':
-                        $data['Id_Executant'] = (int)$value;
-                        break;
-                    default:
-                        $data[$key] = $value;
+                if ($value !== null && $key !== 'attachment') {
+                    $data[$key] = $value;
+                }
+            }
+
+            // Gestion de la pièce jointe
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                Log::info('Nouvelle pièce jointe reçue:', [
+                    'name' => $file->getClientOriginalName(),
+                    'size' => $file->getSize(),
+                    'mime' => $file->getMimeType()
+                ]);
+                try {
+                    // Supprimer l'ancienne pièce jointe si elle existe
+                    if ($ticket->attachment_path) {
+                        $oldPath = storage_path('app/public/' . $ticket->attachment_path);
+                        Log::info('Vérification de l\'ancienne pièce jointe à supprimer', ['oldPath' => $oldPath, 'exists' => file_exists($oldPath)]);
+                        if (file_exists($oldPath)) {
+                            unlink($oldPath);
+                            Log::info('Ancienne pièce jointe supprimée', ['oldPath' => $oldPath]);
+                        } else {
+                            Log::warning('Ancienne pièce jointe non trouvée pour suppression', ['oldPath' => $oldPath]);
+                        }
+                    }
+                    // Stocker la nouvelle pièce jointe
+                    $attachmentPath = $file->store('attachments', 'public');
+                    $data['attachment_path'] = $attachmentPath;
+                    Log::info('Nouvelle pièce jointe stockée avec succès:', ['path' => $attachmentPath]);
+                } catch (\Exception $e) {
+                    Log::error('Erreur lors du stockage de la nouvelle pièce jointe:', [
+                        'error' => $e->getMessage(),
+                        'file' => $file->getClientOriginalName(),
+                        'ticket_id' => $ticket->id
+                    ]);
+                    throw $e;
                 }
             }
 
@@ -296,6 +329,7 @@ class TicketController extends Controller
             ) {
                 $data['DateFinReelle'] = date('d/m/Y H:i:s');
             }
+
             Log::info('Données finales pour update:', $data);
 
             // Mise à jour du ticket
@@ -348,31 +382,28 @@ class TicketController extends Controller
 
             // Vérification de l'existence des tables
             $tables = [
-                'T_DEMDEUR' => Demandeur::class,
-                'T_SOCIETE' => Societe::class,
-                'T_EMPLACEMENT' => Emplacement::class,
-                'T_PRIORITE' => Priorite::class,
-                'T_CATEGORIE' => Categorie::class,
-                'T_TYPEDEMANDE' => TypeDemande::class,
-                'T_STATUT' => Statut::class,
+                'T_DEMDEUR' => ['model' => Demandeur::class, 'key' => 'demandeurs'],
+                'T_SOCIETE' => ['model' => Societe::class, 'key' => 'societes'],
+                'T_EMPLACEMENT' => ['model' => Emplacement::class, 'key' => 'emplacements'],
+                'T_PRIORITE' => ['model' => Priorite::class, 'key' => 'priorites'],
+                'T_CATEGORIE' => ['model' => Categorie::class, 'key' => 'categories'],
+                'T_TYPEDEMANDE' => ['model' => TypeDemande::class, 'key' => 'typesDemande'],
+                'T_STATUT' => ['model' => Statut::class, 'key' => 'statuts'],
             ];
 
             $options = [];
-            foreach ($tables as $tableName => $modelClass) {
+            foreach ($tables as $tableName => $config) {
                 try {
                     Log::info("Récupération des données pour la table {$tableName}");
                     
                     if ($tableName === 'T_DEMDEUR') {
-                        $options['demandeurs'] = $modelClass::with('service')->get();
+                        $options[$config['key']] = $config['model']::with('service')->get();
                     } else {
-                        $key = strtolower(str_replace('T_', '', $tableName));
-                        $options[$key] = $modelClass::all();
+                        $options[$config['key']] = $config['model']::all();
                     }
                     
                     Log::info("Données récupérées pour {$tableName}", [
-                        'count' => $tableName === 'T_DEMDEUR' 
-                            ? $options['demandeurs']->count() 
-                            : $options[strtolower(str_replace('T_', '', $tableName))]->count()
+                        'count' => $options[$config['key']]->count()
                     ]);
                 } catch (\Exception $e) {
                     Log::error("Erreur lors de la récupération des données de la table {$tableName}: " . $e->getMessage());
@@ -384,7 +415,7 @@ class TicketController extends Controller
             }
 
             // Vérification que toutes les options requises sont présentes
-            $requiredOptions = ['demandeurs', 'societes', 'emplacements', 'priorites', 'categories', 'typesdemande', 'statuts'];
+            $requiredOptions = ['demandeurs', 'societes', 'emplacements', 'priorites', 'categories', 'typesDemande', 'statuts'];
             $missingOptions = array_diff($requiredOptions, array_keys($options));
 
             if (!empty($missingOptions)) {

@@ -32,30 +32,13 @@ const Dashboard = () => {
   const [spin, setSpin] = useState(false);
 
   useEffect(() => {
-    const fetchSequentialStats = async () => {
+    const fetchStats = async () => {
       setSpin(true);
       setLoading(true);
       try {
-        // Charger d'abord le total
-        const totalRes = await axios.get('/api/dashboard/total');
-        setStats(s => ({ ...s, total: totalRes.data.total }));
-        // Puis en cours
-        const enCoursRes = await axios.get('/api/dashboard/en-cours');
-        setStats(s => ({ ...s, en_cours: enCoursRes.data.total }));
-        // Puis en instance
-        const enInstanceRes = await axios.get('/api/dashboard/en-instance');
-        setStats(s => ({ ...s, en_instance: enInstanceRes.data.total }));
-        // Puis clôturés
-        const clotureRes = await axios.get('/api/dashboard/cloture');
-        setStats(s => ({ ...s, cloture: clotureRes.data.total }));
-        // Puis les stats détaillées (graphes)
-        const statsRes = await axios.get('/api/dashboard/stats');
-        setStats(s => ({
-          ...s,
-          par_priorite: statsRes.data.par_priorite || [],
-          par_categorie: statsRes.data.par_categorie || [],
-          par_demandeur: statsRes.data.par_demandeur || []
-        }));
+        // Un seul appel API pour toutes les statistiques
+        const response = await axios.get('/api/dashboard/stats');
+        setStats(response.data);
         setError('');
       } catch (err) {
         setError('Erreur lors du chargement des statistiques');
@@ -64,7 +47,7 @@ const Dashboard = () => {
         setTimeout(() => setSpin(false), 600);
       }
     };
-    fetchSequentialStats();
+    fetchStats();
   }, []);
 
   const renderSkeleton = () => (

@@ -10,6 +10,7 @@ use App\Models\Priorite;
 use App\Models\Categorie;
 use App\Models\TypeDemande;
 use App\Models\Statut;
+use App\Models\Utilisateur;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -392,6 +393,7 @@ class TicketController extends Controller
             ];
 
             $options = [];
+            $errors = [];
             foreach ($tables as $tableName => $config) {
                 try {
                     Log::info("Récupération des données pour la table {$tableName}");
@@ -408,32 +410,45 @@ class TicketController extends Controller
                 } catch (\Exception $e) {
                     Log::error("Erreur lors de la récupération des données de la table {$tableName}: " . $e->getMessage());
                     Log::error("Stack trace: " . $e->getTraceAsString());
-                    
-                    // On continue avec les autres tables même si une échoue
-                    continue;
+                    $errors[$config['key']] = $e->getMessage();
+                    $options[$config['key']] = collect([]); // Retourner une collection vide en cas d'erreur
                 }
             }
 
-            // Vérification que toutes les options requises sont présentes
+            // Vérification des options requises
             $requiredOptions = ['demandeurs', 'societes', 'emplacements', 'priorites', 'categories', 'typesDemande', 'statuts'];
             $missingOptions = array_diff($requiredOptions, array_keys($options));
 
-            if (!empty($missingOptions)) {
-                Log::error('Options manquantes: ' . implode(', ', $missingOptions));
-                throw new \Exception('Certaines options sont manquantes: ' . implode(', ', $missingOptions));
+            // Si des options sont manquantes, les ajouter comme collections vides
+            foreach ($missingOptions as $option) {
+                $options[$option] = collect([]);
+                $errors[$option] = 'Option non disponible';
             }
 
             Log::info('Options récupérées avec succès', ['options' => array_keys($options)]);
-            return response()->json($options);
+            
+            // Retourner les options disponibles avec les erreurs éventuelles
+            return response()->json([
+                'options' => $options,
+                'errors' => $errors,
+                'hasErrors' => !empty($errors)
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des options: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
+            // Retourner une réponse avec des collections vides pour toutes les options
+            $emptyOptions = array_fill_keys([
+                'demandeurs', 'societes', 'emplacements', 'priorites', 
+                'categories', 'typesDemande', 'statuts'
+            ], collect([]));
+            
             return response()->json([
-                'message' => 'Erreur lors de la récupération des options',
-                'error' => $e->getMessage()
-            ], 500);
+                'options' => $emptyOptions,
+                'errors' => ['general' => $e->getMessage()],
+                'hasErrors' => true
+            ]);
         }
     }
 
@@ -564,6 +579,104 @@ class TicketController extends Controller
                 'path' => $path ?? null
             ]);
             return response()->json(['message' => 'Erreur lors du téléchargement'], 500);
+        }
+    }
+
+    /**
+     * Récupère toutes les données nécessaires pour la liste des tickets en une seule requête
+     */
+    public function getTicketListData(Request $request)
+    {
+        try {
+            // Récupérer les données de filtrage
+            $filterData = [
+                'categories' => Categorie::where('is_active', true)->get(),
+                'demandeurs' => Demandeur::where('is_active', true)->get(),
+                'societes' => Societe::where('is_active', true)->get(),
+                'emplacements' => Emplacement::where('is_active', true)->get(),
+                'statuts' => Statut::where('is_active', true)->get(),
+                'priorites' => Priorite::where('is_active', true)->get(),
+                'executants' => Utilisateur::where('is_active', true)->get(),
+                'types_demande' => TypeDemande::where('is_active', true)->get()
+            ];
+
+            // Construire la requête pour les tickets
+            $query = Ticket::with([
+                'statut',
+                'priorite',
+                'demandeur',
+                'societe',
+                'emplacement',
+                'categorie',
+                'typeDemande',
+                'executant'
+            ]);
+
+            // Appliquer les filtres
+            if ($request->filled('categorie')) {
+                $query->where('Id_Categorie', $request->categorie);
+            }
+            if ($request->filled('demandeur')) {
+                $query->where('Id_Demandeur', $request->demandeur);
+            }
+            if ($request->filled('societe')) {
+                $query->where('Id_Societe', $request->societe);
+            }
+            if ($request->filled('emplacement')) {
+                $query->where('Id_Emplacement', $request->emplacement);
+            }
+            if ($request->filled('statut')) {
+                $query->where('Id_Statut', $request->statut);
+            }
+            if ($request->filled('priorite')) {
+                $query->where('Id_Priorite', $request->priorite);
+            }
+            if ($request->filled('executant')) {
+                $query->where('Id_Executant', $request->executant);
+            }
+            if ($request->filled('type_demande')) {
+                $query->whereHas('typeDemande', function($q) use ($request) {
+                    $q->where('designation', $request->type_demande);
+                });
+            }
+
+            // Filtres de dates
+            if ($request->filled('dateDebut')) {
+                $query->whereDate('DateDebut', '>=', $request->dateDebut);
+            }
+            if ($request->filled('dateDebutFin')) {
+                $query->whereDate('DateDebut', '<=', $request->dateDebutFin);
+            }
+            if ($request->filled('dateFinPrevueDebut')) {
+                $query->whereDate('DateFinPrevue', '>=', $request->dateFinPrevueDebut);
+            }
+            if ($request->filled('dateFinPrevueFin')) {
+                $query->whereDate('DateFinPrevue', '<=', $request->dateFinPrevueFin);
+            }
+            if ($request->filled('dateFinReelleDebut')) {
+                $query->whereDate('DateFinReelle', '>=', $request->dateFinReelleDebut);
+            }
+            if ($request->filled('dateFinReelleFin')) {
+                $query->whereDate('DateFinReelle', '<=', $request->dateFinReelleFin);
+            }
+
+            // Pagination
+            $page = $request->input('page', 1);
+            $perPage = $request->input('per_page', 20);
+            $tickets = $query->orderBy('DateCreation', 'desc')
+                           ->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'filter_data' => $filterData,
+                'tickets' => $tickets
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des données de la liste des tickets: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des données',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 } 

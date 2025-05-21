@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -42,9 +42,13 @@ const TicketList = () => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage] = useState(20);
+  const [itemsPerPage] = useState(20); // Retour à 20 pour le chargement complet
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [updating, setUpdating] = useState({});
+  const [hasMore, setHasMore] = useState(true);
+  const observerTarget = useRef(null);
+  const [displayedTickets, setDisplayedTickets] = useState([]);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   
   // Initialiser l'état des statuts comme null ou vide en attendant le chargement
   const [statuts, setStatuts] = useState([]);
@@ -111,29 +115,63 @@ const TicketList = () => {
         try {
             console.log('initialLoad useEffect - Starting initial load');
             
-            // 1. Fetch all filter data first, including statuts
-            const filterData = await fetchAllFilterData(true); 
-            console.log('initialLoad useEffect - Filter data fetched:', filterData);
-            
-            // filterData contains statuts, which will update the `statuts` state via setStatuts inside fetchAllFilterData
+            // Charger les tickets en premier
+            const ticketsResponse = await axios.get('/api/tickets', {
+                params: {
+                    ...filters,
+                    page: 1,
+                    per_page: itemsPerPage
+                }
+            });
 
-            // 2. Now that filters (including statuts list) are potentially loaded,
-            //    use the filters state (initialized from URL) to fetch tickets.
-            console.log('initialLoad useEffect - Calling fetchTickets with initial state filters:', filters);
-            await fetchTickets(true, 1, filters); // Pass the initial `filters` state directly
+            // Mettre à jour les tickets
+            const ticketsData = ticketsResponse.data;
+            setTickets(ticketsData.data);
+            setAllTickets(ticketsData.data);
+            setTotalPages(ticketsData.last_page);
+            ticketCache.tickets = ticketsData.data;
+            ticketCache.lastFetch = new Date().getTime();
 
-            // isInitialLoad.current = false; // Marquer le chargement initial comme terminé si nécessaire pour d'autres logiques
+            // Charger les options séparément
+            try {
+                const optionsResponse = await axios.get('/api/tickets/options');
+                const { options: optionsData, errors, hasErrors } = optionsResponse.data;
+                
+                // Mettre à jour les données de filtrage
+                setCategories(optionsData.categories || []);
+                setDemandeurs(optionsData.demandeurs || []);
+                setSocietes(optionsData.societes || []);
+                setEmplacements(optionsData.emplacements || []);
+                setStatuts(optionsData.statuts || []);
+                setPriorites(optionsData.priorites || []);
+                setExecutants(optionsData.executants || []);
+
+                // Mettre à jour le cache
+                filterCache.data = optionsData;
+                filterCache.lastFetch = new Date().getTime();
+
+                // Afficher un message d'erreur si nécessaire
+                if (hasErrors) {
+                    const errorMessages = Object.entries(errors)
+                        .map(([key, message]) => `${key}: ${message}`)
+                        .join(', ');
+                    setError(`Certaines options de filtrage ne sont pas disponibles: ${errorMessages}`);
+                }
+            } catch (optionsError) {
+                console.error('Erreur lors du chargement des options:', optionsError);
+                // Ne pas bloquer l'affichage des tickets si les options échouent
+                setError('Erreur lors du chargement des options de filtrage. Les filtres peuvent ne pas être disponibles.');
+            }
 
         } catch (err) {
-            setError('Erreur lors du chargement initial des données');
+            setError('Erreur lors du chargement des tickets');
             console.error('Erreur:', err);
-            // Ensure loading indicators are hidden even on error
+        } finally {
             setLoading(false);
             setSpin(false);
         }
     };
     initialLoad();
-
   }, []); // Exécuté une seule fois au montage
 
   // Effet pour charger les tickets lorsque les filtres changent (interactif) APRES le chargement initial
@@ -159,22 +197,27 @@ const TicketList = () => {
     
   }, [filters, statuts]); // Dépend de l'état local `filters` et `statuts`
 
-  // Modifier fetchTickets pour accepter des filtres optionnels
+  // Modifier fetchTickets pour gérer le chargement initial et progressif
   const fetchTickets = async (force = false, pageNum = page, appliedFilters = null) => {
     console.log('fetchTickets called - force:', force, 'pageNum:', pageNum, 'appliedFilters:', appliedFilters);
     setSpin(true);
-    // Utiliser les filtres passés en argument, sinon utiliser l'état local filters
     const currentFilters = appliedFilters || filters;
     
-    // Log pour vérifier les filtres envoyés à l'API
-    console.log('fetchTickets - Using filters:', currentFilters);
     try {
       if (!force && ticketCache.tickets && ticketCache.lastFetch) {
         const now = new Date().getTime();
         if (now - ticketCache.lastFetch < ticketCache.cacheDuration) {
           console.log('fetchTickets - Using ticket cache');
-          setTickets(ticketCache.tickets);
-          setAllTickets(ticketCache.tickets);
+          const cachedTickets = ticketCache.tickets;
+          setTickets(cachedTickets);
+          setAllTickets(cachedTickets);
+          
+          // Pour le chargement initial, n'afficher que les 3 premiers tickets
+          if (!initialLoadDone) {
+            setDisplayedTickets(cachedTickets.slice(0, 3));
+            setInitialLoadDone(true);
+          }
+          
           setLoading(false);
           setSpin(false);
           return;
@@ -183,19 +226,18 @@ const TicketList = () => {
 
       console.log('fetchTickets - Fetching from API with params:', { ...currentFilters, page: pageNum, per_page: itemsPerPage });
 
-      const response = await axios.get(`/api/tickets`, {
+      const response = await axios.get('/api/tickets', {
         params: { 
           ...currentFilters,
           page: pageNum,
-          per_page: itemsPerPage,
-          // S'assurer que le statut est envoyé comme un entier ou null si vide
-          statut: currentFilters.statut !== '' ? parseInt(currentFilters.statut, 10) : null
-         }
+          per_page: itemsPerPage
+        }
       });
 
-      const newTickets = response.data.data || [];
-      const total = response.data.total || 0;
-      const lastPage = response.data.last_page || 1;
+      const ticketsData = response.data;
+      const newTickets = ticketsData.data || [];
+      const total = ticketsData.total || 0;
+      const lastPage = ticketsData.last_page || 1;
 
       console.log('fetchTickets - Received tickets:', newTickets.length, 'Total:', total);
 
@@ -205,6 +247,12 @@ const TicketList = () => {
         console.log('fetchTickets - Setting tickets and allTickets (page 1)');
         setTickets(newTickets);
         setAllTickets(newTickets);
+        
+        // Pour le chargement initial, n'afficher que les 3 premiers tickets
+        if (!initialLoadDone) {
+          setDisplayedTickets(newTickets.slice(0, 3));
+          setInitialLoadDone(true);
+        }
       } else {
         console.log('fetchTickets - Appending tickets');
         setTickets(prev => [...prev, ...newTickets]);
@@ -212,6 +260,7 @@ const TicketList = () => {
       }
 
       setTotalPages(lastPage);
+      setHasMore(pageNum < lastPage);
       setError('');
     } catch (err) {
       setError('Erreur lors du chargement des tickets');
@@ -223,103 +272,45 @@ const TicketList = () => {
     }
   };
 
-  const fetchStatuts = async () => {
-    try {
-      const response = await axios.get('/api/statuts');
-      // Mettre à jour le cache des filtres avec les statuts si nécessaire
-       if (filterCache.data) {
-          filterCache.data.statuts = response.data;
-       }
-      setStatuts(response.data);
-    } catch (err) {
-      console.error('Erreur lors du chargement des statuts:', err);
-    }
-  };
-
-  // Fonction optimisée pour récupérer toutes les données de filtrage en une seule fois
-  const fetchAllFilterData = async (force = false) => {
-    const now = new Date().getTime();
-    
-    // Vérifier si les données en cache sont encore valides
-    if (!force && filterCache.data && filterCache.lastFetch && 
-        (now - filterCache.lastFetch < filterCache.cacheDuration)) {
-      console.log('Using filter data cache');
-      setCategories(filterCache.data.categories || []);
-      setDemandeurs(filterCache.data.demandeurs || []);
-      setSocietes(filterCache.data.societes || []);
-      setEmplacements(filterCache.data.emplacements || []);
-      setStatuts(filterCache.data.statuts || []);
-      setPriorites(filterCache.data.priorites || []);
-      setExecutants(filterCache.data.executants || []);
-      return filterCache.data;
-    }
-
-    console.log('Fetching all filter data from API');
-    try {
-      // Définir les endpoints à appeler
-      const endpoints = [
-        { key: 'categories', url: '/api/categories' },
-        { key: 'demandeurs', url: '/api/demandeurs' },
-        { key: 'societes', url: '/api/societes' },
-        { key: 'emplacements', url: '/api/emplacements' },
-        { key: 'statuts', url: '/api/statuts' },
-        { key: 'priorites', url: '/api/priorites' },
-        { key: 'executants', url: '/api/executants' }
-      ];
-
-      // Créer un objet pour stocker les résultats
-      const fetchedData = {
-        categories: [],
-        demandeurs: [],
-        societes: [],
-        emplacements: [],
-        statuts: [],
-        priorites: [],
-        executants: []
-      };
-
-      // Faire les appels API en parallèle avec gestion d'erreur individuelle
-      const results = await Promise.allSettled(
-        endpoints.map(endpoint => 
-          axios.get(endpoint.url)
-            .then(response => ({ key: endpoint.key, data: response.data }))
-            .catch(error => {
-              console.error(`Error fetching ${endpoint.key}:`, error);
-              return { key: endpoint.key, data: [] };
-            })
-        )
-      );
-
-      // Traiter les résultats
-      results.forEach(result => {
-        if (result.status === 'fulfilled') {
-          fetchedData[result.value.key] = result.value.data.filter(item => item.is_active !== false);
+  // Ajouter l'effet pour l'intersection observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          console.log('Loading more tickets...');
+          setIsLoadingMore(true);
+          
+          // Charger plus de tickets à afficher
+          setDisplayedTickets(prev => {
+            const nextBatch = tickets.slice(prev.length, prev.length + 3);
+            return [...prev, ...nextBatch];
+          });
+          
+          // Si on a affiché tous les tickets chargés, charger la page suivante
+          if (displayedTickets.length >= tickets.length) {
+            setPage(prevPage => {
+              const nextPage = prevPage + 1;
+              fetchTickets(false, nextPage);
+              return nextPage;
+            });
+          } else {
+            setIsLoadingMore(false);
+          }
         }
-      });
+      },
+      { threshold: 0.1 }
+    );
 
-      // Mettre à jour le cache
-      filterCache.data = fetchedData;
-      filterCache.lastFetch = now;
-
-      // Mettre à jour les états
-      setCategories(fetchedData.categories);
-      setDemandeurs(fetchedData.demandeurs);
-      setSocietes(fetchedData.societes);
-      setEmplacements(fetchedData.emplacements);
-      setStatuts(fetchedData.statuts);
-      setPriorites(fetchedData.priorites);
-      setExecutants(fetchedData.executants);
-
-      return fetchedData;
-
-    } catch (err) {
-      console.error('Erreur lors du chargement des données de filtrage:', err);
-      // Ne pas effacer le cache en cas d'erreur partielle
-      // filterCache.data = null;
-      // filterCache.lastFetch = null;
-      throw err;
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
     }
-  };
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [hasMore, isLoadingMore, tickets, displayedTickets]);
 
   // Fonction pour réinitialiser les filtres
   const resetFilters = () => {
@@ -806,7 +797,7 @@ const TicketList = () => {
         )}
 
         <div className="space-y-4">
-          {filteredTickets.map((ticket) => (
+          {displayedTickets.map((ticket) => (
                 <div
                   key={ticket.id}
               className={`rounded-2xl shadow-lg border flex flex-col md:flex-row items-center justify-between min-h-[140px] px-6 py-5 mb-6 transition-transform hover:scale-[1.015] hover:shadow-2xl group`}
@@ -907,6 +898,13 @@ const TicketList = () => {
                   </div>
                 </div>
           ))}
+          
+          {/* Ajouter l'élément de référence pour l'intersection observer */}
+          <div ref={observerTarget} className="h-10 flex items-center justify-center">
+            {isLoadingMore && (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            )}
+          </div>
         </div>
       </div>
     </Layout>

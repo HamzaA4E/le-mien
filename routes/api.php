@@ -83,4 +83,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Nouvelle route pour les tests de performance
     Route::get('/test-performance/{id}', [SocieteController::class, 'testPerformance']);
+
+    // Route pour récupérer toutes les données de la liste des tickets en une seule requête
+    Route::get('/tickets/list-data', [TicketController::class, 'getTicketListData']);
 }); 

@@ -125,7 +125,7 @@ class TicketController extends Controller
                     'date_fin_prevue' => $validated['date_fin_prevue'],
                     'date_fin_reelle' => $validated['date_fin_reelle']
                 ]);
-
+                // Convertir les dates en format SQL Server
                 $dateDebut = date('d/m/Y H:i:s', strtotime($validated['date_debut']));
                 $dateFinPrevue = date('d/m/Y H:i:s', strtotime($validated['date_fin_prevue']));
                 $dateFinReelle = $validated['date_fin_reelle'] ? date('d/m/Y H:i:s', strtotime($validated['date_fin_reelle'])) : null;
@@ -137,7 +137,7 @@ class TicketController extends Controller
                     'date_fin_reelle' => $dateFinReelle,
                     'date_creation' => $dateCreation
                 ]);
-
+                // Gestion de la pièce jointe
                 $attachmentPath = null;
                 if ($request->hasFile('attachment')) {
                     $file = $request->file('attachment');
@@ -148,6 +148,7 @@ class TicketController extends Controller
                     ]);
                     
                     try {
+                        //Stockage de la pièce jointe (public/attachments)
                         $attachmentPath = $file->store('attachments', 'public');
                         Log::info('Fichier stocké avec succès:', ['path' => $attachmentPath]);
                     } catch (\Exception $e) {
@@ -161,6 +162,7 @@ class TicketController extends Controller
                     Log::info('Aucun fichier n\'a été envoyé');
                 }
 
+                //Création du ticket
                 $data = [
                     'Titre' => $validated['titre'],
                     'Description' => $validated['description'],
@@ -217,7 +219,7 @@ class TicketController extends Controller
             ], 500);
         }
     }
-
+    //Affichage d'un ticket
     public function show($id)
     {
         try {
@@ -239,7 +241,7 @@ class TicketController extends Controller
             return response()->json(['error' => 'Erreur lors de la récupération du ticket'], 500);
         }
     }
-
+    //Modification d'un ticket
     public function update(Request $request, Ticket $ticket)
     {
         try {
@@ -376,6 +378,7 @@ class TicketController extends Controller
         return response()->json(null, 204);
     }
 
+    //Récupérer les options
     public function getOptions()
     {
         try {
@@ -468,7 +471,7 @@ class TicketController extends Controller
             ], 200); // Retourner 200 même en cas d'erreur pour éviter le blocage du frontend
         }
     }
-
+    //Récupérer les statistiques
     public function getStats()
     {
         try {
@@ -483,21 +486,23 @@ class TicketController extends Controller
                 'cloture' => Ticket::whereHas('statut', function($query) {
                     $query->where('designation', 'Clôturé');
                 })->count(),
+                //Récupérer les statistiques par priorité
                 'par_priorite' => Ticket::select('id_priorite', DB::raw('count(*) as total'))
-                    ->with('priorite:id,designation')
+                    ->with('priorite:id,designation') //Charger l'id et la designation de la priorité
                     ->groupBy('id_priorite')
                     ->get()
-                    ->map(function($item) {
+                    ->map(function($item) { //Transformer les résultats en un tableau(designation -> total)
                         return [
                             'priorite' => $item->priorite->designation,
                             'total' => $item->total
                         ];
                     }),
+                //Récupérer les statistiques par catégorie
                 'par_categorie' => Ticket::select('id_categorie', DB::raw('count(*) as total'))
-                    ->with('categorie:id,designation')
+                    ->with('categorie:id,designation') //Charger l'id et la designation de la categorie
                     ->groupBy('id_categorie')
                     ->get()
-                    ->map(function($item) {
+                    ->map(function($item) { //Transformer les résultats en un tableau(designation -> total)
                         return [
                             'categorie' => $item->categorie->designation,
                             'total' => $item->total
@@ -515,49 +520,6 @@ class TicketController extends Controller
         }
     }
 
-    /**
-     * Récupère les tickets filtrés par statut
-     */
-    public function getByStatut($statut)
-    {
-        $query = Ticket::query()
-            ->select([
-                'T_TICKET.*',
-                'T_STATUT.designation as statut_designation',
-                'T_PRIORITE.designation as priorite_designation',
-                'T_CATEGORIE.designation as categorie_designation',
-                'T_DEMDEUR.designation as demandeur_designation'
-            ])
-            ->join('T_STATUT', 'T_TICKET.id_statut', '=', 'T_STATUT.id')
-            ->join('T_PRIORITE', 'T_TICKET.id_priorite', '=', 'T_PRIORITE.id')
-            ->join('T_CATEGORIE', 'T_TICKET.id_categorie', '=', 'T_CATEGORIE.id')
-            ->join('T_DEMDEUR', 'T_TICKET.id_demandeur', '=', 'T_DEMDEUR.id');
-
-        // Filtrage optimisé par statut
-        switch ($statut) {
-            case 'en-cours':
-                $query->where('T_TICKET.id_statut', 2); // Statut "En cours"
-                break;
-            case 'en-instance':
-                $query->where('T_TICKET.id_statut', 3); // Statut "En instance"
-                break;
-            case 'cloture':
-                $query->where('T_TICKET.id_statut', 4); // Statut "Clôturé"
-                break;
-            case 'tous':
-                // Pas de filtre sur le statut
-                break;
-            default:
-                // Par défaut, on montre les tickets en cours
-                $query->where('T_TICKET.id_statut', 2);
-        }
-
-        // Tri par date de création décroissante
-        $query->orderBy('T_TICKET.DateCreation', 'desc');
-
-        return $query->get();
-    }
-
     // Utilitaire pour la commande de rappel
     public static function ticketsFinPrevueDans24hNonCloture()
     {
@@ -565,7 +527,7 @@ class TicketController extends Controller
             ->finPrevueDans24hNonCloture()
             ->get();
     }
-
+    //Téléchargement de la pièce jointe
     public function downloadAttachment($id)
     {
         try {
@@ -581,7 +543,7 @@ class TicketController extends Controller
                 return response()->json(['message' => 'Le fichier n\'existe plus'], 404);
             }
 
-            $mimeType = mime_content_type($path) ?: 'application/octet-stream';
+            $mimeType = mime_content_type($path) ?: 'application/octet-stream'; //application/octet-stream : type de fichier par défaut
 
             return response()->download($path, basename($path), [
                 'Content-Type' => $mimeType,
@@ -679,12 +641,12 @@ class TicketController extends Controller
 
             // Pagination
             $page = $request->input('page', 1);
-            $perPage = $request->input('per_page', 20);
+            $perPage = $request->input('per_page', 3);
             $tickets = $query->orderBy('DateCreation', 'desc')
                            ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
-                'filter_data' => $filterData,
+                'filter_data' => $filterData, 
                 'tickets' => $tickets
             ]);
 

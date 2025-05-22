@@ -11,21 +11,23 @@ class DemandeurController extends Controller
 {
     use ReferentialControllerTrait;
 
+    //Récupérer le model
     protected function getModel()
     {
         return Demandeur::class;
     }
 
+    //Affichage des demandeurs
     public function index(Request $request)
     {
         $query = Demandeur::query();
         
-        // Si on demande explicitement tous les éléments (pour l'admin)
+        // Si tous les demandeurs sont actifs
         if ($request->has('all') && $request->all) {
             return $query->get();
         }
         
-        // Par défaut, on ne retourne que les éléments actifs
+        // Par défaut, on ne retourne que les demandeurs actifs
         return $query->where('is_active', true)->get();
     }
 
@@ -52,6 +54,7 @@ class DemandeurController extends Controller
             'is_active' => 'boolean'
         ]);
         
+        //Trouver le demandeur par son id et le modifier
         $demandeur = Demandeur::findOrFail($id);
         $demandeur->update($request->all());
         return $demandeur;

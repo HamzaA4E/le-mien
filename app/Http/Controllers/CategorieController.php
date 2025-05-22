@@ -16,19 +16,21 @@ class CategorieController extends Controller
         return Categorie::class;
     }
 
+    //Affichage des categories
     public function index(Request $request)
     {
         $query = Categorie::query();
         
-        // Si on demande explicitement tous les éléments (pour l'admin)
+        //si tous les categories sont actives (pour l'admin)
         if ($request->has('all') && $request->all) {
             return $query->get();
         }
         
-        // Par défaut, on ne retourne que les éléments actifs
+        //Par défaut, on ne retourne que les categories actives
         return $query->where('is_active', true)->get();
     }
 
+    //Creation d'une nouvelle categorie
     public function store(Request $request)
     {
         $request->validate([
@@ -37,7 +39,7 @@ class CategorieController extends Controller
         ]);
         
         $data = $request->all();
-        // Par défaut, les nouvelles entités sont actives
+        //Par défaut, les nouvelles categories sont actives
         if (!isset($data['is_active'])) {
             $data['is_active'] = true;
         }
@@ -52,6 +54,7 @@ class CategorieController extends Controller
             'is_active' => 'boolean'
         ]);
         
+        //Trouver la categorie par son id et la modifier
         $categorie = Categorie::findOrFail($id);
         $categorie->update($request->all());
         return $categorie;

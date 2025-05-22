@@ -613,7 +613,7 @@ const TicketList = () => {
             </button>
             {!(niveau === '2' || niveau === 2) && (
               <Link
-                to="create-ticket"
+                to="/create-ticket"
                 className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
               >
                 Créer un ticket

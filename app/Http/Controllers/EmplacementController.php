@@ -15,17 +15,17 @@ class EmplacementController extends Controller
     {
         return Emplacement::class;
     }
-
+    //Affichage des emplacements
     public function index(Request $request)
     {
         $query = Emplacement::query();
         
-        // Si on demande explicitement tous les éléments (pour l'admin)
+        // Si tous les emplacements sont actifs (pour l'admin)
         if ($request->has('all') && $request->all) {
             return $query->get();
         }
         
-        // Par défaut, on ne retourne que les éléments actifs
+        // Par défaut, on ne retourne que les emplacements actifs
         return $query->where('is_active', true)->get();
     }
 

@@ -32,16 +32,16 @@ class TicketReportController extends Controller
                 Log::info('User level from backend:', ['userLevel' => $user->niveau]);
             }
 
-            if (!$user || $user->niveau !== 2) {
-                Log::error('Unauthorized report creation attempt - User level check failed', [
-                    'userId' => $userId,
-                    'userLevel' => $user ? $user->niveau : 'not found'
-                ]);
-                return response()->json([
-                    'message' => 'Seuls les responsables peuvent créer un report',
-                    'error' => 'Unauthorized'
-                ], 403);
-            }
+            // if (!$user || $user->niveau !== 2) {
+            //     Log::error('Unauthorized report creation attempt - User level check failed', [
+            //         'userId' => $userId,
+            //         'userLevel' => $user ? $user->niveau : 'not found'
+            //     ]);
+            //     return response()->json([
+            //         'message' => 'Seuls les responsables peuvent créer un report',
+            //         'error' => 'Unauthorized'
+            //     ], 403);
+            // }
 
             // Validation des données
             $validated = $request->validate([
@@ -61,7 +61,7 @@ class TicketReportController extends Controller
                 
                 // Envoyer l'e-mail au créateur du ticket
                 try {
-                    // Get the ticket creator using the correct relationship
+                    
                     $creator = $ticket->utilisateur;
                     $responsable = \App\Models\Utilisateur::find($userId);
 

@@ -37,7 +37,6 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Routes pour les tickets
     Route::get('/tickets/options', [TicketController::class, 'getOptions']);
-    Route::get('/tickets/statut/{statut}', [TicketController::class, 'getByStatut']);
     Route::get('/tickets/{id}/download', [TicketController::class, 'downloadAttachment']);
     Route::apiResource('tickets', TicketController::class);
 
@@ -76,10 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('priorites', PrioriteController::class);
     Route::apiResource('statuts', StatutController::class);
     Route::apiResource('types', TypeDemandeController::class);
-
-    // Routes pour les exécutants
-    Route::get('/executants', [ExecutantController::class, 'index']);
-    Route::post('/executants', [ExecutantController::class, 'store']);
+    Route::apiResource('executants', ExecutantController::class);
 
     // Nouvelle route pour les tests de performance
     Route::get('/test-performance/{id}', [SocieteController::class, 'testPerformance']);

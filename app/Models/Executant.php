@@ -15,5 +15,6 @@ class Executant extends Model
 
     protected $fillable = [
         'designation',
+        'is_active'
     ];
 } 

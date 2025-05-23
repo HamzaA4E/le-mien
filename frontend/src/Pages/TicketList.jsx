@@ -219,12 +219,12 @@ const TicketList = () => {
   useEffect(() => {
     if (initialLoadDone && filteredTickets) {
       console.log('Updating displayed tickets based on filters');
-      // Afficher les 3 premiers tickets filtrés
-      setDisplayedTickets(filteredTickets.slice(0, 3));
+      // Afficher les 2 premiers tickets filtrés
+      setDisplayedTickets(filteredTickets.slice(0, 2));
       // Réinitialiser la page pour le chargement au défilement
       setPage(1);
       // Mettre à jour hasMore en fonction du nombre total de tickets filtrés
-      setHasMore(filteredTickets.length > 3);
+      setHasMore(filteredTickets.length > 2);
     }
   }, [filteredTickets, initialLoadDone]);
 
@@ -310,7 +310,7 @@ const TicketList = () => {
         ticketCache.tickets = ticketsData.data;
         ticketCache.lastFetch = new Date().getTime();
 
-        setDisplayedTickets(ticketsData.data.slice(0, 3));
+        setDisplayedTickets(ticketsData.data.slice(0, 2));
         setInitialLoadDone(true);
 
       } catch (err) {
@@ -340,7 +340,7 @@ const TicketList = () => {
           setAllTickets(cachedTickets);
           
           if (!initialLoadDone) {
-            setDisplayedTickets(cachedTickets.slice(0, 3));
+            setDisplayedTickets(cachedTickets.slice(0, 2));
             setInitialLoadDone(true);
           }
           
@@ -374,7 +374,7 @@ const TicketList = () => {
         setAllTickets(newTickets);
         
         if (!initialLoadDone) {
-          setDisplayedTickets(newTickets.slice(0, 3));
+          setDisplayedTickets(newTickets.slice(0, 2));
           setInitialLoadDone(true);
         }
       } else {
@@ -405,12 +405,12 @@ const TicketList = () => {
           
           // Charger plus de tickets à afficher
           setDisplayedTickets(prev => {
-            const nextBatch = filteredTickets.slice(prev.length, prev.length + 3);
+            const nextBatch = filteredTickets.slice(prev.length, prev.length + 2);
             return [...prev, ...nextBatch];
           });
           
           // Mettre à jour hasMore en fonction du nombre de tickets restants
-          setHasMore(displayedTickets.length + 3 < filteredTickets.length);
+          setHasMore(displayedTickets.length + 2 < filteredTickets.length);
           setIsLoadingMore(false);
         }
       },

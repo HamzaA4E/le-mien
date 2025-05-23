@@ -324,13 +324,12 @@ class TicketController extends Controller
             $statutCloture = Statut::where('designation', 'Clôturé')->first();
             $idCloture = $statutCloture ? $statutCloture->id : null;
             if (
-                (
-                    (isset($data['Id_Statut']) && $idCloture && (int)$data['Id_Statut'] === (int)$idCloture)
-                    || $ticket->Id_Statut === $idCloture
-                )
-                && empty($ticket->DateFinReelle)
+                (isset($data['Id_Statut']) && $idCloture && (int)$data['Id_Statut'] === (int)$idCloture) ||
+                ($ticket->Id_Statut === $idCloture)
             ) {
-                $data['DateFinReelle'] = date('d/m/Y H:i:s');
+                if (empty($ticket->DateFinReelle)) {
+                    $data['DateFinReelle'] = date('d/m/Y H:i:s');
+                }
             }
 
             Log::info('Données finales pour update:', $data);
@@ -384,70 +383,43 @@ class TicketController extends Controller
         try {
             Log::info('Début de la récupération des options');
 
-            // Vérification de l'existence des tables
-            $tables = [
-                'T_STATUT' => ['model' => Statut::class, 'key' => 'statuts'],
-                'T_DEMDEUR' => ['model' => Demandeur::class, 'key' => 'demandeurs'],
-                'T_SOCIETE' => ['model' => Societe::class, 'key' => 'societes'],
-                'T_EMPLACEMENT' => ['model' => Emplacement::class, 'key' => 'emplacements'],
-                'T_PRIORITE' => ['model' => Priorite::class, 'key' => 'priorites'],
-                'T_CATEGORIE' => ['model' => Categorie::class, 'key' => 'categories'],
-                'T_TYPEDEMANDE' => ['model' => TypeDemande::class, 'key' => 'typesDemande'],
-            ];
-
             $options = [];
             $errors = [];
 
-            // Charger d'abord les statuts car ils sont critiques
+            // Charger les statuts
             try {
-                Log::info("Récupération des données pour la table T_STATUT");
                 $statuts = Statut::where('is_active', true)->get();
-                Log::info("Statuts récupérés avec succès", ['count' => $statuts->count()]);
                 $options['statuts'] = $statuts;
             } catch (\Exception $e) {
                 Log::error("Erreur lors de la récupération des statuts: " . $e->getMessage());
-                Log::error("Stack trace: " . $e->getTraceAsString());
                 $errors['statuts'] = $e->getMessage();
                 $options['statuts'] = collect([]);
             }
 
             // Charger les autres options
-            foreach ($tables as $tableName => $config) {
-                if ($tableName === 'T_STATUT') continue; // Déjà traité
+            $tables = [
+                'demandeurs' => Demandeur::class,
+                'societes' => Societe::class,
+                'emplacements' => Emplacement::class,
+                'priorites' => Priorite::class,
+                'categories' => Categorie::class,
+                'typesDemande' => TypeDemande::class
+            ];
 
+            foreach ($tables as $key => $model) {
                 try {
-                    Log::info("Récupération des données pour la table {$tableName}");
-                    
-                    if ($tableName === 'T_DEMDEUR') {
-                        $options[$config['key']] = $config['model']::where('is_active', true)->with('service')->get();
+                    if ($key === 'demandeurs') {
+                        $options[$key] = $model::where('is_active', true)->with('service')->get();
                     } else {
-                        $options[$config['key']] = $config['model']::where('is_active', true)->get();
+                        $options[$key] = $model::where('is_active', true)->get();
                     }
-                    
-                    Log::info("Données récupérées pour {$tableName}", [
-                        'count' => $options[$config['key']]->count()
-                    ]);
                 } catch (\Exception $e) {
-                    Log::error("Erreur lors de la récupération des données de la table {$tableName}: " . $e->getMessage());
-                    Log::error("Stack trace: " . $e->getTraceAsString());
-                    $errors[$config['key']] = $e->getMessage();
-                    $options[$config['key']] = collect([]);
+                    Log::error("Erreur lors de la récupération des {$key}: " . $e->getMessage());
+                    $errors[$key] = $e->getMessage();
+                    $options[$key] = collect([]);
                 }
             }
 
-            // Vérification des options requises
-            $requiredOptions = ['demandeurs', 'societes', 'emplacements', 'priorites', 'categories', 'typesDemande', 'statuts'];
-            $missingOptions = array_diff($requiredOptions, array_keys($options));
-
-            // Si des options sont manquantes, les ajouter comme collections vides
-            foreach ($missingOptions as $option) {
-                $options[$option] = collect([]);
-                $errors[$option] = 'Option non disponible';
-            }
-
-            Log::info('Options récupérées avec succès', ['options' => array_keys($options)]);
-            
-            // Retourner les options disponibles avec les erreurs éventuelles
             return response()->json([
                 'options' => $options,
                 'errors' => $errors,
@@ -456,9 +428,7 @@ class TicketController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des options: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
             
-            // Retourner une réponse avec des collections vides pour toutes les options
             $emptyOptions = array_fill_keys([
                 'demandeurs', 'societes', 'emplacements', 'priorites', 
                 'categories', 'typesDemande', 'statuts'
@@ -468,7 +438,7 @@ class TicketController extends Controller
                 'options' => $emptyOptions,
                 'errors' => ['general' => $e->getMessage()],
                 'hasErrors' => true
-            ], 200); // Retourner 200 même en cas d'erreur pour éviter le blocage du frontend
+            ], 200);
         }
     }
     //Récupérer les statistiques
@@ -641,7 +611,7 @@ class TicketController extends Controller
 
             // Pagination
             $page = $request->input('page', 1);
-            $perPage = $request->input('per_page', 3);
+            $perPage = $request->input('per_page', 2);
             $tickets = $query->orderBy('DateCreation', 'desc')
                            ->paginate($perPage, ['*'], 'page', $page);
 

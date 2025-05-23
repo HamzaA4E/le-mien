@@ -1,8 +1,14 @@
 import axios from "axios";
 
-// Ensure we have a valid base URL
-// Use environment variable VITE_API_URL, default to localhost if not set
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// Déterminer l'URL de base en fonction de l'URL actuelle
+const getBaseUrl = () => {
+    const currentUrl = window.location.origin;
+    // Utiliser toujours l'URL actuelle pour les requêtes API
+    return currentUrl;
+};
+
+const API_URL = getBaseUrl();
+console.log('API URL:', API_URL); // Pour le débogage
 
 const instance = axios.create({
     baseURL: API_URL,
@@ -21,7 +27,6 @@ const getCsrfToken = async () => {
         return response;
     } catch (error) {
         console.error('Erreur lors de la récupération du token CSRF:', error);
-        // Don't throw the error, just log it
         return;
     }
 };
@@ -41,6 +46,7 @@ instance.interceptors.request.use(async function (config) {
         config.headers['Content-Type'] = 'application/json';
     }
 
+    // Log de la configuration de la requête
     console.log('Request Config:', {
         url: config.url,
         method: config.method,
@@ -74,6 +80,12 @@ instance.interceptors.response.use(
                 await getCsrfToken();
                 return instance(originalRequest);
             }
+        }
+
+        // Gérer les erreurs 404
+        if (error.response?.status === 404) {
+            console.error('Route non trouvée:', originalRequest.url);
+            // Vous pouvez rediriger vers une page 404 ou afficher un message
         }
 
         return Promise.reject(error);

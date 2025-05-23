@@ -17,6 +17,23 @@ const dashboardCache = {
   cacheDuration: 5 * 60 * 1000
 };
 
+
+
+const statutColors = {
+  'tickets': 'border-blue-400 text-blue-600 bg-white',
+  'En instance': 'border-red-400 text-red-600 bg-white',
+  'En cours': 'border-yellow-400 text-yellow-600 bg-white',
+  'Clôturé': 'border-green-400 text-green-600 bg-white',
+  // Ajoute d'autres statuts ici si besoin
+};
+
+const statutHoverBg = {
+  'En instance': 'hover:bg-red-50',
+  'En cours': 'hover:bg-yellow-50',
+  'Clôturé': 'hover:bg-green-50',
+  // Ajoute d'autres statuts ici si besoin
+};
+
 const Dashboard = () => {
   const [stats, setStats] = useState({
     total: 0,
@@ -25,7 +42,8 @@ const Dashboard = () => {
     cloture: 0,
     par_priorite: [],
     par_categorie: [],
-    par_demandeur: []
+    par_demandeur: [],
+    par_statut: {}
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -177,22 +195,26 @@ const Dashboard = () => {
 
         {/* Cartes de statistiques */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Link to="/tickets" className="bg-white p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer">
-            <h3 className="text-sm font-medium text-gray-500">Total tickets</h3>
+          <Link to="/tickets" className={`border-l-4 p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer ${statutColors['tickets']}`}> 
+            <h3 className="text-lg font-bold text-black">Total tickets</h3>
             <p className="mt-2 text-3xl font-extrabold text-blue-600">{stats.total}</p>
           </Link>
-          <Link to="/tickets?statut=2" className="bg-white p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer">
-            <h3 className="text-sm font-medium text-gray-500">En cours</h3>
-            <p className="mt-2 text-3xl font-extrabold text-yellow-500">{stats.en_cours}</p>
-          </Link>
-          <Link to="/tickets?statut=1" className="bg-white p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer">
-            <h3 className="text-sm font-medium text-gray-500">En instance</h3>
-            <p className="mt-2 text-3xl font-extrabold text-orange-500">{stats.en_instance}</p>
-          </Link>
-          <Link to="/tickets?statut=3" className="bg-white p-6 rounded-lg shadow flex flex-col items-start hover:bg-gray-50 transition-colors cursor-pointer">
-            <h3 className="text-sm font-medium text-gray-500">Clôturés</h3>
-            <p className="mt-2 text-3xl font-extrabold text-green-600">{stats.cloture}</p>
-          </Link>
+          {stats.par_statut && Array.isArray(stats.par_statut) && stats.par_statut.map((statutObj) => {
+            const borderClass = statutColors[statutObj.designation] || 'border-purple-500 bg-white';
+            const hoverClass = statutHoverBg[statutObj.designation] || 'hover:bg-purple-50';
+            const textColor = (borderClass.match(/text-[^ ]+/) || ['text-purple-700'])[0];
+            return (
+              <Link
+                key={statutObj.id}
+                to={`/tickets?statut=${statutObj.id}`}
+                className={`border-l-4 p-6 rounded-lg shadow flex flex-col items-start transition-colors cursor-pointer ${borderClass} ${hoverClass}`}
+                style={{ minWidth: 220 }}
+              >
+                <h3 className="text-lg font-bold text-black mb-2">{statutObj.designation}</h3>
+                <p className={`mt-2 text-4xl font-extrabold ${textColor}`}>{statutObj.total}</p>
+              </Link>
+            );
+          })}
         </div>
 
         {/* Graphiques */}

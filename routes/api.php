@@ -32,7 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tickets/{ticket}/reports', [TicketReportController::class, 'store']);
 
     // Routes pour le dashboard
-    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
+    Route::get('/dashboard/stats', [TicketController::class, 'getStats']);
     Route::get('/tickets/stats', [DashboardController::class, 'getStatsByUser']);
     
     // Routes pour les tickets

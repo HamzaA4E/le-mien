@@ -18,4 +18,9 @@ class Priorite extends Model
         'ordre',
         'is_active'
     ];
+
+    public function tickets()
+    {
+        return $this->hasMany(\App\Models\Ticket::class, 'Id_Priorite');
+    }
 } 

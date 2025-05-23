@@ -17,4 +17,9 @@ class Categorie extends Model
         'designation',
         'is_active'
     ];
+
+    public function tickets()
+    {
+        return $this->hasMany(\App\Models\Ticket::class, 'Id_Categorie');
+    }
 } 

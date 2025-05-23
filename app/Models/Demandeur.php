@@ -29,4 +29,9 @@ class Demandeur extends Model
     {
         return $this->belongsTo(Service::class, 'id_service');
     }
+
+    public function tickets()
+    {
+        return $this->hasMany(\App\Models\Ticket::class, 'Id_Demandeur');
+    }
 } 

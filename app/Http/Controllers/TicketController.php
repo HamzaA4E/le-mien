@@ -445,39 +445,49 @@ class TicketController extends Controller
     public function getStats()
     {
         try {
+            // Récupérer tous les statuts actifs
+            $statuts = Statut::where('is_active', true)->get();
+            
+            // Initialiser le tableau des statistiques par statut
+            $statsParStatut = [];
+            foreach ($statuts as $statut) {
+                $statsParStatut[] = [
+                    'id' => $statut->id,
+                    'designation' => $statut->designation,
+                    'total' => Ticket::where('Id_Statut', $statut->id)->count()
+                ];
+            }
+
             $stats = [
                 'total' => Ticket::count(),
-                'en_cours' => Ticket::whereHas('statut', function($query) {
-                    $query->where('designation', 'En cours');
-                })->count(),
-                'en_instance' => Ticket::whereHas('statut', function($query) {
-                    $query->where('designation', 'En instance');
-                })->count(),
-                'cloture' => Ticket::whereHas('statut', function($query) {
-                    $query->where('designation', 'Clôturé');
-                })->count(),
+                'par_statut' => $statsParStatut,
                 //Récupérer les statistiques par priorité
-                'par_priorite' => Ticket::select('id_priorite', DB::raw('count(*) as total'))
-                    ->with('priorite:id,designation') //Charger l'id et la designation de la priorité
-                    ->groupBy('id_priorite')
+                'par_priorite' => Priorite::where('is_active', true)
                     ->get()
-                    ->map(function($item) { //Transformer les résultats en un tableau(designation -> total)
+                    ->map(function($priorite) {
                         return [
-                            'priorite' => $item->priorite->designation,
-                            'total' => $item->total
+                            'priorite' => $priorite->designation,
+                            'total' => $priorite->tickets()->count()
                         ];
                     }),
                 //Récupérer les statistiques par catégorie
-                'par_categorie' => Ticket::select('id_categorie', DB::raw('count(*) as total'))
-                    ->with('categorie:id,designation') //Charger l'id et la designation de la categorie
-                    ->groupBy('id_categorie')
+                'par_categorie' => Categorie::where('is_active', true)
                     ->get()
-                    ->map(function($item) { //Transformer les résultats en un tableau(designation -> total)
+                    ->map(function($categorie) {
                         return [
-                            'categorie' => $item->categorie->designation,
-                            'total' => $item->total
+                            'categorie' => $categorie->designation,
+                            'total' => $categorie->tickets()->count()
                         ];
-                    })
+                    }),
+                //Récupérer les statistiques par demandeur
+                'par_demandeur' => Demandeur::where('is_active', true)
+                    ->get()
+                    ->map(function($demandeur) {
+                        return [
+                            'demandeur' => $demandeur->designation,
+                            'total' => $demandeur->tickets()->count()
+                        ];
+                    }),
             ];
 
             return response()->json($stats);

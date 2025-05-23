@@ -113,14 +113,80 @@ const CreateTicket = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      await fetchDataWithCache('/api/demandeurs', setDemandeurs, 'demandeurs');
-      await fetchDataWithCache('/api/societes', setSocietes, 'societes');
-      await fetchDataWithCache('/api/emplacements', setEmplacements, 'emplacements');
-      await fetchDataWithCache('/api/priorites', setPriorites, 'priorites');
-      await fetchDataWithCache('/api/categories', setCategories, 'categories');
-      await fetchDataWithCache('/api/types-demande', setTypesDemande, 'typesDemande');
-      await fetchDataWithCache('/api/statuts', setStatuts, 'statuts');
-      await fetchDataWithCache('/api/executants', setExecutants, 'executants');
+      try {
+        setLoadingStates(prev => ({
+          demandeurs: true,
+          societes: true,
+          emplacements: true,
+          priorites: true,
+          categories: true,
+          typesDemande: true,
+          statuts: true,
+          executants: true
+        }));
+
+        // Vérifier le cache dans localStorage
+        const cached = localStorage.getItem('create_ticket_options_cache');
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            setDemandeurs(data.demandeurs || []);
+            setSocietes(data.societes || []);
+            setEmplacements(data.emplacements || []);
+            setPriorites(data.priorites || []);
+            setCategories(data.categories || []);
+            setTypesDemande(data.typesDemande || []);
+            setStatuts(data.statuts || []);
+            setExecutants(data.executants || []);
+            setLoadingStates(prev => ({
+              demandeurs: false,
+              societes: false,
+              emplacements: false,
+              priorites: false,
+              categories: false,
+              typesDemande: false,
+              statuts: false,
+              executants: false
+            }));
+            return;
+          }
+        }
+
+        // Si pas de cache valide, faire la requête
+        const response = await axios.get('/api/tickets/options');
+        const { options } = response.data;
+
+        // Mettre à jour le cache
+        localStorage.setItem('create_ticket_options_cache', JSON.stringify({
+          data: options,
+          timestamp: Date.now()
+        }));
+
+        // Mettre à jour les états
+        setDemandeurs(options.demandeurs || []);
+        setSocietes(options.societes || []);
+        setEmplacements(options.emplacements || []);
+        setPriorites(options.priorites || []);
+        setCategories(options.categories || []);
+        setTypesDemande(options.typesDemande || []);
+        setStatuts(options.statuts || []);
+        setExecutants(options.executants || []);
+
+      } catch (err) {
+        console.error('Erreur lors du chargement des options:', err);
+        setError('Erreur lors du chargement des options');
+      } finally {
+        setLoadingStates(prev => ({
+          demandeurs: false,
+          societes: false,
+          emplacements: false,
+          priorites: false,
+          categories: false,
+          typesDemande: false,
+          statuts: false,
+          executants: false
+        }));
+      }
     };
 
     loadData();
@@ -129,6 +195,14 @@ const CreateTicket = () => {
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     console.log('[CreateTicket] handleChange', { name, value, type, files });
+    
+    // Validation de la date de fin prévue
+    if (name === 'date_fin_prevue' && formData.date_debut) {
+      if (new Date(value) < new Date(formData.date_debut)) {
+        setError('La date de fin prévue ne peut pas être antérieure à la date de début');
+        return;
+      }
+    }
     
     if (type === 'file') {
       setFormData(prev => ({ ...prev, [name]: files[0] }));
@@ -139,6 +213,7 @@ const CreateTicket = () => {
     } else {
       setFormData(prev => ({ ...prev, [name]: value.toString() }));
     }
+    setError('');
   };
 
   const handleFormSuccess = (data, type) => {
@@ -330,6 +405,7 @@ const CreateTicket = () => {
                       name="date_fin_prevue"
                       value={formData.date_fin_prevue}
                       onChange={handleChange}
+                      min={formData.date_debut || undefined}
                       className="w-full border rounded px-3 py-2"
                     />
                   </div>

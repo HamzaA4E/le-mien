@@ -60,20 +60,8 @@ const EntityManagement = ({ entity, label }) => {
 
   // Invalider le cache de la page de création de ticket pour cette entité
   const invalidateCreateTicketCache = () => {
-    // Correspondance entre les entités et les clés de cache utilisées dans CreateTicket.jsx
-    const cacheKeyMap = {
-      categories: 'create_ticket_categories_cache',
-      emplacements: 'create_ticket_emplacements_cache',
-      societes: 'create_ticket_societes_cache',
-      demandeurs: 'create_ticket_demandeurs_cache',
-      services: 'create_ticket_services_cache',
-      priorites: 'create_ticket_priorites_cache',
-      statuts: 'create_ticket_statuts_cache',
-      types: 'create_ticket_typesDemande_cache',
-      executants: 'create_ticket_executants_cache',
-    };
-    const key = cacheKeyMap[entity];
-    if (key) localStorage.removeItem(key);
+    // Invalider le cache des options
+    localStorage.removeItem('create_ticket_options_cache');
   };
 
   const handleAdd = async () => {

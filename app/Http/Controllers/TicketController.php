@@ -11,6 +11,7 @@ use App\Models\Categorie;
 use App\Models\TypeDemande;
 use App\Models\Statut;
 use App\Models\Utilisateur;
+use App\Models\Executant;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -102,7 +103,15 @@ class TicketController extends Controller
                 'commentaire' => 'nullable|string',
                 'attachment' => 'nullable|file|max:10240', // max 10MB
                 'date_debut' => 'required|date',
-                'date_fin_prevue' => 'required|date',
+                'date_fin_prevue' => [
+                    'required',
+                    'date',
+                    function ($attribute, $value, $fail) use ($request) {
+                        if (strtotime($value) < strtotime($request->date_debut)) {
+                            $fail('La date de fin prévue ne peut pas être antérieure à la date de début.');
+                        }
+                    },
+                ],
                 'date_fin_reelle' => 'nullable|date',
                 'id_demandeur' => 'required|exists:T_DEMDEUR,id',
                 'id_utilisateur' => 'required|exists:T_UTILISAT,id',
@@ -264,7 +273,15 @@ class TicketController extends Controller
                 'Id_TypeDemande' => 'sometimes|exists:T_TYPEDEMANDE,id',
                 'Id_Executant' => 'sometimes|exists:T_EXECUTANT,id',
                 'DateDebut' => 'sometimes|date_format:d/m/Y',
-                'DateFinPrevue' => 'sometimes|date_format:d/m/Y',
+                'DateFinPrevue' => [
+                    'sometimes',
+                    'date_format:d/m/Y',
+                    function ($attribute, $value, $fail) use ($request) {
+                        if ($request->has('DateDebut') && strtotime($value) < strtotime($request->DateDebut)) {
+                            $fail('La date de fin prévue ne peut pas être antérieure à la date de début.');
+                        }
+                    },
+                ],
                 'attachment' => 'nullable|file|max:10240', // max 10MB
             ]);
 
@@ -420,6 +437,9 @@ class TicketController extends Controller
                 }
             }
 
+            // Ajout des exécutants
+            $options['executants'] = \App\Models\Executant::where('is_active', true)->get();
+
             return response()->json([
                 'options' => $options,
                 'errors' => $errors,
@@ -555,7 +575,7 @@ class TicketController extends Controller
                 'emplacements' => Emplacement::where('is_active', true)->get(),
                 'statuts' => Statut::where('is_active', true)->get(),
                 'priorites' => Priorite::where('is_active', true)->get(),
-                'executants' => Utilisateur::where('is_active', true)->get(),
+                'executants' => Executant::where('is_active', true)->get(),
                 'types_demande' => TypeDemande::where('is_active', true)->get()
             ];
 

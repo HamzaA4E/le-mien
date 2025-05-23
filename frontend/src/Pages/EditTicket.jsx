@@ -80,28 +80,19 @@ const EditTicket = () => {
         });
 
         // Charger toutes les options disponibles
-        const [prioritesResponse, statutsResponse, demandeursResponse, societesResponse, 
-               emplacementsResponse, categoriesResponse, typesDemandeResponse, executantsResponse] = await Promise.all([
-          axios.get('/api/priorites'),
-          axios.get('/api/statuts'),
-          axios.get('/api/demandeurs'),
-          axios.get('/api/societes'),
-          axios.get('/api/emplacements'),
-          axios.get('/api/categories'),
-          axios.get('/api/types-demande'),
-          axios.get('/api/executants')
-        ]);
+        const optionsResponse = await axios.get('/api/tickets/options');
+        const { options } = optionsResponse.data;
 
         // Mettre à jour les options avec toutes les valeurs disponibles
         setOptions({
-          priorites: prioritesResponse.data.filter(item => item.is_active !== false),
-          statuts: statutsResponse.data.filter(item => item.is_active !== false),
-          demandeurs: demandeursResponse.data.filter(item => item.is_active !== false),
-          societes: societesResponse.data.filter(item => item.is_active !== false),
-          emplacements: emplacementsResponse.data.filter(item => item.is_active !== false),
-          categories: categoriesResponse.data.filter(item => item.is_active !== false),
-          typesDemande: typesDemandeResponse.data.filter(item => item.is_active !== false),
-          executants: executantsResponse.data.filter(item => item.is_active !== false)
+          priorites: options.priorites || [],
+          statuts: options.statuts || [],
+          demandeurs: options.demandeurs || [],
+          societes: options.societes || [],
+          emplacements: options.emplacements || [],
+          categories: options.categories || [],
+          typesDemande: options.typesDemande || [],
+          executants: options.executants || []
         });
 
         // Afficher le nom de la pièce jointe existante
@@ -128,10 +119,20 @@ const EditTicket = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Validation de la date de fin prévue
+    if (name === 'DateFinPrevue' && formData.DateDebut) {
+      if (new Date(value) < new Date(formData.DateDebut)) {
+        setError('La date de fin prévue ne peut pas être antérieure à la date de début');
+        return;
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+    setError('');
   };
 
   const handleFileChange = (e) => {
@@ -497,6 +498,7 @@ const EditTicket = () => {
                 required
                 value={formData.DateFinPrevue}
                 onChange={handleChange}
+                min={formData.DateDebut || undefined}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>

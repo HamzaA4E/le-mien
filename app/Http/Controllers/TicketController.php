@@ -35,6 +35,9 @@ class TicketController extends Controller
             ]);
 
             // Appliquer les filtres
+            if ($request->filled('titre')) {
+                $query->where('Titre', 'like', '%' . $request->titre . '%');
+            }
             if ($request->filled('categorie')) {
                 $query->where('Id_Categorie', $request->categorie);
             }
@@ -451,8 +454,31 @@ class TicketController extends Controller
 
     public function destroy(Ticket $ticket)
     {
-        $ticket->delete();
-        return response()->json(null, 204);
+        try {
+            // Vérifier si l'utilisateur est le créateur du ticket
+            if (auth()->id() !== $ticket->Id_Demandeur) {
+                return response()->json([
+                    'message' => 'Vous n\'êtes pas autorisé à supprimer ce ticket'
+                ], 403);
+            }
+
+            // Supprimer la pièce jointe si elle existe
+            if ($ticket->attachment_path) {
+                $path = storage_path('app/public/' . $ticket->attachment_path);
+                if (file_exists($path)) {
+                    unlink($path);
+                }
+            }
+
+            $ticket->delete();
+            return response()->json(null, 204);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la suppression du ticket: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de la suppression du ticket',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     //Récupérer les options

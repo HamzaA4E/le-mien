@@ -125,7 +125,8 @@ const TicketList = () => {
       dateFinPrevueFin: searchParams.get('dateFinPrevueFin') || '',
       dateFinReelleDebut: searchParams.get('dateFinReelleDebut') || '',
       dateFinReelleFin: searchParams.get('dateFinReelleFin') || '',
-      type_demande: searchParams.get('type_demande') || ''
+      type_demande: searchParams.get('type_demande') || '',
+      titre: searchParams.get('titre') || ''
     };
   });
   const [showFilters, setShowFilters] = useState(false);
@@ -505,7 +506,8 @@ const TicketList = () => {
       dateFinPrevueFin: '',
       dateFinReelleDebut: '',
       dateFinReelleFin: '',
-      type_demande: ''
+      type_demande: '',
+      titre: ''
     });
     fetchTickets(true, 1, {}, showUnreadReportsOnly);
   };
@@ -679,6 +681,17 @@ const TicketList = () => {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Rechercher par titre */}
+              <div className="flex flex-col w-full gap-2 md:col-span-3">
+                <label className="text-sm font-medium text-gray-700">Rechercher par titre</label>
+                <input
+                  type="text"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Rechercher par titre"
+                  value={filters.titre || ''}
+                  onChange={e => setFilters({ ...filters, titre: e.target.value })}
+                />
+              </div>
               {/* Société */}
               <div className="flex flex-col w-full gap-2">
                 <label className="text-sm font-medium text-gray-700">Société</label>

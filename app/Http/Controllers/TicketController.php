@@ -56,6 +56,24 @@ class TicketController extends Controller
             if ($request->filled('executant')) {
                 $query->where('Id_Executant', $request->executant);
             }
+            if ($request->filled('type_demande')) {
+                $query->whereHas('typeDemande', function($q) use ($request) {
+                    $q->where('designation', $request->type_demande);
+                });
+            }
+
+            // Ajouter le filtre pour les rapports non lus si demandé
+            if ($request->boolean('filter_unread_reports') && auth()->check()) {
+                $userId = auth()->id();
+                $query->whereHas('reports', function ($q) use ($userId) {
+                    $q->where('is_viewed', false) // Rapports non vus
+                      ->where('Id_Ticket', DB::raw('T_TICKET.id')) // Assurez-vous que c'est pour le ticket parent
+                      // Optionnel: Si seul le demandeur peut voir ses rapports non lus
+                      ->whereHas('ticket', function ($t) use ($userId) {
+                            $t->where('Id_Demandeur', $userId);
+                       });
+                });
+            }
 
             // Filtres de dates
             if ($request->filled('dateDebut')) {
@@ -81,8 +99,9 @@ class TicketController extends Controller
             $query->orderBy('DateCreation', 'desc');
 
             // Pagination
-            $perPage = $request->input('per_page', 20);
-            $tickets = $query->paginate($perPage);
+            $page = $request->input('page', 1);
+            $perPage = $request->input('per_page', 10);
+            $tickets = $query->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json($tickets);
         } catch (\Exception $e) {
@@ -658,6 +677,19 @@ class TicketController extends Controller
                 });
             }
 
+            // Ajouter le filtre pour les rapports non lus si demandé
+            if ($request->boolean('filter_unread_reports') && auth()->check()) {
+                $userId = auth()->id();
+                $query->whereHas('reports', function ($q) use ($userId) {
+                    $q->where('is_viewed', false) // Rapports non vus
+                      ->where('Id_Ticket', DB::raw('T_TICKET.id')) // Assurez-vous que c'est pour le ticket parent
+                      // Optionnel: Si seul le demandeur peut voir ses rapports non lus
+                      ->whereHas('ticket', function ($t) use ($userId) {
+                            $t->where('Id_Demandeur', $userId);
+                       });
+                });
+            }
+
             // Filtres de dates
             if ($request->filled('dateDebut')) {
                 $query->whereDate('DateDebut', '>=', $request->dateDebut);
@@ -680,7 +712,7 @@ class TicketController extends Controller
 
             // Pagination
             $page = $request->input('page', 1);
-            $perPage = $request->input('per_page', 2);
+            $perPage = $request->input('per_page', 10);
             $tickets = $query->orderBy('DateCreation', 'desc')
                            ->paginate($perPage, ['*'], 'page', $page);
 

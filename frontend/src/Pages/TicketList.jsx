@@ -92,7 +92,7 @@ const TicketList = () => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage] = useState(999999); // Utilisation d'un nombre très grand au lieu de Infinity
+  const [itemsPerPage, setItemsPerPage] = useState(10); // Utilisation d'un nombre plus raisonnable, par exemple 10
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [updating, setUpdating] = useState({});
   const [hasMore, setHasMore] = useState(true);
@@ -156,77 +156,24 @@ const TicketList = () => {
   }, [searchParams]);
   */
 
-  // Optimisation du filtrage avec useMemo
-  const filteredTickets = useMemo(() => {
-    console.log('Applying filters:', filters);
-    
-    return tickets.filter(ticket => {
-      // Vérification des filtres de base avec conversion explicite en string
-      const matchesCategorie = !filters.categorie || String(ticket.Id_Categorie) === String(filters.categorie);
-      const matchesDemandeur = !filters.demandeur || String(ticket.Id_Demandeur) === String(filters.demandeur);
-      const matchesSociete = !filters.societe || String(ticket.Id_Societe) === String(filters.societe);
-      const matchesEmplacement = !filters.emplacement || String(ticket.Id_Emplacement) === String(filters.emplacement);
-      const matchesStatut = !filters.statut || String(ticket.Id_Statut) === String(filters.statut);
-      const matchesPriorite = !filters.priorite || String(ticket.Id_Priorite) === String(filters.priorite);
-      const matchesExecutant = !filters.executant || String(ticket.Id_Executant) === String(filters.executant);
-      const matchesTypeDemande = !filters.type_demande || (ticket.type_demande && ticket.type_demande.designation === filters.type_demande);
+  // Ajout d'un calcul du nombre total de rapports non lus pour l'utilisateur connecté
+  const totalUnreadReports = useMemo(() => {
+    if (!tickets || !user) return 0;
+    return tickets.filter(ticket => ticket.Id_Demandeur === user.id && ticket.reports && ticket.reports.some(r => !r.is_viewed)).length;
+  }, [tickets, user]);
 
-      // Vérification des filtres de dates
-      const dateDebutMatch = isDateInRange(
-        ticket.DateDebut,
-        filters.dateDebut,
-        filters.dateDebutFin
-      );
-
-      const dateFinPrevueMatch = isDateInRange(
-        ticket.DateFinPrevue,
-        filters.dateFinPrevueDebut,
-        filters.dateFinPrevueFin
-      );
-
-      const dateFinReelleMatch = isDateInRange(
-        ticket.DateFinReelle,
-        filters.dateFinReelleDebut,
-        filters.dateFinReelleFin
-      );
-
-      // Vérifier si des filtres de date sont appliqués
-      const hasDateFilters = filters.dateDebut || filters.dateDebutFin ||
-                            filters.dateFinPrevueDebut || filters.dateFinPrevueFin ||
-                            filters.dateFinReelleDebut || filters.dateFinReelleFin;
-
-      // Appliquer les filtres de date seulement s'ils sont définis
-      const dateFiltersMatch = !hasDateFilters || (
-        (!filters.dateDebut && !filters.dateDebutFin || dateDebutMatch) &&
-        (!filters.dateFinPrevueDebut && !filters.dateFinPrevueFin || dateFinPrevueMatch) &&
-        (!filters.dateFinReelleDebut && !filters.dateFinReelleFin || dateFinReelleMatch)
-      );
-
-      // Combiner tous les filtres
-      return matchesCategorie &&
-             matchesDemandeur &&
-             matchesSociete &&
-             matchesEmplacement &&
-             matchesStatut &&
-             matchesPriorite &&
-             matchesExecutant &&
-             matchesTypeDemande &&
-             dateFiltersMatch;
-    });
-  }, [tickets, filters]);
+  // Fonction de filtrage des tickets avec rapports non lus
+  const [showUnreadReportsOnly, setShowUnreadReportsOnly] = useState(false);
+  // Supprimer le useMemo filteredTickets car le filtrage est maintenant fait au backend
+  // const filteredTickets = useMemo(() => {
+  //   if (!showUnreadReportsOnly) return tickets;
+  //   return tickets.filter(ticket => ticket.Id_Demandeur === user.id && ticket.reports && ticket.reports.some(r => !r.is_viewed));
+  // }, [tickets, showUnreadReportsOnly, user]);
 
   // Effet pour mettre à jour les tickets affichés lorsque les filtres changent
   useEffect(() => {
-    if (initialLoadDone && filteredTickets) {
-      console.log('Updating displayed tickets based on filters');
-      // Afficher les 2 premiers tickets filtrés
-      setDisplayedTickets(filteredTickets.slice(0, 2));
-      // Réinitialiser la page pour le chargement au défilement
-      setPage(1);
-      // Mettre à jour hasMore en fonction du nombre total de tickets filtrés
-      setHasMore(filteredTickets.length > 2);
-    }
-  }, [filteredTickets, initialLoadDone]);
+    // Cet effet n'est plus nécessaire, la mise à jour de displayedTickets se fait dans fetchTickets
+  }, []); // Retirer les dépendances car l'effet est désactivé
 
   // Effet pour charger les tickets lorsque les filtres changent
   useEffect(() => {
@@ -235,9 +182,10 @@ const TicketList = () => {
       return;
     }
 
-    console.log('Filters changed, fetching tickets with new filters:', filters);
-    fetchTickets(true, 1, filters);
-  }, [filters]);
+    console.log('Filters changed, fetching tickets with new filters:', filters, 'Unread Filter:', showUnreadReportsOnly);
+    // Quand les filtres changent, on recommence à la première page en appliquant les filtres backend et frontend
+    fetchTickets(true, 1, filters, showUnreadReportsOnly); 
+  }, [filters, showUnreadReportsOnly]); // showUnreadReportsOnly doit être une dépendance ici
 
   // Effet pour le chargement initial
   useEffect(() => {
@@ -310,8 +258,11 @@ const TicketList = () => {
         ticketCache.tickets = ticketsData.data;
         ticketCache.lastFetch = new Date().getTime();
 
-        setDisplayedTickets(ticketsData.data.slice(0, 2));
+        // Afficher tous les tickets de la première page initialement
+        setDisplayedTickets(ticketsData.data);
         setInitialLoadDone(true);
+        setPage(1); // S'assurer que la page est bien à 1 au chargement initial
+        setHasMore(1 < ticketsData.last_page); // Déterminer si plus de pages existent
 
       } catch (err) {
         setError('Erreur lors du chargement des tickets');
@@ -324,13 +275,14 @@ const TicketList = () => {
     initialLoad();
   }, []); // Exécuté une seule fois au montage
 
-  // Modifier fetchTickets pour utiliser les filtres
-  const fetchTickets = async (force = false, pageNum = page, appliedFilters = null) => {
-    console.log('fetchTickets called with filters:', appliedFilters || filters);
+  // Modifier fetchTickets pour utiliser les filtres et le paramètre backend pour rapports non lus
+  const fetchTickets = async (force = false, pageNum = page, appliedFilters = null, applyUnreadFilter = showUnreadReportsOnly) => {
+    console.log('fetchTickets called with filters:', appliedFilters || filters, 'Page:', pageNum, 'Unread Filter (sent to backend):', applyUnreadFilter);
     setSpin(true);
     const currentFilters = appliedFilters || filters;
     
     try {
+      // Logique de cache (à potentiellement adapter si le cache doit distinguer les filtres)
       if (!force && ticketCache.tickets && ticketCache.lastFetch) {
         const now = new Date().getTime();
         if (now - ticketCache.lastFetch < ticketCache.cacheDuration) {
@@ -350,13 +302,15 @@ const TicketList = () => {
         }
       }
 
-      console.log('Fetching tickets with filters:', currentFilters);
+      console.log('Fetching tickets with filters:', currentFilters, 'Page:', pageNum, 'Items per page:', itemsPerPage, 'Unread Filter (sent to backend):', applyUnreadFilter);
 
       const response = await axios.get('/api/tickets', {
         params: { 
           ...currentFilters,
           page: pageNum,
-          per_page: itemsPerPage
+          per_page: itemsPerPage,
+          // Ajouter le paramètre pour le filtrage backend des rapports non lus
+          filter_unread_reports: applyUnreadFilter ? true : undefined // Envoyer true si le filtre est actif, undefined sinon
         }
       });
 
@@ -365,25 +319,39 @@ const TicketList = () => {
       const total = ticketsData.total || 0;
       const lastPage = ticketsData.last_page || 1;
 
-      console.log('Received tickets:', newTickets.length);
+      console.log('Received tickets:', newTickets.length, 'Total:', total, 'Last Page:', lastPage);
+
+      // Le filtrage par rapports non lus est maintenant fait au backend, donc pas de filtrage local ici
+      const processedTickets = newTickets; // Utiliser directement les tickets reçus du backend
 
       if (pageNum === 1) {
-        ticketCache.tickets = newTickets;
+        ticketCache.tickets = newTickets; // Le cache stocke potentiellement tous les tickets de la première requête
         ticketCache.lastFetch = new Date().getTime();
-        setTickets(newTickets);
-        setAllTickets(newTickets);
-        
-        if (!initialLoadDone) {
-          setDisplayedTickets(newTickets.slice(0, 2));
-          setInitialLoadDone(true);
-        }
+        // Pour la première page, remplacer les tickets existants avec les nouveaux tickets reçus
+        setTickets(processedTickets);
+        // setAllTickets(newTickets); // allTickets n'est peut-être pas nécessaire dans cette approche
+
+        // Afficher les tickets de la première page
+        setDisplayedTickets(processedTickets);
+        console.log('Displayed tickets after initial load:', processedTickets.length, processedTickets);
+
       } else {
-        setTickets(prev => [...prev, ...newTickets]);
-        setAllTickets(prev => [...prev, ...newTickets]);
+        // Pour les pages suivantes, ajouter les nouveaux tickets aux listes existantes
+        setTickets(prev => [...prev, ...processedTickets]);
+        // setAllTickets(prev => [...prev, ...newTickets]); // allTickets n'est peut-être pas nécessaire
+        
+        // Ajouter les nouveaux tickets à la liste affichée
+        setDisplayedTickets(prev => {
+          const updatedDisplayed = [...prev, ...processedTickets];
+          console.log('Displayed tickets after loading page', pageNum, ':', updatedDisplayed.length, updatedDisplayed);
+          return updatedDisplayed;
+        });
       }
 
       setTotalPages(lastPage);
+      // hasMore basé sur la pagination backend
       setHasMore(pageNum < lastPage);
+      setPage(pageNum); // Mettre à jour le numéro de page courant
       setError('');
     } catch (err) {
       setError('Erreur lors du chargement des tickets');
@@ -399,19 +367,12 @@ const TicketList = () => {
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
+        // Déclencher le chargement si l'élément est visible et qu'il y a plus de pages
         if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          console.log('Loading more tickets...');
+          console.log('Intersection observer triggered', { page, totalPages, hasMore, isLoadingMore });
           setIsLoadingMore(true);
-          
-          // Charger plus de tickets à afficher
-          setDisplayedTickets(prev => {
-            const nextBatch = filteredTickets.slice(prev.length, prev.length + 2);
-            return [...prev, ...nextBatch];
-          });
-          
-          // Mettre à jour hasMore en fonction du nombre de tickets restants
-          setHasMore(displayedTickets.length + 2 < filteredTickets.length);
-          setIsLoadingMore(false);
+          // Appeler fetchTickets pour charger la page suivante avec les filtres actuels (y compris le filtre rapports non lus)
+          fetchTickets(false, page + 1, filters, showUnreadReportsOnly); 
         }
       },
       { threshold: 0.1 }
@@ -426,7 +387,7 @@ const TicketList = () => {
         observer.unobserve(observerTarget.current);
       }
     };
-  }, [hasMore, isLoadingMore, filteredTickets, displayedTickets]);
+  }, [hasMore, isLoadingMore, page, totalPages, filters, itemsPerPage, showUnreadReportsOnly]); // showUnreadReportsOnly doit être une dépendance ici
 
   // Fonction pour gérer le changement de filtre
   const handleFilterChange = (filterName, value) => {
@@ -546,7 +507,7 @@ const TicketList = () => {
       dateFinReelleFin: '',
       type_demande: ''
     });
-    fetchTickets(true, 1, {});
+    fetchTickets(true, 1, {}, showUnreadReportsOnly);
   };
 
   const formatDate = (dateValue) => {
@@ -664,8 +625,8 @@ const TicketList = () => {
               </button>
             ))}
           </div>
-          {/* Groupe Type de demande à droite */}
-          <div className="flex gap-2">
+          {/* Groupe Type de demande à droite + bouton Rapports non lus */}
+          <div className="flex gap-2 items-center">
             <button
               onClick={() => setFilters(prev => ({ ...prev, type_demande: prev.type_demande === 'Tâche' ? '' : 'Tâche' }))}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
@@ -685,6 +646,20 @@ const TicketList = () => {
               }`}
             >
               Projet
+            </button>
+            {/* Bouton Rapports non lus */}
+            <button
+              onClick={() => setShowUnreadReportsOnly(v => !v)}
+              className={`flex items-center px-4 py-2 rounded-full text-sm font-semibold transition-colors border border-red-200 ${
+                showUnreadReportsOnly ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'
+              } ${totalUnreadReports === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              disabled={totalUnreadReports === 0}
+              title="Afficher uniquement les tickets avec des rapports non lus"
+            >
+              <span className="mr-2">🔴 Rapports non lus</span>
+              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                {totalUnreadReports}
+              </span>
             </button>
           </div>
         </div>

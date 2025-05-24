@@ -92,7 +92,7 @@ const TicketList = () => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage] = useState(20); // Retour à 20 pour le chargement complet
+  const [itemsPerPage] = useState(999999); // Utilisation d'un nombre très grand au lieu de Infinity
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [updating, setUpdating] = useState({});
   const [hasMore, setHasMore] = useState(true);

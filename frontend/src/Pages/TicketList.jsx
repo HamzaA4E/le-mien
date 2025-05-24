@@ -578,6 +578,30 @@ const TicketList = () => {
     </div>
   );
 
+  useEffect(() => {
+    // Écouter l'événement de rapports marqués comme vus
+    const handleReportsViewed = (event) => {
+      const { ticketId } = event.detail;
+      setTickets(prevTickets => 
+        prevTickets.map(ticket => {
+          if (ticket.id === ticketId) {
+            return {
+              ...ticket,
+              reports: ticket.reports.map(report => ({ ...report, is_viewed: true }))
+            };
+          }
+          return ticket;
+        })
+      );
+    };
+
+    window.addEventListener('reportsViewed', handleReportsViewed);
+
+    return () => {
+      window.removeEventListener('reportsViewed', handleReportsViewed);
+    };
+  }, []);
+
   if (loading && !tickets.length) {
     return (
       <Layout>
@@ -859,6 +883,12 @@ const TicketList = () => {
                       {ticket.statut?.designation === 'Clôturé' && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-gray-700 border border-gray-200">
                           Clôturé le : {formatDate(ticket.DateFinReelle)}
+                        </span>
+                      )}
+                      {ticket.reports && ticket.reports.filter(report => !report.is_viewed).length > 0 && 
+                       ticket.Id_Demandeur === user?.id && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-200">
+                          {ticket.reports.filter(report => !report.is_viewed).length} rapport(s) non lu(s)
                         </span>
                       )}
                     </div>

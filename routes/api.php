@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les reports de tickets
     Route::get('/tickets/{ticket}/reports', [TicketReportController::class, 'index']);
     Route::post('/tickets/{ticket}/reports', [TicketReportController::class, 'store']);
+    Route::post('/tickets/{ticket}/reports/mark-as-viewed', [TicketReportController::class, 'markAsViewed']);
 
     // Routes pour le dashboard
     Route::get('/dashboard/stats', [TicketController::class, 'getStats']);

@@ -25,12 +25,13 @@ class TicketController extends Controller
             $query = Ticket::with([
                 'statut',
                 'priorite',
+                'typeDemande',
                 'demandeur',
                 'societe',
                 'emplacement',
                 'categorie',
-                'typeDemande',
-                'executant'
+                'executant',
+                'reports'
             ]);
 
             // Appliquer les filtres
@@ -83,10 +84,16 @@ class TicketController extends Controller
             $perPage = $request->input('per_page', 20);
             $tickets = $query->paginate($perPage);
 
-        return response()->json($tickets);
+            return response()->json($tickets);
         } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des tickets: ' . $e->getMessage());
-            return response()->json(['error' => 'Erreur lors de la récupération des tickets'], 500);
+            Log::error('Error fetching tickets', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des tickets',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 

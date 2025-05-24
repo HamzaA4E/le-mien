@@ -23,6 +23,8 @@ const TicketDetails = () => {
   const [commentSuccess, setCommentSuccess] = useState('');
   const [showAllComments, setShowAllComments] = useState(true);
   const commentSectionRef = useRef(null);
+  const reportsSectionRef = useRef(null);
+  const [hasUnviewedReports, setHasUnviewedReports] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -64,12 +66,17 @@ const TicketDetails = () => {
       // Display all reports for now, as both creator and responsable need to see them.
       // Further filtering logic can be added here if needed in the future.
       setFilteredReports(ticket.reports);
+      // Vérifier s'il y a des rapports non vus
+      const hasUnviewed = ticket.reports.some(report => !report.is_viewed);
+      setHasUnviewedReports(hasUnviewed);
     } else if (ticket && !ticket?.reports) {
        // If ticket data is loaded but no reports, set to empty array
        setFilteredReports([]);
+       setHasUnviewedReports(false);
     } else {
         // If ticket is null or still loading, set to empty array
         setFilteredReports([]);
+        setHasUnviewedReports(false);
     }
   }, [ticket, user]);
 
@@ -223,12 +230,76 @@ const TicketDetails = () => {
     commentSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const scrollToReportsSection = () => {
+    reportsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const getLastComment = (comments) => {
     if (!comments || comments.length === 0) return null;
     return {
       lastComment: comments[comments.length - 1],
       totalCount: comments.length
     };
+  };
+
+  // Observer pour détecter quand la section des rapports est visible
+  useEffect(() => {
+    if (!reportsSectionRef.current || !hasUnviewedReports) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          markReportsAsViewed();
+          // Mettre à jour l'état local immédiatement
+          setHasUnviewedReports(false);
+          setFilteredReports(prevReports => 
+            prevReports.map(report => ({ ...report, is_viewed: true }))
+          );
+        }
+      },
+      { threshold: 0.5 } // Déclencher quand 50% de la section est visible
+    );
+
+    observer.observe(reportsSectionRef.current);
+
+    return () => {
+      if (reportsSectionRef.current) {
+        observer.unobserve(reportsSectionRef.current);
+      }
+    };
+  }, [hasUnviewedReports, id]);
+
+  // Fonction pour marquer les rapports comme vus
+  const markReportsAsViewed = async () => {
+    if (!hasUnviewedReports) return;
+    
+    try {
+      const response = await axios.post(`/api/tickets/${id}/reports/mark-as-viewed`);
+      console.log('Reports marqués comme vus:', response.data);
+      
+      // Mettre à jour l'état local
+      setHasUnviewedReports(false);
+      setFilteredReports(prevReports => 
+        prevReports.map(report => ({ ...report, is_viewed: true }))
+      );
+
+      // Mettre à jour le ticket dans la liste des tickets
+      const updatedTicket = await axios.get(`/api/tickets/${id}`);
+      setTicket(updatedTicket.data);
+
+      // Émettre un événement pour informer la liste des tickets
+      window.dispatchEvent(new CustomEvent('reportsViewed', {
+        detail: { ticketId: id }
+      }));
+    } catch (err) {
+      console.error('Erreur lors du marquage des rapports comme vus:', err);
+      if (err.response?.status === 403) {
+        // Si l'utilisateur n'est pas le créateur du ticket
+        setError('Seul le créateur du ticket peut marquer les rapports comme vus');
+      } else {
+        setError('Erreur lors du marquage des rapports comme vus');
+      }
+    }
   };
 
   if (loading) {
@@ -297,12 +368,21 @@ const TicketDetails = () => {
                 {ticket.Titre}
               </h3>
               <div className="mt-2 flex flex-wrap gap-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-700 border border-blue-200">
                   {ticket.statut?.designation || 'Sans statut'}
                 </span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 border border-green-200">
                   {ticket.priorite?.designation || 'Sans priorité'}
                 </span>
+                {ticket.reports && ticket.reports.filter(report => !report.is_viewed).length > 0 && 
+                 ticket.Id_Demandeur === user?.id && (
+                  <button
+                    onClick={scrollToReportsSection}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 transition-colors cursor-pointer"
+                  >
+                    {ticket.reports.filter(report => !report.is_viewed).length} rapport(s) non lu(s)
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex space-x-4">
@@ -450,9 +530,16 @@ const TicketDetails = () => {
           </div>
         </div>
 
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-6">
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-6" ref={reportsSectionRef}>
             <div className="px-4 py-5 sm:px-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Reports</h3>
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Reports
+                    {hasUnviewedReports && (
+                        <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Nouveaux
+                        </span>
+                    )}
+                </h3>
             </div>
             <div className="border-t border-gray-200">
                 {filteredReports.length > 0 ? (

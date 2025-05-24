@@ -156,4 +156,42 @@ class TicketReportController extends Controller
             ], 500);
         }
     }
+
+    public function markAsViewed(Ticket $ticket)
+    {
+        try {
+            $userId = Auth::id();
+            
+            // Vérifier si l'utilisateur est le créateur du ticket
+            if ($ticket->Id_Demandeur !== $userId) {
+                return response()->json([
+                    'message' => 'Seul le créateur du ticket peut marquer les rapports comme vus'
+                ], 403);
+            }
+
+            // Mettre à jour uniquement les rapports non vus
+            $updated = DB::table('T_TICKET_REPORT')
+                ->where('Id_Ticket', $ticket->id)
+                ->where('is_viewed', false)
+                ->update([
+                    'is_viewed' => true,
+                    'updated_at' => DB::raw('GETDATE()')
+                ]);
+
+            return response()->json([
+                'message' => 'Rapports marqués comme vus avec succès',
+                'updated_count' => $updated
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error marking reports as viewed', [
+                'error' => $e->getMessage(),
+                'ticketId' => $ticket->id,
+                'userId' => Auth::id()
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors du marquage des rapports comme vus',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 

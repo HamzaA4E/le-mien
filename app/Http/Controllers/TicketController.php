@@ -241,8 +241,40 @@ class TicketController extends Controller
                 'societe',
                 'emplacement',
                 'executant',
-                'reports.responsable'
+                'reports.responsable',
+                'utilisateur'
             ])->findOrFail($id);
+
+            // Si le ticket a des commentaires, récupérer les informations des utilisateurs
+            if ($ticket->Commentaire) {
+                $comments = explode("\n\n", $ticket->Commentaire);
+                $formattedComments = [];
+                
+                foreach ($comments as $comment) {
+                    if (empty(trim($comment))) continue;
+                    
+                    // Utiliser une regex qui préserve les sauts de ligne dans le contenu
+                    if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
+                        $userId = $matches[1];
+                        $date = $matches[2];
+                        $content = trim($matches[3]);
+                        
+                        // Récupérer l'utilisateur
+                        $user = Utilisateur::find($userId);
+                        
+                        $formattedComments[] = [
+                            'user' => $user ? [
+                                'id' => $user->id,
+                                'designation' => $user->designation
+                            ] : null,
+                            'date' => $date,
+                            'content' => $content
+                        ];
+                    }
+                }
+                
+                $ticket->formatted_comments = $formattedComments;
+            }
 
             return response()->json($ticket);
         } catch (\Exception $e) {
@@ -656,6 +688,32 @@ class TicketController extends Controller
                 'message' => 'Erreur lors de la récupération des données',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function addComment(Request $request, $id)
+    {
+        try {
+            $ticket = Ticket::findOrFail($id);
+            $user = auth()->user();
+
+            $validated = $request->validate([
+                'content' => 'required|string'
+            ]);
+
+            $currentComment = $ticket->Commentaire ? $ticket->Commentaire . "\n\n" : "";
+            $newComment = $currentComment . "[" . $user->id . "|" . now()->format('d/m/Y H:i') . "]" . $validated['content'];
+
+            $ticket->Commentaire = $newComment;
+            $ticket->save();
+
+            return response()->json([
+                'message' => 'Commentaire ajouté avec succès',
+                'ticket' => $ticket
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de l\'ajout du commentaire: ' . $e->getMessage());
+            return response()->json(['error' => 'Erreur lors de l\'ajout du commentaire'], 500);
         }
     }
 } 

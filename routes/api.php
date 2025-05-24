@@ -82,4 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Route pour récupérer toutes les données de la liste des tickets en une seule requête
     Route::get('/tickets/list-data', [TicketController::class, 'getTicketListData']);
+
+    // Route pour ajouter un commentaire à un ticket
+    Route::post('/tickets/{id}/comment', [TicketController::class, 'addComment']);
 }); 

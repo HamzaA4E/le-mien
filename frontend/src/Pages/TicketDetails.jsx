@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
@@ -17,6 +17,12 @@ const TicketDetails = () => {
   const [reportSuccess, setReportSuccess] = useState('');
   const [user, setUser] = useState(null);
   const [filteredReports, setFilteredReports] = useState([]);
+  const [comment, setComment] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentError, setCommentError] = useState('');
+  const [commentSuccess, setCommentSuccess] = useState('');
+  const [showAllComments, setShowAllComments] = useState(true);
+  const commentSectionRef = useRef(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -168,6 +174,63 @@ const TicketDetails = () => {
     }
   };
 
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    setCommentLoading(true);
+    setCommentError('');
+    setCommentSuccess('');
+    try {
+      const response = await axios.post(`/api/tickets/${ticket.id}/comment`, { content: comment });
+      setCommentSuccess('Commentaire ajouté avec succès !');
+      setComment('');
+      // Rafraîchir les données du ticket
+      const updatedTicket = await axios.get(`/api/tickets/${id}`);
+      setTicket(updatedTicket.data);
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Erreur lors de l\'ajout du commentaire';
+      setCommentError(errorMessage);
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  // Fonction pour formater les commentaires
+  const formatComments = (commentString) => {
+    if (!commentString) return [];
+    
+    // Diviser les commentaires par les doubles sauts de ligne
+    const comments = commentString.split('\n\n').filter(c => c.trim());
+    
+    return comments.map(comment => {
+      // Extraire l'ID utilisateur, la date et le contenu
+      const match = comment.match(/\[(.*?)\|(.*?)\](.*)/s);
+      if (match) {
+        return {
+          userId: match[1],
+          date: match[2],
+          content: match[3].trim()
+        };
+      }
+      return {
+        userId: null,
+        date: new Date().toLocaleString('fr-FR'),
+        content: comment.trim()
+      };
+    });
+  };
+
+  const scrollToCommentSection = () => {
+    commentSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const getLastComment = (comments) => {
+    if (!comments || comments.length === 0) return null;
+    return {
+      lastComment: comments[comments.length - 1],
+      totalCount: comments.length
+    };
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -242,14 +305,25 @@ const TicketDetails = () => {
                 </span>
               </div>
             </div>
-            {user?.niveau === 2 && (
+            <div className="flex space-x-4">
               <button
-                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                onClick={() => setShowReportModal(true)}
+                onClick={scrollToCommentSection}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Report
+                <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+                Ajouter un commentaire
               </button>
-            )}
+              {user?.niveau === 2 && (
+                <button
+                  className="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  onClick={() => setShowReportModal(true)}
+                >
+                  Report
+                </button>
+              )}
+            </div>
           </div>
           <div className="border-t border-gray-200">
             <dl>
@@ -260,9 +334,35 @@ const TicketDetails = () => {
                 </dd>
               </div>
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Commentaire</dt>
+                <dt className="text-sm font-medium text-gray-500">Commentaires</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {ticket.Commentaire || 'Aucun commentaire'}
+                  {ticket.formatted_comments && ticket.formatted_comments.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="flex-1">
+                          <div className="text-gray-900">
+                            {getLastComment(ticket.formatted_comments).lastComment.content}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {getLastComment(ticket.formatted_comments).lastComment.user?.designation || 'Utilisateur'} • {getLastComment(ticket.formatted_comments).lastComment.date}
+                          </div>
+                        </div>
+                        {ticket.formatted_comments.length > 1 && (
+                          <button
+                            onClick={() => {
+                              setShowAllComments(true);
+                              scrollToCommentSection();
+                            }}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          >
+                            +{ticket.formatted_comments.length - 1}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">Aucun commentaire</span>
+                  )}
                 </dd>
               </div>
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -425,6 +525,96 @@ const TicketDetails = () => {
             </div>
           </div>
         )}
+
+        {/* Section des commentaires */}
+        <div ref={commentSectionRef} className="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">
+              Commentaires
+            </h3>
+            <span className="text-sm text-gray-500">
+              {ticket.formatted_comments?.length || 0} commentaire(s)
+            </span>
+          </div>
+          <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+            {ticket.formatted_comments && ticket.formatted_comments.length > 0 ? (
+              <div className="space-y-6">
+                {ticket.formatted_comments.map((comment, index) => (
+                  <div key={index} className="bg-gray-50 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                          <span className="text-indigo-600 font-medium">
+                            {(comment.user?.designation || 'U')[0].toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <p className="text-sm font-medium text-gray-900">
+                            {comment.user?.designation || 'Utilisateur'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {comment.date}
+                          </p>
+                        </div>
+                        <div className="mt-2 text-sm text-gray-900 whitespace-pre-wrap break-words">
+                          {comment.content}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Aucun commentaire</p>
+                <p className="text-sm text-gray-400 mt-2">Soyez le premier à commenter</p>
+              </div>
+            )}
+
+            {/* Formulaire d'ajout de commentaire */}
+            <div className="mt-6">
+              <form onSubmit={handleCommentSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
+                    Ajouter un commentaire
+                  </label>
+                  <div className="mt-1">
+                    <textarea
+                      id="comment"
+                      name="comment"
+                      rows={3}
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Écrivez votre commentaire ici..."
+                    />
+                  </div>
+                </div>
+                {commentError && (
+                  <div className="text-red-600 text-sm">{commentError}</div>
+                )}
+                {commentSuccess && (
+                  <div className="text-green-600 text-sm">{commentSuccess}</div>
+                )}
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={commentLoading || !comment.trim()}
+                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                      commentLoading || !comment.trim()
+                        ? 'bg-indigo-300 cursor-not-allowed'
+                        : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                    }`}
+                  >
+                    {commentLoading ? 'Envoi...' : 'Publier'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       </div>
     </Layout>
   );

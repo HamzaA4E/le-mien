@@ -45,16 +45,39 @@ class TicketReportController extends Controller
 
             // Validation des données
             $validated = $request->validate([
-                'raison' => 'required|string'
+                'raison' => 'required|string',
+                'attachment' => 'nullable|file|max:10240', // Ajouter la validation pour la pièce jointe (max 10MB)
             ]);
 
             try {
                 DB::beginTransaction();
                 
-                $report = DB::insert('INSERT INTO T_TICKET_REPORT (Id_Ticket, Id_Responsable, Raison, DateReport, created_at, updated_at) VALUES (?, ?, ?, GETDATE(), GETDATE(), GETDATE())', [
+                // Gérer l'upload de la pièce jointe avant l'insertion en base
+                $attachmentPath = null;
+                if ($request->hasFile('attachment')) {
+                    $file = $request->file('attachment');
+                    try {
+                        // Get the original filename
+                        $originalName = $file->getClientOriginalName();
+                        // Store the file with its original name
+                        $attachmentPath = $file->storeAs('reports_attachments', $originalName, 'public');
+                        Log::info('Report attachment stored successfully:', ['path' => $attachmentPath]);
+                    } catch (\Exception $e) {
+                        Log::error('Error storing report attachment:', [
+                            'error' => $e->getMessage(),
+                            'file' => $file->getClientOriginalName()
+                        ]);
+                        // Continuer sans la pièce jointe si le stockage échoue
+                        $attachmentPath = null;
+                    }
+                }
+
+                // Insérer le rapport en base de données avec le chemin de la pièce jointe
+                $report = DB::insert('INSERT INTO T_TICKET_REPORT (Id_Ticket, Id_Responsable, Raison, attachment_path, DateReport, created_at, updated_at) VALUES (?, ?, ?, ?, GETDATE(), GETDATE(), GETDATE())', [
                     $ticket->id,
                     $userId,
-                    $validated['raison']
+                    $validated['raison'],
+                    $attachmentPath // Ajouter le chemin de la pièce jointe ici
                 ]);
 
                 DB::commit();
@@ -71,12 +94,13 @@ class TicketReportController extends Controller
                         'creatorName' => $creator ? $creator->designation : 'Not found',
                         'responsableEmail' => $responsable ? $responsable->email : 'Not found',
                         'responsableName' => $responsable ? $responsable->designation : 'Not found',
-                        'message' => $validated['raison']
+                        'message' => $validated['raison'],
+                        'attachmentPath' => $attachmentPath // S'assurer que le chemin est passé ici aussi
                     ]);
 
                     if ($creator && $creator->email) {
                         \Illuminate\Support\Facades\Mail::to($creator->email)
-                            ->send(new \App\Mail\ReportCreatedNotification($ticket, $responsable, $validated['raison']));
+                            ->send(new \App\Mail\ReportCreatedNotification($ticket, $responsable, $validated['raison'], $attachmentPath)); // Passer le chemin de la pièce jointe
                             
                         Log::info('Email sent successfully to ticket creator', [
                             'creatorEmail' => $creator->email,
@@ -192,6 +216,39 @@ class TicketReportController extends Controller
                 'message' => 'Erreur lors du marquage des rapports comme vus',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    // Nouvelle méthode pour télécharger la pièce jointe d'un rapport
+    public function downloadAttachment(TicketReport $report)
+    {
+        try {
+            if (!$report->attachment_path) {
+                return response()->json(['message' => 'Aucune pièce jointe trouvée pour ce rapport'], 404);
+            }
+
+            $path = storage_path('app/public/' . $report->attachment_path);
+
+            if (!file_exists($path)) {
+                return response()->json(['message' => 'Le fichier de la pièce jointe n\'existe plus'], 404);
+            }
+
+            $mimeType = mime_content_type($path) ?: 'application/octet-stream';
+
+            return response()->download($path, basename($path), [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'attachment; filename="'.basename($path).'"',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0',
+                'Pragma' => 'no-cache'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading report attachment', [
+                'error' => $e->getMessage(),
+                'report_id' => $report->id,
+                'path' => $path ?? null
+            ]);
+            return response()->json(['message' => 'Erreur lors du téléchargement de la pièce jointe du rapport'], 500);
         }
     }
 } 

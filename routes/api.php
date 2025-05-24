@@ -31,6 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tickets/{ticket}/reports', [TicketReportController::class, 'index']);
     Route::post('/tickets/{ticket}/reports', [TicketReportController::class, 'store']);
     Route::post('/tickets/{ticket}/reports/mark-as-viewed', [TicketReportController::class, 'markAsViewed']);
+    // Nouvelle route pour télécharger la pièce jointe d'un rapport
+    Route::get('/reports/{report}/download-attachment', [TicketReportController::class, 'downloadAttachment']);
 
     // Routes pour le dashboard
     Route::get('/dashboard/stats', [TicketController::class, 'getStats']);

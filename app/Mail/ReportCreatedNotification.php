@@ -8,6 +8,8 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Mail\Mailables\Attachment;
+use Illuminate\Support\Facades\Storage;
 
 class ReportCreatedNotification extends Mailable
 {
@@ -16,15 +18,17 @@ class ReportCreatedNotification extends Mailable
     public $ticket;
     public $responsable;
     public $raison;
+    public $attachmentPath;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($ticket, $responsable, $raison)
+    public function __construct($ticket, $responsable, $raison, $attachmentPath = null)
     {
         $this->ticket = $ticket;
         $this->responsable = $responsable;
         $this->raison = $raison;
+        $this->attachmentPath = $attachmentPath;
     }
 
     /**
@@ -33,7 +37,7 @@ class ReportCreatedNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Report créé pour le ticket #' . $this->ticket->id,
+            subject: 'Nouveau Report pour le ticket : ' . $this->ticket->Titre,
         );
     }
 
@@ -59,6 +63,12 @@ class ReportCreatedNotification extends Mailable
      */
     public function attachments(): array
     {
-        return [];
+        $attachments = [];
+
+        if ($this->attachmentPath && Storage::disk('public')->exists($this->attachmentPath)) {
+            $attachments[] = Attachment::fromStorageDisk('public', $this->attachmentPath);
+        }
+
+        return $attachments;
     }
 }

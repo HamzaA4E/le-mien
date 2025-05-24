@@ -15,6 +15,7 @@ const TicketDetails = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState('');
   const [reportSuccess, setReportSuccess] = useState('');
+  const [reportAttachment, setReportAttachment] = useState(null);
   const [user, setUser] = useState(null);
   const [filteredReports, setFilteredReports] = useState([]);
   const [comment, setComment] = useState('');
@@ -115,10 +116,22 @@ const TicketDetails = () => {
     setReportLoading(true);
     setReportError('');
     setReportSuccess('');
+
+    const formData = new FormData();
+    formData.append('raison', reportRaison);
+    if (reportAttachment) {
+      formData.append('attachment', reportAttachment);
+    }
+
     try {
-      const response = await axios.post(`/api/tickets/${ticket.id}/reports`, { raison: reportRaison });
+      const response = await axios.post(`/api/tickets/${ticket.id}/reports`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       setReportSuccess('Report créé avec succès !');
       setReportRaison('');
+      setReportAttachment(null);
       setTimeout(() => setShowReportModal(false), 1000);
     } catch (err) {
       console.error('Erreur complète:', err);
@@ -299,6 +312,66 @@ const TicketDetails = () => {
       } else {
         setError('Erreur lors du marquage des rapports comme vus');
       }
+    }
+  };
+
+  const handleFileChange = (e) => {
+    setReportAttachment(e.target.files[0]);
+  };
+
+  // Fonction pour télécharger la pièce jointe d'un rapport
+  const handleReportDownload = async (reportId, attachmentPath) => {
+    try {
+        setError(''); // Réinitialiser l'erreur
+        const fileName = attachmentPath.split('/').pop();
+        const isPdf = fileName.toLowerCase().endsWith('.pdf');
+        
+        // Utiliser une route spécifique pour le téléchargement des pièces jointes de rapport si nécessaire, ou adapter celle existante
+        // Pour l'instant, adaptons la route existante si elle peut prendre le chemin en paramètre ou utiliser un ID de rapport
+        // Supposons une nouvelle route backend: /api/reports/{reportId}/download-attachment
+
+        const response = await axios.get(`/api/reports/${reportId}/download-attachment`, {
+            responseType: 'blob', // important for downloading files
+            headers: {
+                'Accept': isPdf ? 'application/pdf' : '*/*'
+            }
+        });
+
+        // Vérification du blob
+        if (!(response.data instanceof Blob) || response.data.size === 0) {
+            throw new Error('Fichier vide ou invalide');
+        }
+
+        // Création de l'URL
+        const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+        
+        // Création du lien de téléchargement
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute('download', fileName);
+        
+        // Déclenchement du téléchargement
+        document.body.appendChild(link);
+        link.click();
+        
+        // Nettoyage
+        setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+
+    } catch (error) {
+        console.error('Erreur téléchargement pièce jointe rapport:', error);
+        setError(`Échec du téléchargement de la pièce jointe du rapport: ${error.message}`);
+        
+        // Journalisation supplémentaire pour le débogage
+        if (error.response) {
+            console.error('Détails erreur:', {
+                status: error.response.status,
+                headers: error.response.headers,
+                data: error.response.data
+            });
+        }
     }
   };
 
@@ -552,6 +625,17 @@ const TicketDetails = () => {
                                     <div className="text-sm text-gray-500 mt-1">
                                         Reporté par {report.responsable?.designation} le {formatDate(report.DateReport)}
                                     </div>
+                                    {report.attachment_path && (
+                                      <div className="mt-2 text-sm">
+                                        <span className="text-gray-500">Pièce jointe :</span>
+                                        <button
+                                          onClick={() => handleReportDownload(report.id, report.attachment_path)}
+                                          className="ml-1 text-blue-600 hover:text-blue-800 font-medium underline"
+                                        >
+                                          {report.attachment_path.split('/').pop()}
+                                        </button>
+                                      </div>
+                                    )}
                                 </li>
                             );
                         })}
@@ -590,6 +674,23 @@ const TicketDetails = () => {
                     className="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
                   />
                 </div>
+
+                {/* Champ pour la pièce jointe */}
+                <div>
+                  <label htmlFor="reportAttachment" className="block text-sm font-medium text-gray-700 mb-1">
+                    Pièce jointe (Optionnel)
+                  </label>
+                  <input
+                    type="file"
+                    id="reportAttachment"
+                    onChange={handleFileChange}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {reportAttachment && (
+                    <p className="mt-2 text-sm text-gray-500">Fichier sélectionné : {reportAttachment.name}</p>
+                  )}
+                </div>
+
                 {reportError && <p className="text-red-500 text-sm">{reportError}</p>}
                 {reportSuccess && <p className="text-green-600 text-sm">{reportSuccess}</p>}
                 <div className="flex justify-end gap-2">

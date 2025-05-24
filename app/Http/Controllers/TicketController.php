@@ -183,8 +183,10 @@ class TicketController extends Controller
                     ]);
                     
                     try {
-                        //Stockage de la pièce jointe (public/attachments)
-                        $attachmentPath = $file->store('attachments', 'public');
+                        // Get the original filename
+                        $originalName = $file->getClientOriginalName();
+                        // Store the file with its original name
+                        $attachmentPath = $file->storeAs('attachments', $originalName, 'public');
                         Log::info('Fichier stocké avec succès:', ['path' => $attachmentPath]);
                     } catch (\Exception $e) {
                         Log::error('Erreur lors du stockage du fichier:', [
@@ -374,7 +376,8 @@ class TicketController extends Controller
                         }
                     }
                     // Stocker la nouvelle pièce jointe
-                    $attachmentPath = $file->store('attachments', 'public');
+                    $originalName = $file->getClientOriginalName();
+                    $attachmentPath = $file->storeAs('attachments', $originalName, 'public');
                     $data['attachment_path'] = $attachmentPath;
                     Log::info('Nouvelle pièce jointe stockée avec succès:', ['path' => $attachmentPath]);
                 } catch (\Exception $e) {

@@ -648,19 +648,21 @@ const TicketList = () => {
               Projet
             </button>
             {/* Bouton Rapports non lus */}
-            <button
-              onClick={() => setShowUnreadReportsOnly(v => !v)}
-              className={`flex items-center px-4 py-2 rounded-full text-sm font-semibold transition-colors border border-red-200 ${
-                showUnreadReportsOnly ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'
-              } ${totalUnreadReports === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              disabled={totalUnreadReports === 0}
-              title="Afficher uniquement les tickets avec des rapports non lus"
-            >
-              <span className="mr-2">🔴 Rapports non lus</span>
-              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                {totalUnreadReports}
-              </span>
-            </button>
+            {(niveau === '1' || niveau === 1) && (
+              <button
+                onClick={() => setShowUnreadReportsOnly(v => !v)}
+                className={`flex items-center px-4 py-2 rounded-full text-sm font-semibold transition-colors border border-red-200 ${
+                  showUnreadReportsOnly ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'
+                } ${totalUnreadReports === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                disabled={totalUnreadReports === 0}
+                title="Afficher uniquement les tickets avec des rapports non lus"
+              >
+                <span className="mr-2">🔴 Rapports non lus</span>
+                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                  {totalUnreadReports}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 

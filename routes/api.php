@@ -88,4 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Route pour ajouter un commentaire à un ticket
     Route::post('/tickets/{id}/comment', [TicketController::class, 'addComment']);
+
+    // Route pour modifier un commentaire d'un ticket
+    Route::put('/tickets/{ticketId}/comment/{commentId}', [TicketController::class, 'updateComment']);
 }); 

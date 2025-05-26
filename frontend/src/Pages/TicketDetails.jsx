@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import TicketReport from '../components/TicketReport';
+import md5 from 'md5';
 
 const TicketDetails = () => {
   const { id } = useParams();
@@ -27,6 +28,8 @@ const TicketDetails = () => {
   const reportsSectionRef = useRef(null);
   const [hasUnviewedReports, setHasUnviewedReports] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingCommentIndex, setEditingCommentIndex] = useState(null);
+  const [editCommentContent, setEditCommentContent] = useState('');
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -34,7 +37,7 @@ const TicketDetails = () => {
         const response = await axios.get('/api/user');
         setUser(response.data);
         console.log('User data fetched:', response.data);
-        console.log('User access level:', response.data?.niveau_acces);
+        console.log('User ID:', response.data?.id, typeof response.data?.id);
       } catch (err) {
         console.error('Erreur lors de la récupération des informations utilisateur:', err);
       }
@@ -50,7 +53,7 @@ const TicketDetails = () => {
         const response = await axios.get(`/api/tickets/${id}`);
         setTicket(response.data);
         console.log('Ticket complet reçu:', response.data);
-        console.log('Pièce jointe:', response.data.attachment);
+        console.log('Ticket Demandeur ID:', response.data?.Id_Demandeur, typeof response.data?.Id_Demandeur);
         setError('');
       } catch (err) {
         setError('Erreur lors du chargement du ticket');
@@ -130,13 +133,16 @@ const TicketDetails = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      setReportSuccess('Report créé avec succès !');
+      setReportSuccess('Report envoyé avec succès !');
       setReportRaison('');
       setReportAttachment(null);
-      setTimeout(() => setShowReportModal(false), 1000);
+      setShowReportModal(false);
+      // Rafraîchir la liste des reports immédiatement
+      const reportsResponse = await axios.get(`/api/tickets/${ticket.id}/reports`);
+      setFilteredReports(reportsResponse.data);
     } catch (err) {
       console.error('Erreur complète:', err);
-      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Erreur lors de la création du report';
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Erreur lors de l\'envoi du report';
       setReportError(errorMessage);
     } finally {
       setReportLoading(false);
@@ -386,6 +392,11 @@ const TicketDetails = () => {
     }
   };
 
+  const handleEditComment = (comment, index) => {
+    setEditingCommentIndex(index);
+    setEditCommentContent(comment.content);
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -442,7 +453,7 @@ const TicketDetails = () => {
             >
               Modifier
             </Link>
-            {user && ticket && user.id === ticket.Id_Demandeur && (
+            {user && ticket && Number(user.id) === Number(ticket.Id_Demandeur) && (
               <button
                 onClick={() => setShowDeleteModal(true)}
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
@@ -678,7 +689,7 @@ const TicketDetails = () => {
               >
                 ×
               </button>
-              <h2 className="text-lg font-bold mb-4">Créer un report pour ce ticket</h2>
+              <h2 className="text-lg font-bold mb-4">Envoyer un report pour ce ticket</h2>
               <form onSubmit={handleReportSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="raison" className="block text-sm font-medium text-gray-700 mb-1">
@@ -725,7 +736,7 @@ const TicketDetails = () => {
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                     disabled={reportLoading}
                   >
-                    {reportLoading ? 'Création...' : 'Créer'}
+                    {reportLoading ? 'Envoi...' : 'Envoyer'}
                   </button>
                 </div>
               </form>
@@ -761,13 +772,69 @@ const TicketDetails = () => {
                           <p className="text-sm font-medium text-gray-900">
                             {comment.user?.designation || 'Utilisateur'}
                           </p>
-                          <p className="text-sm text-gray-500">
-                            {comment.date}
-                          </p>
+                          <div className="flex items-center space-x-2">
+                            <p className="text-sm text-gray-500">
+                              {comment.date}
+                            </p>
+                            {user && comment.user?.id === user.id && (
+                              <button
+                                onClick={() => handleEditComment(comment, index)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                                aria-label="Modifier le commentaire"
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                                </svg>
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="mt-2 text-sm text-gray-900 whitespace-pre-wrap break-words">
-                          {comment.content}
-                        </div>
+                        {editingCommentIndex === index ? (
+                          <form
+                            onSubmit={async e => {
+                              e.preventDefault();
+                              const commentObj = ticket.formatted_comments[index];
+                              const commentId = md5((commentObj.user?.id || commentObj.userId) + commentObj.date + commentObj.content);
+                              try {
+                                await axios.put(`/api/tickets/${ticket.id}/comment/${commentId}`, { content: editCommentContent });
+                                // Rafraîchir les données du ticket
+                                const updatedTicket = await axios.get(`/api/tickets/${id}`);
+                                setTicket(updatedTicket.data);
+                                setEditingCommentIndex(null);
+                                setEditCommentContent('');
+                              } catch (err) {
+                                alert('Erreur lors de la modification du commentaire');
+                              }
+                            }}
+                            className="mt-2"
+                          >
+                            <textarea
+                              value={editCommentContent}
+                              onChange={e => setEditCommentContent(e.target.value)}
+                              className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                              rows={3}
+                            />
+                            <div className="mt-2 flex justify-end space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditingCommentIndex(null)}
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                              >
+                                Annuler
+                              </button>
+                              <button
+                                type="submit"
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
+                              >
+                                Enregistrer
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <div className="mt-2 text-sm text-gray-900 whitespace-pre-wrap break-words">
+                            {comment.content}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

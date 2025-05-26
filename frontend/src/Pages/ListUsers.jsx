@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
-import { FaUser, FaEnvelope, FaUserShield, FaClock, FaEdit, FaTrash, FaSyncAlt } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaUserShield, FaClock, FaEdit, FaTrash, FaSyncAlt, FaExclamationTriangle } from 'react-icons/fa';
 
 // Cache pour les utilisateurs
 const userCache = {
@@ -16,6 +16,8 @@ const ListUsers = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [spin, setSpin] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   // Récupérer le user courant
   let currentUser = null;
@@ -75,18 +77,24 @@ const ListUsers = () => {
   }, []);
 
   const handleDelete = async (userId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
-      try {
-        await axios.delete(`/api/users/${userId}`);
-        const updatedUsers = users.filter(user => user.id !== userId);
-        setUsers(updatedUsers);
-        userCache.users = updatedUsers;
-        setSuccess('Utilisateur supprimé avec succès');
-        setTimeout(() => setSuccess(''), 3000);
-      } catch (err) {
-        setError('Erreur lors de la suppression de l\'utilisateur');
-        console.error('Erreur:', err);
-      }
+    setUserToDelete(userId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await axios.delete(`/api/users/${userToDelete}`);
+      const updatedUsers = users.filter(user => user.id !== userToDelete);
+      setUsers(updatedUsers);
+      userCache.users = updatedUsers;
+      setSuccess('Utilisateur supprimé avec succès');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Erreur lors de la suppression de l\'utilisateur');
+      console.error('Erreur:', err);
+    } finally {
+      setShowDeleteModal(false);
+      setUserToDelete(null);
     }
   };
 
@@ -164,6 +172,42 @@ const ListUsers = () => {
           </div>
         )}
 
+        {/* Modal de confirmation de suppression */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3 text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                  <FaExclamationTriangle className="h-6 w-6 text-red-600" />
+                </div>
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mt-4">Confirmation de suppression</h3>
+                <div className="mt-2 px-7 py-3">
+                  <p className="text-sm text-gray-500">
+                    Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
+                  </p>
+                </div>
+                <div className="items-center px-4 py-3">
+                  <button
+                    onClick={confirmDelete}
+                    className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  >
+                    Supprimer
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setUserToDelete(null);
+                    }}
+                    className="mt-3 px-4 py-2 bg-gray-100 text-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -219,7 +263,7 @@ const ListUsers = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {currentUser?.niveau === 1 && (
+                      {currentUser?.niveau === 1 && user.id !== currentUser?.id && (
                         <button
                           onClick={() => handleSetStatut(user.id, user.statut === 1 ? 0 : 1)}
                           className={user.statut === 1 ? 'text-red-600 hover:text-red-900 ml-4' : 'text-green-600 hover:text-green-900 ml-4'}
@@ -227,12 +271,14 @@ const ListUsers = () => {
                           {user.statut === 1 ? 'Désactiver' : 'Activer'}
                         </button>
                       )}
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="text-red-600 hover:text-red-900 ml-4"
-                      >
-                        <FaTrash />
-                      </button>
+                      {user.id !== currentUser?.id && (
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          className="text-red-600 hover:text-red-900 ml-4"
+                        >
+                          <FaTrash />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -12,7 +12,6 @@ const EditTicket = () => {
   const [formData, setFormData] = useState({
     Titre: '',
     Description: '',
-    Commentaire: '',
     Id_Priorite: '',
     Id_Statut: '',
     Id_Demandeur: '',
@@ -65,7 +64,6 @@ const EditTicket = () => {
         setFormData({
           Titre: ticket.Titre || '',
           Description: ticket.Description || '',
-          Commentaire: ticket.Commentaire || '',
           Id_Priorite: ticket.Id_Priorite || '',
           Id_Statut: ticket.Id_Statut || '',
           Id_Demandeur: ticket.Id_Demandeur || '',
@@ -166,7 +164,6 @@ const EditTicket = () => {
       const dataToSend = {
         Titre: formData.Titre,
         Description: formData.Description,
-        Commentaire: formData.Commentaire,
         Id_Priorite: parseInt(formData.Id_Priorite),
         Id_Statut: parseInt(formData.Id_Statut),
         Id_Demandeur: parseInt(formData.Id_Demandeur),
@@ -514,20 +511,6 @@ const EditTicket = () => {
               rows="3"
               required
               value={formData.Description}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label htmlFor="Commentaire" className="block text-sm font-medium text-gray-700">
-              Commentaire
-            </label>
-            <textarea
-              name="Commentaire"
-              id="Commentaire"
-              rows="3"
-              value={formData.Commentaire}
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />

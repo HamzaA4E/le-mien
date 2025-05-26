@@ -784,4 +784,50 @@ class TicketController extends Controller
             return response()->json(['error' => 'Erreur lors de l\'ajout du commentaire'], 500);
         }
     }
+
+    public function updateComment(Request $request, $ticketId, $commentId)
+    {
+        try {
+            $ticket = Ticket::findOrFail($ticketId);
+            $user = auth()->user();
+
+            $validated = $request->validate([
+                'content' => 'required|string'
+            ]);
+
+            // Récupérer tous les commentaires
+            $comments = explode("\n\n", $ticket->Commentaire);
+            $updatedComments = [];
+
+            foreach ($comments as $comment) {
+                if (empty(trim($comment))) continue;
+
+                // Extraire l'ID utilisateur, la date et le contenu
+                if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
+                    $userId = $matches[1];
+                    $date = $matches[2];
+                    $content = trim($matches[3]);
+
+                    // Si c'est le commentaire à modifier et que l'utilisateur est l'auteur
+                    if ($userId == $user->id && $commentId == md5($userId . $date . $content)) {
+                        $updatedComments[] = "[$userId|$date]" . $validated['content'];
+                    } else {
+                        $updatedComments[] = $comment;
+                    }
+                }
+            }
+
+            // Mettre à jour le ticket avec les commentaires modifiés
+            $ticket->Commentaire = implode("\n\n", $updatedComments);
+            $ticket->save();
+
+            return response()->json([
+                'message' => 'Commentaire modifié avec succès',
+                'ticket' => $ticket
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la modification du commentaire: ' . $e->getMessage());
+            return response()->json(['error' => 'Erreur lors de la modification du commentaire'], 500);
+        }
+    }
 } 

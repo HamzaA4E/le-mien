@@ -17,28 +17,6 @@ const CreateUser = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    // Vérifier si l'utilisateur est connecté
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    // Initialiser le token CSRF au chargement du composant
-    const initCsrf = async () => {
-      try {
-        await axios.get('/sanctum/csrf-cookie');
-        // Attendre un court instant pour s'assurer que le cookie est bien défini
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error) {
-        console.error('Erreur lors de l\'initialisation du token CSRF:', error);
-      }
-    };
-
-    initCsrf();
-  }, [navigate]);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -54,13 +32,7 @@ const CreateUser = () => {
     setSuccess('');
 
     try {
-      // S'assurer que le token CSRF est à jour
-      await axios.get('/sanctum/csrf-cookie');
-      // Attendre un court instant pour s'assurer que le cookie est bien défini
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       const response = await axios.post('/api/utilisateurs', formData);
-      
       setSuccess('Utilisateur créé avec succès !');
       setFormData({
         designation: '',

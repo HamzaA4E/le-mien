@@ -840,6 +840,13 @@ const TicketList = () => {
           </div>
         )}
 
+        {!loading && displayedTickets.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-24">
+            <span className="text-2xl font-semibold text-gray-400 mb-2">Pas de ticket</span>
+            <span className="text-base text-gray-400">Aucun ticket ne correspond à vos critères de recherche.</span>
+          </div>
+        )}
+
         <div className="space-y-4">
           {displayedTickets.map((ticket) => (
             <div

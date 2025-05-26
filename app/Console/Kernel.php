@@ -4,6 +4,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Illuminate\Support\Facades\Log;
 
 class Kernel extends ConsoleKernel
 {
@@ -17,8 +18,26 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('tickets:deadline-reminder')->dailyAt('09:00');
-        $schedule->command('tickets:deadline-reminder')->dailyAt('14:00');
+        // Exécuter la commande à 9h00 et 14h00
+        $schedule->command('tickets:deadline-reminder')
+            ->dailyAt('09:00')
+            ->withoutOverlapping()
+            ->onFailure(function () {
+                Log::error('Échec de l\'envoi des rappels de tickets à échéance');
+            })
+            ->onSuccess(function () {
+                Log::info('Rappels de tickets à échéance envoyés avec succès');
+            });
+
+        $schedule->command('tickets:deadline-reminder')
+            ->dailyAt('14:00')
+            ->withoutOverlapping()
+            ->onFailure(function () {
+                Log::error('Échec de l\'envoi des rappels de tickets à échéance');
+            })
+            ->onSuccess(function () {
+                Log::info('Rappels de tickets à échéance envoyés avec succès');
+            });
     }
 
     /**

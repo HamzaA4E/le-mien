@@ -63,6 +63,8 @@ const CreateTicket = () => {
     executant: false
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const getCacheKey = (entity) => `create_ticket_${entity}_cache`;
 
   const fetchDataWithCache = async (endpoint, setter, entity) => {
@@ -243,6 +245,7 @@ const CreateTicket = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsSubmitting(true);
     try {
       // Create FormData object
       const formDataObj = new FormData();
@@ -321,6 +324,8 @@ const CreateTicket = () => {
       } else {
         setError(err.response?.data?.message || 'Une erreur est survenue lors de la création du ticket');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -489,9 +494,16 @@ const CreateTicket = () => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+              disabled={isSubmitting}
             >
-              Créer le ticket
+              {isSubmitting && (
+                <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                </svg>
+              )}
+              {isSubmitting ? 'Création en cours...' : 'Créer le ticket'}
             </button>
           </div>
         </form>

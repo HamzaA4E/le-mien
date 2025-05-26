@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -16,9 +16,6 @@ const TYPE_COLORS = {
 // Fonction pour supprimer les accents d'une chaîne et remplacer les espaces par underscores
 const normalizeString = (str) => {
   if (!str) return '';
-  // Use NFD normalization to separate base characters and combining marks
-  // Then remove all combining diacritical marks (range U+0300 to U+036f)
-  // Then convert to lowercase and replace spaces with underscores
   return str.normalize("NFD").replace(/\u0300-\u036f/g, "").toLowerCase().replace(/ /g, '_');
 }
 
@@ -27,61 +24,6 @@ const ticketCache = {
   tickets: null,
   lastFetch: null,
   cacheDuration: 5 * 60 * 1000 // 5 minutes
-};
-const filterCache = {
-  data: null,
-  lastFetch: null,
-  cacheDuration: 5 * 60 * 1000 // 5 minutes
-};
-
-// Fonction pour extraire la date d'un objet date Laravel ou d'une chaîne
-const extractDate = (dateValue) => {
-  if (!dateValue) return null;
-  
-  // Si c'est un objet Laravel (avec date, timezone_type, timezone)
-  if (typeof dateValue === 'object' && dateValue.date) {
-    return dateValue.date;
-  }
-  
-  // Si c'est déjà une chaîne de date
-  return dateValue;
-};
-
-// Fonction pour normaliser une date
-const normalizeDate = (dateString) => {
-  if (!dateString) return null;
-  
-  // Extraire la date si c'est un objet Laravel
-  const extractedDate = extractDate(dateString);
-  if (!extractedDate) return null;
-
-  const date = new Date(extractedDate);
-  if (isNaN(date.getTime())) return null;
-  
-  // Normaliser à minuit UTC
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0));
-};
-
-// Fonction pour vérifier si une date est dans une plage
-const isDateInRange = (dateValue, startDate, endDate) => {
-  if (!dateValue) return false;
-  
-  const normalizedDate = normalizeDate(dateValue);
-  const normalizedStart = normalizeDate(startDate);
-  const normalizedEnd = normalizeDate(endDate);
-
-  if (!normalizedDate) return false;
-
-  if (normalizedStart && normalizedEnd) {
-    return normalizedDate >= normalizedStart && normalizedDate <= normalizedEnd;
-  }
-  if (normalizedStart) {
-    return normalizedDate >= normalizedStart;
-  }
-  if (normalizedEnd) {
-    return normalizedDate <= normalizedEnd;
-  }
-  return true;
 };
 
 const TicketList = () => {
@@ -94,6 +36,7 @@ const TicketList = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const observerTarget = useRef(null);
   const [spin, setSpin] = useState(false);
+  const [showUnreadReportsOnly, setShowUnreadReportsOnly] = useState(false);
   
   // États pour les filtres
   const [filters, setFilters] = useState(() => ({
@@ -132,6 +75,16 @@ const TicketList = () => {
   }
   const niveau = user?.niveau;
 
+  // Calcul du nombre de rapports non lus
+  const totalUnreadReports = useMemo(() => {
+    if (!tickets || !user) return 0;
+    return tickets.filter(ticket => 
+      ticket.Id_Demandeur === user.id && 
+      ticket.reports && 
+      ticket.reports.some(r => !r.is_viewed)
+    ).length;
+  }, [tickets, user]);
+
   // Fonction unique de chargement des tickets
   const fetchTickets = async (pageNum = 1) => {
     try {
@@ -144,14 +97,15 @@ const TicketList = () => {
         params: { 
           ...filters,
           page: pageNum,
-          per_page: 2
+          per_page: 2,
+          filter_unread_reports: showUnreadReportsOnly ? true : undefined
         }
       });
 
       const ticketsData = response.data;
       const newTickets = ticketsData.data || [];
       const total = ticketsData.total || 0;
-      const lastPage = Math.ceil(total / 2); // Calculer le nombre total de pages
+      const lastPage = Math.ceil(total / 2);
 
       if (pageNum === 1) {
         setTickets(newTickets);
@@ -159,7 +113,6 @@ const TicketList = () => {
         setTickets(prev => [...prev, ...newTickets]);
       }
 
-      // Mettre à jour hasMore en fonction du nombre total de pages
       setHasMore(pageNum < lastPage);
       setPage(pageNum);
       setError('');
@@ -195,10 +148,10 @@ const TicketList = () => {
     loadOptions();
   }, []);
 
-  // Effet pour le chargement initial des tickets
+  // Effet pour le chargement des tickets quand les filtres changent
   useEffect(() => {
     fetchTickets(1);
-  }, [filters]);
+  }, [filters, showUnreadReportsOnly]);
 
   // Effet pour l'intersection observer
   useEffect(() => {
@@ -224,7 +177,31 @@ const TicketList = () => {
         observer.unobserve(observerTarget.current);
       }
     };
-  }, [hasMore, isLoadingMore, page, filters, loading]);
+  }, [hasMore, isLoadingMore, page, filters, loading, showUnreadReportsOnly]);
+
+  // Effet pour écouter les événements de rapports marqués comme lus
+  useEffect(() => {
+    const handleReportsViewed = (event) => {
+      const { ticketId } = event.detail;
+      setTickets(prevTickets => 
+        prevTickets.map(ticket => {
+          if (ticket.id === ticketId) {
+            return {
+              ...ticket,
+              reports: ticket.reports.map(report => ({ ...report, is_viewed: true }))
+            };
+          }
+          return ticket;
+        })
+      );
+    };
+
+    window.addEventListener('reportsViewed', handleReportsViewed);
+
+    return () => {
+      window.removeEventListener('reportsViewed', handleReportsViewed);
+    };
+  }, []);
 
   // Fonction pour gérer le changement de filtre
   const handleFilterChange = (filterName, value) => {
@@ -301,6 +278,7 @@ const TicketList = () => {
       type_demande: '',
       titre: ''
     });
+    setShowUnreadReportsOnly(false);
   };
 
   const formatDate = (dateValue) => {
@@ -412,14 +390,17 @@ const TicketList = () => {
             {/* Bouton Rapports non lus */}
             {(niveau === '1' || niveau === 1) && (
               <button
-                onClick={() => setFilters(prev => ({ ...prev, type_demande: prev.type_demande === 'Tâche' ? '' : 'Tâche' }))}
+                onClick={() => setShowUnreadReportsOnly(v => !v)}
                 className={`flex items-center px-4 py-2 rounded-full text-sm font-semibold transition-colors border border-red-200 ${
-                  filters.type_demande === 'Tâche'
-                    ? 'bg-fuchsia-600 text-white'
-                    : 'bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200'
-                }`}
+                  showUnreadReportsOnly ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'
+                } ${totalUnreadReports === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                disabled={totalUnreadReports === 0}
+                title="Afficher uniquement les tickets avec des rapports non lus"
               >
-                <span className="mr-2">🔴 Tâches</span>
+                <span className="mr-2">🔴 Rapports non lus</span>
+                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                  {totalUnreadReports}
+                </span>
               </button>
             )}
           </div>
@@ -639,6 +620,12 @@ const TicketList = () => {
                           Clôturé le : {formatDate(ticket.DateFinReelle)}
                         </span>
                       )}
+                      {ticket.reports && ticket.reports.filter(report => !report.is_viewed).length > 0 && 
+                       ticket.Id_Demandeur === user?.id && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-200">
+                          {ticket.reports.filter(report => !report.is_viewed).length} rapport(s) non lu(s)
+                        </span>
+                      )}
                     </div>
                   </div>
                   <p className="text-base text-gray-700 mb-4 line-clamp-2">
@@ -677,7 +664,6 @@ const TicketList = () => {
                 </div>
               </div>
               <div className="mt-6 md:mt-0 md:ml-6 flex-shrink-0 flex flex-col items-end justify-between h-full gap-2">
-                {/* Menu déroulant pour changer le statut (visible uniquement pour l'administrateur) */}
                 {(niveau === '1' || niveau === 1) && (
                   <select
                     value={ticket.Id_Statut}
@@ -693,7 +679,6 @@ const TicketList = () => {
                     )}
                   </select>
                 )}
-                {/* Pour les non-administrateurs, afficher simplement le statut actuel */}
                 {!(niveau === '1' || niveau === 1) && (
                   <div className="mb-2 px-2 py-1 text-sm text-gray-700">
                     Statut : {ticket.statut?.designation || 'Non défini'}
@@ -728,4 +713,4 @@ const TicketList = () => {
   );
 };
 
-export default TicketList; 
+export default TicketList;

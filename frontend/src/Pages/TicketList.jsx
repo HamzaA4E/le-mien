@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -17,7 +17,7 @@ const TYPE_COLORS = {
 const normalizeString = (str) => {
   if (!str) return '';
   // Use NFD normalization to separate base characters and combining marks
-  // Then remove all combining diacritical marks (range U+0300 to U+036F)
+  // Then remove all combining diacritical marks (range U+0300 to U+036f)
   // Then convert to lowercase and replace spaces with underscores
   return str.normalize("NFD").replace(/\u0300-\u036f/g, "").toLowerCase().replace(/ /g, '_');
 }
@@ -85,50 +85,35 @@ const isDateInRange = (dateValue, startDate, endDate) => {
 };
 
 const TicketList = () => {
-  console.log('TicketList component rendered');
   const [searchParams] = useSearchParams();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10); // Utilisation d'un nombre plus raisonnable, par exemple 10
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [updating, setUpdating] = useState({});
   const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const observerTarget = useRef(null);
-  const [displayedTickets, setDisplayedTickets] = useState([]);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
-  
-  // Initialiser l'état des statuts comme null ou vide en attendant le chargement
-  const [statuts, setStatuts] = useState([]);
-  
   const [spin, setSpin] = useState(false);
   
-  // Ajouter une référence pour suivre si le chargement initial est terminé
-  const isInitialLoad = React.useRef(true);
+  // États pour les filtres
+  const [filters, setFilters] = useState(() => ({
+    categorie: searchParams.get('categorie') || '',
+    demandeur: searchParams.get('demandeur') || '',
+    societe: searchParams.get('societe') || '',
+    emplacement: searchParams.get('emplacement') || '',
+    statut: searchParams.get('statut') ? parseInt(searchParams.get('statut'), 10) : '',
+    priorite: searchParams.get('priorite') || '',
+    executant: searchParams.get('executant') || '',
+    dateDebut: searchParams.get('dateDebut') || '',
+    dateDebutFin: searchParams.get('dateDebutFin') || '',
+    dateFinPrevueDebut: searchParams.get('dateFinPrevueDebut') || '',
+    dateFinPrevueFin: searchParams.get('dateFinPrevueFin') || '',
+    dateFinReelleDebut: searchParams.get('dateFinReelleDebut') || '',
+    dateFinReelleFin: searchParams.get('dateFinReelleFin') || '',
+    type_demande: searchParams.get('type_demande') || '',
+    titre: searchParams.get('titre') || ''
+  }));
 
-  // États pour les filtres - Initialisés depuis l'URL
-  const [filters, setFilters] = useState(() => {
-    const initialStatut = searchParams.get('statut');
-    return {
-      categorie: searchParams.get('categorie') || '',
-      demandeur: searchParams.get('demandeur') || '',
-      societe: searchParams.get('societe') || '',
-      emplacement: searchParams.get('emplacement') || '',
-      statut: initialStatut !== null && initialStatut !== '' ? parseInt(initialStatut, 10) : '', // Convertir en nombre
-      priorite: searchParams.get('priorite') || '',
-      executant: searchParams.get('executant') || '',
-      dateDebut: searchParams.get('dateDebut') || '',
-      dateDebutFin: searchParams.get('dateDebutFin') || '',
-      dateFinPrevueDebut: searchParams.get('dateFinPrevueDebut') || '',
-      dateFinPrevueFin: searchParams.get('dateFinPrevueFin') || '',
-      dateFinReelleDebut: searchParams.get('dateFinReelleDebut') || '',
-      dateFinReelleFin: searchParams.get('dateFinReelleFin') || '',
-      type_demande: searchParams.get('type_demande') || '',
-      titre: searchParams.get('titre') || ''
-    };
-  });
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState([]);
   const [demandeurs, setDemandeurs] = useState([]);
@@ -136,7 +121,7 @@ const TicketList = () => {
   const [emplacements, setEmplacements] = useState([]);
   const [priorites, setPriorites] = useState([]);
   const [executants, setExecutants] = useState([]);
-  const [allTickets, setAllTickets] = useState([]);
+  const [statuts, setStatuts] = useState([]);
 
   // Récupérer le user depuis le localStorage
   let user = null;
@@ -147,212 +132,36 @@ const TicketList = () => {
   }
   const niveau = user?.niveau;
 
-  // Effet pour lire les paramètres d'URL et mettre à jour l'état des filtres.
-  // Cet effet NE déclenche PAS la récupération initiale des tickets.
-  // Rendu inutile car l'état initial des filtres est déjà basé sur l'URL.
-  /*
-  useEffect(() => {
-    const statusFromUrl = searchParams.get('status');
-    console.log('useEffect [searchParams] - URL changed', statusFromUrl);
-  }, [searchParams]);
-  */
-
-  // Ajout d'un calcul du nombre total de rapports non lus pour l'utilisateur connecté
-  const totalUnreadReports = useMemo(() => {
-    if (!tickets || !user) return 0;
-    return tickets.filter(ticket => ticket.Id_Demandeur === user.id && ticket.reports && ticket.reports.some(r => !r.is_viewed)).length;
-  }, [tickets, user]);
-
-  // Fonction de filtrage des tickets avec rapports non lus
-  const [showUnreadReportsOnly, setShowUnreadReportsOnly] = useState(false);
-  // Supprimer le useMemo filteredTickets car le filtrage est maintenant fait au backend
-  // const filteredTickets = useMemo(() => {
-  //   if (!showUnreadReportsOnly) return tickets;
-  //   return tickets.filter(ticket => ticket.Id_Demandeur === user.id && ticket.reports && ticket.reports.some(r => !r.is_viewed));
-  // }, [tickets, showUnreadReportsOnly, user]);
-
-  // Effet pour mettre à jour les tickets affichés lorsque les filtres changent
-  useEffect(() => {
-    // Cet effet n'est plus nécessaire, la mise à jour de displayedTickets se fait dans fetchTickets
-  }, []); // Retirer les dépendances car l'effet est désactivé
-
-  // Effet pour charger les tickets lorsque les filtres changent
-  useEffect(() => {
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false;
-      return;
-    }
-
-    console.log('Filters changed, fetching tickets with new filters:', filters, 'Unread Filter:', showUnreadReportsOnly);
-    // Quand les filtres changent, on recommence à la première page en appliquant les filtres backend et frontend
-    fetchTickets(true, 1, filters, showUnreadReportsOnly); 
-  }, [filters, showUnreadReportsOnly]); // showUnreadReportsOnly doit être une dépendance ici
-
-  // Effet pour le chargement initial
-  useEffect(() => {
-    console.log('useEffect [] - Running initial load effect');
-    const initialLoad = async () => {
-      setLoading(true);
-      setSpin(true);
-      try {
-        console.log('initialLoad useEffect - Starting initial load');
-        
-        // Charger les options en premier
-        try {
-          const optionsResponse = await axios.get('/api/tickets/options');
-          console.log('Options response:', optionsResponse.data);
-          
-          if (optionsResponse.data && optionsResponse.data.options) {
-            const { options: optionsData, errors, hasErrors } = optionsResponse.data;
-            
-            if (optionsData.statuts) {
-              console.log('Statuts chargés:', optionsData.statuts);
-              setStatuts(optionsData.statuts);
-            } else {
-              console.warn('Aucun statut chargé');
-              setStatuts([]);
-            }
-            
-            if (optionsData.categories) setCategories(optionsData.categories);
-            if (optionsData.demandeurs) setDemandeurs(optionsData.demandeurs);
-            if (optionsData.societes) setSocietes(optionsData.societes);
-            if (optionsData.emplacements) setEmplacements(optionsData.emplacements);
-            if (optionsData.priorites) setPriorites(optionsData.priorites);
-            if (optionsData.executants) setExecutants(optionsData.executants);
-
-            filterCache.data = optionsData;
-            filterCache.lastFetch = new Date().getTime();
-
-            if (hasErrors) {
-              console.warn('Erreurs lors du chargement des options:', errors);
-              setError('Certaines options de filtrage ne sont pas disponibles. Les filtres peuvent être limités.');
-            }
-          } else {
-            console.error('Format de réponse invalide:', optionsResponse.data);
-            setError('Format de réponse invalide pour les options de filtrage');
-          }
-        } catch (optionsError) {
-          console.error('Erreur lors du chargement des options:', optionsError);
-          setStatuts([]);
-          setCategories([]);
-          setDemandeurs([]);
-          setSocietes([]);
-          setEmplacements([]);
-          setPriorites([]);
-          setExecutants([]);
-          setError('Erreur lors du chargement des options de filtrage. Les filtres peuvent ne pas être disponibles.');
-        }
-
-        // Charger les tickets ensuite
-        const ticketsResponse = await axios.get('/api/tickets', {
-          params: {
-            ...filters,
-            page: 1,
-            per_page: itemsPerPage
-          }
-        });
-
-        const ticketsData = ticketsResponse.data;
-        setTickets(ticketsData.data);
-        setAllTickets(ticketsData.data);
-        setTotalPages(ticketsData.last_page);
-        ticketCache.tickets = ticketsData.data;
-        ticketCache.lastFetch = new Date().getTime();
-
-        // Afficher tous les tickets de la première page initialement
-        setDisplayedTickets(ticketsData.data);
-        setInitialLoadDone(true);
-        setPage(1); // S'assurer que la page est bien à 1 au chargement initial
-        setHasMore(1 < ticketsData.last_page); // Déterminer si plus de pages existent
-
-      } catch (err) {
-        setError('Erreur lors du chargement des tickets');
-        console.error('Erreur:', err);
-      } finally {
-        setLoading(false);
-        setSpin(false);
-      }
-    };
-    initialLoad();
-  }, []); // Exécuté une seule fois au montage
-
-  // Modifier fetchTickets pour utiliser les filtres et le paramètre backend pour rapports non lus
-  const fetchTickets = async (force = false, pageNum = page, appliedFilters = null, applyUnreadFilter = showUnreadReportsOnly) => {
-    console.log('fetchTickets called with filters:', appliedFilters || filters, 'Page:', pageNum, 'Unread Filter (sent to backend):', applyUnreadFilter);
-    setSpin(true);
-    const currentFilters = appliedFilters || filters;
-    
+  // Fonction unique de chargement des tickets
+  const fetchTickets = async (pageNum = 1) => {
     try {
-      // Logique de cache (à potentiellement adapter si le cache doit distinguer les filtres)
-      if (!force && ticketCache.tickets && ticketCache.lastFetch) {
-        const now = new Date().getTime();
-        if (now - ticketCache.lastFetch < ticketCache.cacheDuration) {
-          console.log('Using cached tickets');
-          const cachedTickets = ticketCache.tickets;
-          setTickets(cachedTickets);
-          setAllTickets(cachedTickets);
-          
-          if (!initialLoadDone) {
-            setDisplayedTickets(cachedTickets.slice(0, 2));
-            setInitialLoadDone(true);
-          }
-          
-          setLoading(false);
-          setSpin(false);
-          return;
-        }
+      if (pageNum === 1) {
+        setLoading(true);
       }
-
-      console.log('Fetching tickets with filters:', currentFilters, 'Page:', pageNum, 'Items per page:', itemsPerPage, 'Unread Filter (sent to backend):', applyUnreadFilter);
+      setSpin(true);
 
       const response = await axios.get('/api/tickets', {
         params: { 
-          ...currentFilters,
+          ...filters,
           page: pageNum,
-          per_page: itemsPerPage,
-          // Ajouter le paramètre pour le filtrage backend des rapports non lus
-          filter_unread_reports: applyUnreadFilter ? true : undefined // Envoyer true si le filtre est actif, undefined sinon
+          per_page: 2
         }
       });
 
       const ticketsData = response.data;
       const newTickets = ticketsData.data || [];
       const total = ticketsData.total || 0;
-      const lastPage = ticketsData.last_page || 1;
-
-      console.log('Received tickets:', newTickets.length, 'Total:', total, 'Last Page:', lastPage);
-
-      // Le filtrage par rapports non lus est maintenant fait au backend, donc pas de filtrage local ici
-      const processedTickets = newTickets; // Utiliser directement les tickets reçus du backend
+      const lastPage = Math.ceil(total / 2); // Calculer le nombre total de pages
 
       if (pageNum === 1) {
-        ticketCache.tickets = newTickets; // Le cache stocke potentiellement tous les tickets de la première requête
-        ticketCache.lastFetch = new Date().getTime();
-        // Pour la première page, remplacer les tickets existants avec les nouveaux tickets reçus
-        setTickets(processedTickets);
-        // setAllTickets(newTickets); // allTickets n'est peut-être pas nécessaire dans cette approche
-
-        // Afficher les tickets de la première page
-        setDisplayedTickets(processedTickets);
-        console.log('Displayed tickets after initial load:', processedTickets.length, processedTickets);
-
+        setTickets(newTickets);
       } else {
-        // Pour les pages suivantes, ajouter les nouveaux tickets aux listes existantes
-        setTickets(prev => [...prev, ...processedTickets]);
-        // setAllTickets(prev => [...prev, ...newTickets]); // allTickets n'est peut-être pas nécessaire
-        
-        // Ajouter les nouveaux tickets à la liste affichée
-        setDisplayedTickets(prev => {
-          const updatedDisplayed = [...prev, ...processedTickets];
-          console.log('Displayed tickets after loading page', pageNum, ':', updatedDisplayed.length, updatedDisplayed);
-          return updatedDisplayed;
-        });
+        setTickets(prev => [...prev, ...newTickets]);
       }
 
-      setTotalPages(lastPage);
-      // hasMore basé sur la pagination backend
+      // Mettre à jour hasMore en fonction du nombre total de pages
       setHasMore(pageNum < lastPage);
-      setPage(pageNum); // Mettre à jour le numéro de page courant
+      setPage(pageNum);
       setError('');
     } catch (err) {
       setError('Erreur lors du chargement des tickets');
@@ -360,23 +169,50 @@ const TicketList = () => {
     } finally {
       setLoading(false);
       setIsLoadingMore(false);
-      setTimeout(() => setSpin(false), 600);
+      setSpin(false);
     }
   };
 
-  // Modifier l'effet pour l'intersection observer
+  // Effet pour le chargement initial des options
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const optionsResponse = await axios.get('/api/tickets/options');
+        if (optionsResponse.data && optionsResponse.data.options) {
+          const { options: optionsData } = optionsResponse.data;
+          setStatuts(optionsData.statuts || []);
+          setCategories(optionsData.categories || []);
+          setDemandeurs(optionsData.demandeurs || []);
+          setSocietes(optionsData.societes || []);
+          setEmplacements(optionsData.emplacements || []);
+          setPriorites(optionsData.priorites || []);
+          setExecutants(optionsData.executants || []);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des options:', error);
+      }
+    };
+    loadOptions();
+  }, []);
+
+  // Effet pour le chargement initial des tickets
+  useEffect(() => {
+    fetchTickets(1);
+  }, [filters]);
+
+  // Effet pour l'intersection observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
-        // Déclencher le chargement si l'élément est visible et qu'il y a plus de pages
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          console.log('Intersection observer triggered', { page, totalPages, hasMore, isLoadingMore });
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore && !loading) {
           setIsLoadingMore(true);
-          // Appeler fetchTickets pour charger la page suivante avec les filtres actuels (y compris le filtre rapports non lus)
-          fetchTickets(false, page + 1, filters, showUnreadReportsOnly); 
+          fetchTickets(page + 1);
         }
       },
-      { threshold: 0.1 }
+      { 
+        threshold: 0.1,
+        rootMargin: '500px'
+      }
     );
 
     if (observerTarget.current) {
@@ -388,11 +224,10 @@ const TicketList = () => {
         observer.unobserve(observerTarget.current);
       }
     };
-  }, [hasMore, isLoadingMore, page, totalPages, filters, itemsPerPage, showUnreadReportsOnly]); // showUnreadReportsOnly doit être une dépendance ici
+  }, [hasMore, isLoadingMore, page, filters, loading]);
 
   // Fonction pour gérer le changement de filtre
   const handleFilterChange = (filterName, value) => {
-    console.log('Filter changed:', filterName, value);
     setFilters(prev => ({
       ...prev,
       [filterName]: value
@@ -404,7 +239,6 @@ const TicketList = () => {
     const newStatut = filters.statut === statutId ? '' : statutId;
     handleFilterChange('statut', newStatut);
     
-    // Mettre à jour l'URL
     const newSearchParams = new URLSearchParams(searchParams);
     if (newStatut !== '') {
       newSearchParams.set('statut', newStatut.toString());
@@ -414,49 +248,24 @@ const TicketList = () => {
     window.history.replaceState(null, '', `?${newSearchParams.toString()}`);
   };
 
-  // Fonction pour gérer le changement de statut d'un ticket (pour admin)
+  // Fonction pour gérer le changement de statut d'un ticket
   const handleStatutChange = async (ticketId, newStatutId) => {
-    setUpdating(prev => ({ ...prev, [ticketId]: true }));
     try {
-      console.log('Updating ticket status:', { ticketId, newStatutId });
-      
-      // Trouver le statut sélectionné pour vérifier s'il s'agit d'une clôture
       const selectedStatut = statuts.find(s => s.id === parseInt(newStatutId, 10));
       const isCloture = selectedStatut?.designation === 'Clôturé';
 
-      // Préparer les données à envoyer
       const updateData = {
         Id_Statut: parseInt(newStatutId, 10)
       };
 
-      // Si c'est une clôture, ajouter la date de fin réelle
       if (isCloture) {
         updateData.DateFinReelle = new Date().toISOString().split('T')[0];
       }
 
       const response = await axios.put(`/api/tickets/${ticketId}`, updateData);
 
-      console.log('Server response:', response.data);
-
-      // Mettre à jour l'état local des tickets avec la réponse
       setTickets(prevTickets => prevTickets.map(ticket => {
         if (ticket.id === ticketId) {
-          // Mettre à jour le ticket avec les nouvelles données
-          const updatedTicket = {
-            ...ticket,
-            Id_Statut: parseInt(newStatutId, 10),
-            statut: response.data.statut, // Mettre à jour l'objet statut complet
-            DateFinReelle: isCloture ? updateData.DateFinReelle : ticket.DateFinReelle // Mettre à jour la date de fin réelle si clôture
-          };
-          console.log('Updated ticket:', updatedTicket);
-          return updatedTicket;
-        }
-        return ticket;
-      }));
-
-      // Mettre à jour également displayedTickets pour refléter le changement immédiatement
-      setDisplayedTickets(prevDisplayedTickets => prevDisplayedTickets.map(ticket => {
-        if (ticket.id === ticketId) {
           return {
             ...ticket,
             Id_Statut: parseInt(newStatutId, 10),
@@ -467,31 +276,14 @@ const TicketList = () => {
         return ticket;
       }));
 
-      // Mettre à jour allTickets également
-      setAllTickets(prevTickets => prevTickets.map(ticket => {
-        if (ticket.id === ticketId) {
-          return {
-            ...ticket,
-            Id_Statut: parseInt(newStatutId, 10),
-            statut: response.data.statut,
-            DateFinReelle: isCloture ? updateData.DateFinReelle : ticket.DateFinReelle
-          };
-        }
-        return ticket;
-      }));
-
-      console.log('Status updated successfully');
     } catch (error) {
       console.error('Error updating status:', error);
       setError(error.response?.data?.message || 'Erreur lors de la mise à jour du statut du ticket.');
-    } finally {
-      setUpdating(prev => ({ ...prev, [ticketId]: false }));
     }
   };
 
   // Fonction pour réinitialiser les filtres
   const resetFilters = () => {
-    console.log('Resetting filters');
     setFilters({
       categorie: '',
       demandeur: '',
@@ -509,21 +301,17 @@ const TicketList = () => {
       type_demande: '',
       titre: ''
     });
-    fetchTickets(true, 1, {}, showUnreadReportsOnly);
   };
 
   const formatDate = (dateValue) => {
     if (!dateValue) return '-';
-    // Si c'est un objet Laravel (date, timezone_type, timezone)
     let dateString = dateValue;
     if (typeof dateValue === 'object' && dateValue.date) {
       dateString = dateValue.date;
     }
-    // On coupe à la seconde si besoin (ex: 2025-05-14 16:34:24.000000)
     if (typeof dateString === 'string' && dateString.includes('.')) {
       dateString = dateString.split('.')[0];
     }
-    // Format ISO pour JS
     const isoString = dateString.replace(' ', 'T');
     const date = new Date(isoString);
     return isNaN(date) ? '-' : date.toLocaleString('fr-FR', {
@@ -533,38 +321,6 @@ const TicketList = () => {
     });
   };
 
-  const renderTicketSkeleton = () => (
-    <div className="animate-pulse">
-      <div className="h-24 bg-gray-200 rounded mb-4"></div>
-      <div className="h-24 bg-gray-200 rounded mb-4"></div>
-      <div className="h-24 bg-gray-200 rounded mb-4"></div>
-    </div>
-  );
-
-  useEffect(() => {
-    // Écouter l'événement de rapports marqués comme vus
-    const handleReportsViewed = (event) => {
-      const { ticketId } = event.detail;
-      setTickets(prevTickets => 
-        prevTickets.map(ticket => {
-          if (ticket.id === ticketId) {
-            return {
-              ...ticket,
-              reports: ticket.reports.map(report => ({ ...report, is_viewed: true }))
-            };
-          }
-          return ticket;
-        })
-      );
-    };
-
-    window.addEventListener('reportsViewed', handleReportsViewed);
-
-    return () => {
-      window.removeEventListener('reportsViewed', handleReportsViewed);
-    };
-  }, []);
-
   if (loading && !tickets.length) {
     return (
       <Layout>
@@ -572,7 +328,11 @@ const TicketList = () => {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Liste des Tickets</h1>
           </div>
-          {renderTicketSkeleton()}
+          <div className="animate-pulse">
+            <div className="h-24 bg-gray-200 rounded mb-4"></div>
+            <div className="h-24 bg-gray-200 rounded mb-4"></div>
+            <div className="h-24 bg-gray-200 rounded mb-4"></div>
+          </div>
         </div>
       </Layout>
     );
@@ -592,7 +352,7 @@ const TicketList = () => {
               <FaFilter className={showFilters ? 'text-blue-600' : ''} />
             </button>
             <button
-              onClick={() => fetchTickets(true)}
+              onClick={() => fetchTickets(1)}
               className="p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
               title="Rafraîchir"
             >
@@ -652,17 +412,14 @@ const TicketList = () => {
             {/* Bouton Rapports non lus */}
             {(niveau === '1' || niveau === 1) && (
               <button
-                onClick={() => setShowUnreadReportsOnly(v => !v)}
+                onClick={() => setFilters(prev => ({ ...prev, type_demande: prev.type_demande === 'Tâche' ? '' : 'Tâche' }))}
                 className={`flex items-center px-4 py-2 rounded-full text-sm font-semibold transition-colors border border-red-200 ${
-                  showUnreadReportsOnly ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                } ${totalUnreadReports === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                disabled={totalUnreadReports === 0}
-                title="Afficher uniquement les tickets avec des rapports non lus"
+                  filters.type_demande === 'Tâche'
+                    ? 'bg-fuchsia-600 text-white'
+                    : 'bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200'
+                }`}
               >
-                <span className="mr-2">🔴 Rapports non lus</span>
-                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                  {totalUnreadReports}
-                </span>
+                <span className="mr-2">🔴 Tâches</span>
               </button>
             )}
           </div>
@@ -840,7 +597,7 @@ const TicketList = () => {
           </div>
         )}
 
-        {!loading && displayedTickets.length === 0 && (
+        {!loading && tickets.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24">
             <span className="text-2xl font-semibold text-gray-400 mb-2">Pas de ticket</span>
             <span className="text-base text-gray-400">Aucun ticket ne correspond à vos critères de recherche.</span>
@@ -848,7 +605,7 @@ const TicketList = () => {
         )}
 
         <div className="space-y-4">
-          {displayedTickets.map((ticket) => (
+          {tickets.map((ticket) => (
             <div
               key={ticket.id}
               className={`rounded-2xl shadow-lg border flex flex-col md:flex-row items-center justify-between min-h-[140px] px-6 py-5 mb-6 transition-transform hover:scale-[1.015] hover:shadow-2xl group`}
@@ -880,12 +637,6 @@ const TicketList = () => {
                       {ticket.statut?.designation === 'Clôturé' && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-gray-700 border border-gray-200">
                           Clôturé le : {formatDate(ticket.DateFinReelle)}
-                        </span>
-                      )}
-                      {ticket.reports && ticket.reports.filter(report => !report.is_viewed).length > 0 && 
-                       ticket.Id_Demandeur === user?.id && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-200">
-                          {ticket.reports.filter(report => !report.is_viewed).length} rapport(s) non lu(s)
                         </span>
                       )}
                     </div>
@@ -932,7 +683,6 @@ const TicketList = () => {
                     value={ticket.Id_Statut}
                     onChange={e => handleStatutChange(ticket.id, e.target.value)}
                     className="mb-2 px-2 py-1 rounded border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    disabled={updating[ticket.id]}
                   >
                     {statuts && statuts.length > 0 ? (
                       statuts.map(s => (
@@ -960,12 +710,18 @@ const TicketList = () => {
             </div>
           ))}
           
-          {/* Ajouter l'élément de référence pour l'intersection observer */}
-          <div ref={observerTarget} className="h-10 flex items-center justify-center">
-            {isLoadingMore && (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            )}
-          </div>
+          {hasMore && (
+            <div ref={observerTarget} className="h-16 flex items-center justify-center">
+              {isLoadingMore ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <span className="text-sm text-gray-500">Chargement...</span>
+                </div>
+              ) : (
+                <div className="h-4"></div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </Layout>

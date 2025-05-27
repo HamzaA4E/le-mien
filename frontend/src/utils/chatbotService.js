@@ -70,11 +70,10 @@ RÈGLES STRICTES DE CONVERSATION :
 3. Tu DOIS vérifier que chaque information est complète avant de passer à l'étape suivante
 4. Tu NE DOIS PAS proposer de créer le ticket avant d'avoir toutes les informations requises
 5. Tu DOIS confirmer chaque information importante avec l'utilisateur
-
-INFORMATIONS DÉJÀ CONNUES (ne pas demander) :
-- Demandeur: ${userInfo.name}
-- Service: ${userInfo.service}
-- Société: ${userInfo.company}
+6. Tu NE DOIS JAMAIS demander les informations suivantes car elles sont déjà connues :
+   - Le nom du demandeur (${userInfo.designation})
+   - Le service du demandeur (${userInfo.niveau === 1 ? 'Administration' : 'Support'})
+   - La société du demandeur (${userInfo.email.split('@')[1] || 'Non spécifiée'})
 
 ÉTAPES OBLIGATOIRES (à suivre dans l'ordre) :
 
@@ -131,19 +130,13 @@ EXEMPLES DE RÉPONSES PROFESSIONNELLES :
 - "Pour finaliser, pourriez-vous me préciser l'emplacement exact où ce problème se produit ?"
 - "Voici un résumé des informations collectées. Souhaitez-vous que je procède à la création du ticket ?"`;
 
-        // Ajouter les informations de l'utilisateur au contexte
-        const userContext = `Informations de l'utilisateur :
-- Demandeur: ${userInfo.name}
-- Service: ${userInfo.service}
-- Société: ${userInfo.company}`;
-
         console.warn('Construction du contexte de conversation');
         // Construire le contexte de la conversation
         const chat = model.startChat({
             history: [
                 {
                     role: "user",
-                    parts: SYSTEM_PROMPT + "\n\n" + userContext,
+                    parts: SYSTEM_PROMPT,
                 },
                 ...conversationHistory.map(msg => ({
                     role: msg.role,
@@ -220,10 +213,10 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         description: '',
         category: '',
         priority: '',
-        service: userInfo.service,
+        service: userInfo.niveau === 1 ? 'Administration' : 'Support',
         location: '',
-        company: userInfo.company,
-        requester: userInfo.name,
+        company: userInfo.email.split('@')[1] || 'Non spécifiée',
+        requester: userInfo.designation,
         status: 'Nouveau'
     };
 

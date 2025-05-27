@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import LoginPage from '../Pages/LoginPage';
 import Dashboard from '../Pages/Dashboard';
 import TicketList from '../Pages/TicketList';
-import CreateTicket from '../Pages/CreateTicket';
+import ChatBot from '../components/ChatBot/ChatBot';
 import CreateUser from '../Pages/CreateUser';
 import Profile from '../Pages/Profile';
 import ListUsers from '../Pages/ListUsers';
@@ -58,7 +58,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/create-ticket',
-    element: <PrivateRoute><CreateTicket /></PrivateRoute>,
+    element: <PrivateRoute><ChatBot /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
   {

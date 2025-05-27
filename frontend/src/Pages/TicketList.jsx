@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -19,6 +19,23 @@ const normalizeString = (str) => {
   return str.normalize("NFD").replace(/\u0300-\u036f/g, "").toLowerCase().replace(/ /g, '_');
 }
 
+// Hook personnalisé pour le debounce
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 // Cache pour les tickets et les filtres
 const ticketCache = {
   tickets: null,
@@ -28,7 +45,7 @@ const ticketCache = {
 
 const TicketList = () => {
   const [searchParams] = useSearchParams();
-  const [tickets, setTickets] = useState([]);
+  const [allTickets, setAllTickets] = useState([]); // Tous les tickets chargés
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
@@ -57,6 +74,12 @@ const TicketList = () => {
     titre: searchParams.get('titre') || ''
   }));
 
+  // Filtre de titre local (sans debounce pour l'affichage immédiat)
+  const [localTitleFilter, setLocalTitleFilter] = useState(filters.titre);
+  
+  // Filtre de titre avec debounce pour les requêtes serveur
+  const debouncedTitleFilter = useDebounce(localTitleFilter, 500);
+
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState([]);
   const [demandeurs, setDemandeurs] = useState([]);
@@ -75,15 +98,46 @@ const TicketList = () => {
   }
   const niveau = user?.niveau;
 
+  // Fonction de filtrage local
+  const filterTicketsLocally = useCallback((tickets, titleFilter) => {
+    if (!titleFilter.trim()) return tickets;
+    
+    const searchTerm = titleFilter.toLowerCase();
+    return tickets.filter(ticket => 
+      ticket.Titre?.toLowerCase().includes(searchTerm) ||
+      ticket.Description?.toLowerCase().includes(searchTerm)
+    );
+  }, []);
+
+  // Tickets filtrés localement
+  const filteredTickets = useMemo(() => {
+    let filtered = allTickets;
+    
+    // Filtrage par titre en local
+    if (localTitleFilter.trim()) {
+      filtered = filterTicketsLocally(filtered, localTitleFilter);
+    }
+    
+    return filtered;
+  }, [allTickets, localTitleFilter, filterTicketsLocally]);
+
   // Calcul du nombre de rapports non lus
   const totalUnreadReports = useMemo(() => {
-    if (!tickets || !user) return 0;
-    return tickets.filter(ticket => 
+    if (!filteredTickets || !user) return 0;
+    return filteredTickets.filter(ticket => 
       ticket.Id_Demandeur === user.id && 
       ticket.reports && 
       ticket.reports.some(r => !r.is_viewed)
     ).length;
-  }, [tickets, user]);
+  }, [filteredTickets, user]);
+
+  // Effet pour synchroniser le filtre titre avec debounce
+  useEffect(() => {
+    setFilters(prev => ({
+      ...prev,
+      titre: debouncedTitleFilter
+    }));
+  }, [debouncedTitleFilter]);
 
   // Fonction unique de chargement des tickets
   const fetchTickets = async (pageNum = 1) => {
@@ -93,9 +147,13 @@ const TicketList = () => {
       }
       setSpin(true);
 
+      // Créer les filtres sans le titre (géré localement)
+      const serverFilters = { ...filters };
+      delete serverFilters.titre;
+
       const response = await axios.get('/api/tickets', {
         params: { 
-          ...filters,
+          ...serverFilters,
           page: pageNum,
           per_page: 2,
           filter_unread_reports: showUnreadReportsOnly ? true : undefined
@@ -108,9 +166,9 @@ const TicketList = () => {
       const lastPage = Math.ceil(total / 2);
 
       if (pageNum === 1) {
-        setTickets(newTickets);
+        setAllTickets(newTickets);
       } else {
-        setTickets(prev => [...prev, ...newTickets]);
+        setAllTickets(prev => [...prev, ...newTickets]);
       }
 
       setHasMore(pageNum < lastPage);
@@ -148,10 +206,27 @@ const TicketList = () => {
     loadOptions();
   }, []);
 
-  // Effet pour le chargement des tickets quand les filtres changent
+  // Effet pour le chargement des tickets quand les filtres changent (sauf titre)
   useEffect(() => {
     fetchTickets(1);
-  }, [filters, showUnreadReportsOnly]);
+  }, [
+    filters.categorie,
+    filters.demandeur,
+    filters.societe,
+    filters.emplacement,
+    filters.statut,
+    filters.priorite,
+    filters.executant,
+    filters.dateDebut,
+    filters.dateDebutFin,
+    filters.dateFinPrevueDebut,
+    filters.dateFinPrevueFin,
+    filters.dateFinReelleDebut,
+    filters.dateFinReelleFin,
+    filters.type_demande,
+    debouncedTitleFilter, // Seulement quand le titre debounce change
+    showUnreadReportsOnly
+  ]);
 
   // Effet pour l'intersection observer
   useEffect(() => {
@@ -177,13 +252,13 @@ const TicketList = () => {
         observer.unobserve(observerTarget.current);
       }
     };
-  }, [hasMore, isLoadingMore, page, filters, loading, showUnreadReportsOnly]);
+  }, [hasMore, isLoadingMore, page, loading]);
 
   // Effet pour écouter les événements de rapports marqués comme lus
   useEffect(() => {
     const handleReportsViewed = (event) => {
       const { ticketId } = event.detail;
-      setTickets(prevTickets => 
+      setAllTickets(prevTickets => 
         prevTickets.map(ticket => {
           if (ticket.id === ticketId) {
             return {
@@ -209,6 +284,11 @@ const TicketList = () => {
       ...prev,
       [filterName]: value
     }));
+  };
+
+  // Fonction pour gérer le changement du titre
+  const handleTitleFilterChange = (value) => {
+    setLocalTitleFilter(value);
   };
 
   // Fonction pour gérer le clic sur les boutons de statut
@@ -241,7 +321,7 @@ const TicketList = () => {
 
       const response = await axios.put(`/api/tickets/${ticketId}`, updateData);
 
-      setTickets(prevTickets => prevTickets.map(ticket => {
+      setAllTickets(prevTickets => prevTickets.map(ticket => {
         if (ticket.id === ticketId) {
           return {
             ...ticket,
@@ -278,6 +358,7 @@ const TicketList = () => {
       type_demande: '',
       titre: ''
     });
+    setLocalTitleFilter('');
     setShowUnreadReportsOnly(false);
   };
 
@@ -299,7 +380,7 @@ const TicketList = () => {
     });
   };
 
-  if (loading && !tickets.length) {
+  if (loading && !allTickets.length) {
     return (
       <Layout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -426,8 +507,8 @@ const TicketList = () => {
                   type="text"
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Rechercher par titre"
-                  value={filters.titre || ''}
-                  onChange={e => setFilters({ ...filters, titre: e.target.value })}
+                  value={localTitleFilter}
+                  onChange={e => handleTitleFilterChange(e.target.value)}
                 />
               </div>
               {/* Société */}
@@ -578,7 +659,7 @@ const TicketList = () => {
           </div>
         )}
 
-        {!loading && tickets.length === 0 && (
+        {!loading && filteredTickets.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24">
             <span className="text-2xl font-semibold text-gray-400 mb-2">Pas de ticket</span>
             <span className="text-base text-gray-400">Aucun ticket ne correspond à vos critères de recherche.</span>
@@ -586,7 +667,7 @@ const TicketList = () => {
         )}
 
         <div className="space-y-4">
-          {tickets.map((ticket) => (
+          {filteredTickets.map((ticket) => (
             <div
               key={ticket.id}
               className={`rounded-2xl shadow-lg border flex flex-col md:flex-row items-center justify-between min-h-[140px] px-6 py-5 mb-6 transition-transform hover:scale-[1.015] hover:shadow-2xl group`}

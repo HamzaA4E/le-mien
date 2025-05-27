@@ -99,7 +99,7 @@ return [
 'sqlsrv' => [
     'driver' => 'sqlsrv',
     'host' => env('DB_HOST', '(local)'),
-    'database' => env('DB_DATABASE', 'SI'),
+    'database' => env('DB_DATABASE', 'IS'),
     'username' => env('DB_USERNAME', ''),
     'password' => env('DB_PASSWORD', ''),
     'charset' => 'utf8',

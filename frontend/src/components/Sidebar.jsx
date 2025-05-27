@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs } from 'react-icons/fa';
+import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs, FaRobot } from 'react-icons/fa';
 import axios from 'axios';
 import { useState } from 'react';
 
@@ -60,7 +60,7 @@ const Sidebar = () => {
   let menuItems = [
     { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
     { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
-    { path: '/create-ticket', icon: <FaPlus />, text: 'Créer un ticket' },
+    { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
     { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
     { path: '/admin/entities', icon: <FaCogs />, text: 'Gestion des référentiels' },
@@ -72,6 +72,7 @@ const Sidebar = () => {
     menuItems = [
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
+      { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }

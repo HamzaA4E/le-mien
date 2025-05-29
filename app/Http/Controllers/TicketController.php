@@ -500,14 +500,14 @@ class TicketController extends Controller
                 $options['statuts'] = collect([]);
             }
 
-            // Charger les autres options
+            // Charger les autres options avec les bonnes clés
             $tables = [
-                'demandeurs' => Demandeur::class,
-                'societes' => Societe::class,
+                'categories' => Categorie::class,
+                'types' => TypeDemande::class,
                 'emplacements' => Emplacement::class,
                 'priorites' => Priorite::class,
-                'categories' => Categorie::class,
-                'typesDemande' => TypeDemande::class
+                'demandeurs' => Demandeur::class,
+                'societes' => Societe::class
             ];
 
             foreach ($tables as $key => $model) {
@@ -527,6 +527,17 @@ class TicketController extends Controller
             // Ajout des exécutants
             $options['executants'] = \App\Models\Executant::where('is_active', true)->get();
 
+            // Vérifier que toutes les options requises sont présentes
+            $requiredOptions = ['categories', 'types', 'emplacements', 'priorites'];
+            $missingOptions = array_filter($requiredOptions, function($option) use ($options) {
+                return empty($options[$option]);
+            });
+
+            if (!empty($missingOptions)) {
+                Log::error('Options manquantes:', ['missing' => $missingOptions]);
+                $errors['missing_options'] = 'Options manquantes: ' . implode(', ', $missingOptions);
+            }
+
             return response()->json([
                 'options' => $options,
                 'errors' => $errors,
@@ -537,8 +548,8 @@ class TicketController extends Controller
             Log::error('Erreur lors de la récupération des options: ' . $e->getMessage());
             
             $emptyOptions = array_fill_keys([
-                'demandeurs', 'societes', 'emplacements', 'priorites', 
-                'categories', 'typesDemande', 'statuts'
+                'categories', 'types', 'emplacements', 'priorites', 
+                'demandeurs', 'societes', 'statuts', 'executants'
             ], collect([]));
             
             return response()->json([

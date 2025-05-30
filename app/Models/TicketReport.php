@@ -26,7 +26,8 @@ class TicketReport extends Model
         'Id_Responsable' => 'integer',
         'DateReport' => 'datetime',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
+        'is_viewed' => 'boolean'
     ];
 
     protected static function boot()
@@ -39,7 +40,7 @@ class TicketReport extends Model
             ]);
             
             if (empty($report->DateReport)) {
-                $report->DateReport = DB::raw('GETDATE()');
+                $report->DateReport = now();
             }
         });
 

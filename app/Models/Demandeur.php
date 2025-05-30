@@ -22,7 +22,8 @@ class Demandeur extends Model
 
     protected $casts = [
         'id_service' => 'integer',
-        'statut' => 'integer'
+        'statut' => 'integer',
+        'is_active' => 'boolean'
     ];
 
     public function service()
@@ -32,6 +33,11 @@ class Demandeur extends Model
 
     public function tickets()
     {
-        return $this->hasMany(\App\Models\Ticket::class, 'Id_Demandeur');
+        return $this->hasMany(Ticket::class, 'Id_Demandeur');
+    }
+
+    public function utilisateur()
+    {
+        return $this->hasOne(Utilisateur::class, 'designation', 'designation');
     }
 } 

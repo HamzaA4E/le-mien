@@ -10,6 +10,8 @@ import ListUsers from '../Pages/ListUsers';
 import TicketDetails from '../Pages/TicketDetails';
 import EditTicket from '../Pages/EditTicket';
 import AdminEntitiesManagement from '../Pages/AdminEntitiesManagement';
+import PendingTicketsPage from '../Pages/PendingTicketsPage';
+import CompletedTicketsPage from '../Pages/CompletedTicketsPage';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -79,6 +81,16 @@ const router = createBrowserRouter([
   {
     path: '/admin/entities',
     element: <PrivateRoute><AdminEntitiesManagement /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/admin/pending-tickets',
+    element: <PrivateRoute><PendingTicketsPage /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/completed-tickets',
+    element: <PrivateRoute><CompletedTicketsPage /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
   {

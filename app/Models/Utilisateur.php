@@ -16,6 +16,7 @@ class Utilisateur extends Authenticatable
     // Constantes pour les niveaux d'utilisateur
     const NIVEAU_ADMINISTRATEUR = 1;
     const NIVEAU_RESPONSABLE = 2;
+    const NIVEAU_DEMANDEUR = 3;
 
     protected $table = 'T_UTILISAT';
     protected $primaryKey = 'id';
@@ -57,6 +58,22 @@ class Utilisateur extends Authenticatable
     public function isResponsable()
     {
         return $this->niveau === self::NIVEAU_RESPONSABLE;
+    }
+
+    /**
+     * Vérifie si l'utilisateur est un demandeur
+     */
+    public function isDemandeur()
+    {
+        return $this->niveau === self::NIVEAU_DEMANDEUR;
+    }
+
+    /**
+     * Get the demandeur associated with the user.
+     */
+    public function demandeur()
+    {
+        return $this->hasOne(Demandeur::class, 'designation', 'designation');
     }
 
     /**

@@ -32,7 +32,8 @@ const ListUsers = () => {
     
     const niveauMap = {
       '1': 'Administrateur',
-      '2': 'Responsable'
+      '2': 'Responsable',
+      '3': 'Demandeur'
     };
     
     return niveauMap[niveau] || 'Non spécifié';

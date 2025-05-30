@@ -5,6 +5,10 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Utilisateur;
 use Illuminate\Support\Facades\Hash;
+use App\Models\Categorie;
+use App\Models\TypeDemande;
+use App\Models\Emplacement;
+use App\Models\Statut;
 
 class DatabaseSeeder extends Seeder
 {
@@ -26,5 +30,20 @@ class DatabaseSeeder extends Seeder
             'created_at' => date('Y-m-d'),
             'updated_at' => date('Y-m-d'),
         ]);
+
+        // Ajouter la catégorie "achat"
+        Categorie::firstOrCreate(['designation' => 'achat']);
+
+        // Ajouter le type de demande "projet"
+        TypeDemande::firstOrCreate(['designation' => 'projet']);
+
+        // Ajouter l'emplacement "sapino"
+        Emplacement::firstOrCreate(['designation' => 'sapino']);
+
+        // Ajouter les statuts de base
+        $statuts = ['Nouveau', 'En instance','En cours', 'Terminé','Clôturé', 'Refusé'];
+        foreach ($statuts as $statut) {
+            Statut::firstOrCreate(['designation' => $statut]);
+        }
     }
 }

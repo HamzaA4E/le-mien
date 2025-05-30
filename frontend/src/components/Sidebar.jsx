@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs, FaRobot } from 'react-icons/fa';
+import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs, FaRobot, FaClock, FaCheckCircle } from 'react-icons/fa';
 import axios from 'axios';
 import { useState } from 'react';
 
@@ -60,6 +60,7 @@ const Sidebar = () => {
   let menuItems = [
     { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
     { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
+    { path: '/admin/pending-tickets', icon: <FaClock />, text: 'Tickets en attente' },
     { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
     { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
@@ -73,6 +74,16 @@ const Sidebar = () => {
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
       { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
+      { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
+    ];
+  }
+  // Si demandeur (niveau 3), on limite encore plus le menu
+  else if (niveau === '3' || niveau === 3) {
+    menuItems = [
+      { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
+      { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
+      { path: '/tickets', icon: <FaTicketAlt />, text: 'Mes Tickets' },
+      { path: '/completed-tickets', icon: <FaCheckCircle />, text: 'Tickets terminés' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }

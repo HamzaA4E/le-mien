@@ -253,7 +253,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         description: '',
         category: '',
         type: '',
-        service: userInfo.niveau === 1 ? 'Administration' : 'Support',
+        service: userInfo.niveau === 1 ? 'Administration' : userInfo.niveau === 2 ? 'Demandeur' : 'Support',
         location: '',
         company: userInfo.email.split('@')[1] || 'Non spécifiée',
         requester: userInfo.designation,
@@ -262,7 +262,6 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         startDate: '',
         endDate: '',
         createdAt: new Date().toISOString(),
-        id_demandeur: userInfo.id || 1,
         id_utilisateur: userInfo.id || 1,
         id_societe: userInfo.id_societe || 1,
         id_emplacement: null,
@@ -471,6 +470,12 @@ export const createTicketFromChat = async (ticketData) => {
             throw new Error('Données de ticket incomplètes');
         }
 
+        // Vérifier que l'ID de l'utilisateur est valide
+        if (!ticketData.id_utilisateur || ticketData.id_utilisateur <= 0) {
+            console.error('ID utilisateur invalide:', ticketData.id_utilisateur);
+            throw new Error('ID utilisateur invalide. Veuillez vous reconnecter.');
+        }
+
         // Transformer les données en format attendu par l'API
         const transformedData = {
             titre: ticketData.title,
@@ -478,7 +483,7 @@ export const createTicketFromChat = async (ticketData) => {
             date_debut: ticketData.startDate,
             date_fin_prevue: ticketData.endDate,
             date_fin_reelle: '',
-            id_demandeur: ticketData.id_demandeur,
+            id_demandeur: ticketData.id_utilisateur,
             id_utilisateur: ticketData.id_utilisateur,
             id_societe: ticketData.id_societe,
             id_emplacement: ticketData.id_emplacement,
@@ -491,6 +496,11 @@ export const createTicketFromChat = async (ticketData) => {
 
         console.log('Données envoyées à l\'API:', transformedData);
 
+        // Vérifier si le token est présent
+        if (!token) {
+            throw new Error('Token d\'authentification manquant. Veuillez vous reconnecter.');
+        }
+
         const response = await axios.post('/api/tickets', transformedData, {
             headers: {
                 'Content-Type': 'application/json',
@@ -501,9 +511,24 @@ export const createTicketFromChat = async (ticketData) => {
         return response.data;
     } catch (error) {
         console.error('Error in createTicketFromChat:', error);
-        if (error.response?.data?.errors) {
-            console.error('Erreurs de validation:', error.response.data.errors);
+        
+        // Gestion spécifique des erreurs
+        if (error.response?.status === 422) {
+            const validationErrors = error.response.data.errors;
+            if (validationErrors.id_demandeur) {
+                throw new Error('Erreur d\'authentification. Veuillez vous reconnecter.');
+            }
+            // Afficher les autres erreurs de validation
+            const errorMessages = Object.entries(validationErrors)
+                .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+                .join('\n');
+            throw new Error(`Erreurs de validation:\n${errorMessages}`);
+        } else if (error.response?.status === 401) {
+            throw new Error('Session expirée. Veuillez vous reconnecter.');
+        } else if (error.response?.status === 403) {
+            throw new Error('Vous n\'avez pas les permissions nécessaires pour créer un ticket.');
+        } else {
+            throw new Error('Une erreur est survenue lors de la création du ticket. Veuillez réessayer.');
         }
-        throw error;
     }
 };

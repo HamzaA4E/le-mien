@@ -12,6 +12,7 @@ use App\Models\TypeDemande;
 use App\Models\Statut;
 use App\Models\Utilisateur;
 use App\Models\Executant;
+use App\Models\TicketReport;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,18 @@ class TicketController extends Controller
                 'executant',
                 'reports'
             ]);
+
+            // Restriction pour les demandeurs : ils ne voient que leurs tickets
+            $user = auth()->user();
+            if ($user && method_exists($user, 'isDemandeur') && $user->isDemandeur()) {
+                $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
+                if ($demandeur) {
+                    $query->where('Id_Demandeur', $demandeur->id);
+                } else {
+                    // Aucun ticket si le demandeur n'est pas trouvé
+                    $query->whereRaw('1=0');
+                }
+            }
 
             // Appliquer les filtres
             if ($request->filled('titre')) {
@@ -142,7 +155,7 @@ class TicketController extends Controller
                     },
                 ],
                 'date_fin_reelle' => 'nullable|date',
-                'id_demandeur' => 'required|exists:T_DEMDEUR,id',
+                'id_demandeur' => 'required|exists:T_UTILISAT,id',
                 'id_utilisateur' => 'required|exists:T_UTILISAT,id',
                 'id_societe' => 'required|exists:T_SOCIETE,id',
                 'id_emplacement' => 'required|exists:T_EMPLACEMENT,id',
@@ -158,6 +171,29 @@ class TicketController extends Controller
             DB::beginTransaction();
 
             try {
+                // Récupérer l'utilisateur
+                $utilisateur = Utilisateur::find($validated['id_demandeur']);
+                if (!$utilisateur) {
+                    throw new \Exception('Utilisateur non trouvé');
+                }
+
+                // Vérifier si un demandeur existe déjà avec cette désignation
+                $demandeur = Demandeur::where('designation', $utilisateur->designation)->first();
+                
+                // Si aucun demandeur n'existe, en créer un
+                if (!$demandeur) {
+                    $demandeur = Demandeur::create([
+                        'designation' => $utilisateur->designation,
+                        'id_service' => $utilisateur->id_service ?? 1,
+                        'statut' => 1,
+                        'is_active' => true
+                    ]);
+                    Log::info('Nouveau demandeur créé:', ['id' => $demandeur->id, 'designation' => $demandeur->designation]);
+                }
+
+                // Mettre à jour l'id_demandeur avec l'ID du demandeur
+                $validated['id_demandeur'] = $demandeur->id;
+
                 Log::info('Valeurs brutes des dates:', [
                     'date_debut' => $validated['date_debut'],
                     'date_fin_prevue' => $validated['date_fin_prevue'],
@@ -329,7 +365,7 @@ class TicketController extends Controller
                 'Commentaire' => 'nullable|string',
                 'Id_Priorite' => 'sometimes|exists:T_PRIORITE,id',
                 'Id_Statut' => 'sometimes|exists:T_STATUT,id',
-                'Id_Demandeur' => 'sometimes|exists:T_DEMDEUR,id',
+                'Id_Demandeur' => 'sometimes|exists:T_UTILISAT,id',
                 'Id_Societe' => 'sometimes|exists:T_SOCIETE,id',
                 'Id_Emplacement' => 'sometimes|exists:T_EMPLACEMENT,id',
                 'Id_Categorie' => 'sometimes|exists:T_CATEGORIE,id',
@@ -839,6 +875,243 @@ class TicketController extends Controller
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la modification du commentaire: ' . $e->getMessage());
             return response()->json(['error' => 'Erreur lors de la modification du commentaire'], 500);
+        }
+    }
+
+    public function pending(Request $request)
+    {
+        try {
+            $tickets = Ticket::with([
+                'statut',
+                'priorite',
+                'typeDemande',
+                'demandeur',
+                'societe',
+                'emplacement',
+                'categorie',
+                'executant'
+            ]);
+
+            if ($request->boolean('show_rejected')) {
+                $tickets->where('Id_Statut', 4); // Statut "Refusé"
+            } else {
+                $tickets->where('Id_Statut', 1); // Statut "Nouveau"
+            }
+
+            $tickets = $tickets->orderBy('DateCreation', 'desc')
+                             ->get();
+
+            return response()->json($tickets);
+        } catch (\Exception $e) {
+            Log::error('Error fetching pending tickets', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des tickets en attente',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function approve($id)
+    {
+        try {
+            $ticket = Ticket::findOrFail($id);
+            $ticket->Id_Statut = 2; // Statut "En instance"
+            $ticket->save();
+
+            return response()->json([
+                'message' => 'Ticket approuvé avec succès',
+                'ticket' => $ticket
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error approving ticket', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de l\'approbation du ticket',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function reject($id)
+    {
+        try {
+            $ticket = Ticket::findOrFail($id);
+            $refuseId = \App\Models\Statut::where('designation', 'Refusé')->value('id');
+            $ticket->Id_Statut = $refuseId; // Statut "Refusé"
+            $ticket->save();
+
+            return response()->json([
+                'message' => 'Ticket refusé avec succès',
+                'ticket' => $ticket
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error rejecting ticket', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors du refus du ticket',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function completed()
+    {
+        try {
+            $user = auth()->user();
+            $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
+
+            if (!$demandeur) {
+                return response()->json([
+                    'message' => 'Demandeur non trouvé'
+                ], 404);
+            }
+
+            $tickets = Ticket::with([
+                'statut',
+                'priorite',
+                'typeDemande',
+                'demandeur',
+                'societe',
+                'emplacement',
+                'categorie',
+                'executant'
+            ])
+            ->where('Id_Demandeur', $demandeur->id)
+            ->whereHas('statut', function($q) {
+                $q->where('designation', 'Terminé');
+            })
+            ->orderBy('DateCreation', 'desc')
+            ->get();
+
+            return response()->json($tickets);
+        } catch (\Exception $e) {
+            Log::error('Error fetching completed tickets', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des tickets terminés',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function demandeurApprove($id)
+    {
+        try {
+            $ticket = Ticket::findOrFail($id);
+            $user = auth()->user();
+            $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
+
+            // Vérifier que l'utilisateur est bien le demandeur du ticket
+            if ($ticket->Id_Demandeur !== $demandeur->id) {
+                return response()->json([
+                    'message' => 'Vous n\'êtes pas autorisé à approuver ce ticket'
+                ], 403);
+            }
+
+            // Vérifier que le ticket est bien en statut "Terminé"
+            if ($ticket->statut->designation !== 'Terminé') {
+                return response()->json([
+                    'message' => 'Seuls les tickets terminés peuvent être approuvés'
+                ], 400);
+            }
+
+            // Mettre à jour le statut du ticket
+            $statutCloture = Statut::where('designation', 'Clôturé')->first();
+            $ticket->Id_Statut = $statutCloture->id;
+            $ticket->DateFinReelle = date('d/m/Y H:i:s');
+            $ticket->save();
+
+            return response()->json([
+                'message' => 'Ticket approuvé avec succès',
+                'ticket' => $ticket
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error approving ticket by demandeur', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de l\'approbation du ticket',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function demandeurReject($id)
+    {
+        try {
+            Log::info('Début du rejet du ticket par le demandeur', ['ticket_id' => $id]);
+            
+            $ticket = Ticket::with(['statut'])->findOrFail($id);
+            Log::info('Ticket trouvé', ['ticket' => $ticket->toArray()]);
+            
+            $user = auth()->user();
+            Log::info('Utilisateur connecté', ['user' => $user->toArray()]);
+            
+            $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
+            Log::info('Demandeur trouvé', ['demandeur' => $demandeur ? $demandeur->toArray() : null]);
+
+            if (!$demandeur) {
+                Log::error('Demandeur non trouvé pour l\'utilisateur', ['user' => $user->toArray()]);
+                return response()->json([
+                    'message' => 'Demandeur non trouvé'
+                ], 404);
+            }
+
+            // Vérifier que l'utilisateur est bien le demandeur du ticket
+            if ($ticket->Id_Demandeur !== $demandeur->id) {
+                Log::warning('Tentative de rejet non autorisée', [
+                    'ticket_demandeur_id' => $ticket->Id_Demandeur,
+                    'user_demandeur_id' => $demandeur->id
+                ]);
+                return response()->json([
+                    'message' => 'Vous n\'êtes pas autorisé à refuser ce ticket'
+                ], 403);
+            }
+
+            // Vérifier que le ticket est bien en statut "Terminé"
+            if ($ticket->statut->designation !== 'Terminé') {
+                Log::warning('Tentative de rejet d\'un ticket non terminé', [
+                    'ticket_statut' => $ticket->statut->designation
+                ]);
+                return response()->json([
+                    'message' => 'Seuls les tickets terminés peuvent être refusés'
+                ], 400);
+            }
+
+            // Mettre à jour le statut du ticket
+            $statutEnCours = Statut::where('designation', 'En cours')->first();
+            if (!$statutEnCours) {
+                throw new \Exception('Statut "En cours" non trouvé dans la base de données');
+            }
+            
+            $ticket->Id_Statut = $statutEnCours->id;
+            $ticket->save();
+
+            return response()->json([
+                'message' => 'Ticket remis en cours',
+                'ticket' => $ticket->load(['statut'])
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error rejecting ticket by demandeur', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors du refus du ticket',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 } 

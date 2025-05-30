@@ -71,7 +71,8 @@ const TicketList = () => {
     dateFinReelleDebut: searchParams.get('dateFinReelleDebut') || '',
     dateFinReelleFin: searchParams.get('dateFinReelleFin') || '',
     type_demande: searchParams.get('type_demande') || '',
-    titre: searchParams.get('titre') || ''
+    titre: searchParams.get('titre') || '',
+    showRejectedByDemandeur: false
   }));
 
   // Filtre de titre local (sans debounce pour l'affichage immédiat)
@@ -109,6 +110,18 @@ const TicketList = () => {
     );
   }, []);
 
+  // Calcul du nombre de tickets refusés par le demandeur
+  const rejectedTicketsCount = useMemo(() => {
+    if (!allTickets || !(niveau === '1' || niveau === 1)) return 0;
+    return allTickets.filter(ticket => 
+      ticket.reports && 
+      ticket.reports.some(report => 
+        report.type === 'rejet' && 
+        report.Id_Demandeur === ticket.Id_Demandeur
+      )
+    ).length;
+  }, [allTickets, niveau]);
+
   // Tickets filtrés localement
   const filteredTickets = useMemo(() => {
     let filtered = allTickets;
@@ -117,9 +130,33 @@ const TicketList = () => {
     if (localTitleFilter.trim()) {
       filtered = filterTicketsLocally(filtered, localTitleFilter);
     }
-    
+
+    // Pour les administrateurs, gérer l'affichage des tickets refusés par le demandeur
+    if (niveau === '1' || niveau === 1) {
+      if (filters.showRejectedByDemandeur) {
+        // Si le filtre est activé, ne montrer que les tickets refusés par le demandeur
+        filtered = filtered.filter(ticket => 
+          ticket.reports && 
+          ticket.reports.some(report => 
+            report.type === 'rejet' && 
+            report.Id_Demandeur === ticket.Id_Demandeur
+          )
+        );
+      } else {
+        // Par défaut, exclure les tickets refusés par le demandeur
+        filtered = filtered.filter(ticket => 
+          !(ticket.reports && 
+            ticket.reports.some(report => 
+              report.type === 'rejet' && 
+              report.Id_Demandeur === ticket.Id_Demandeur
+            )
+          )
+        );
+      }
+    }
+
     return filtered;
-  }, [allTickets, localTitleFilter, filterTicketsLocally]);
+  }, [allTickets, localTitleFilter, filterTicketsLocally, niveau, filters.showRejectedByDemandeur]);
 
   // Calcul du nombre de rapports non lus
   const totalUnreadReports = useMemo(() => {
@@ -356,7 +393,8 @@ const TicketList = () => {
       dateFinReelleDebut: '',
       dateFinReelleFin: '',
       type_demande: '',
-      titre: ''
+      titre: '',
+      showRejectedByDemandeur: false
     });
     setLocalTitleFilter('');
     setShowUnreadReportsOnly(false);
@@ -445,6 +483,28 @@ const TicketList = () => {
                 {statut.designation}
               </button>
             ))}
+            {/* Bouton pour les tickets refusés par le demandeur */}
+            {(niveau === '1' || niveau === 1) && (
+              <button
+                onClick={() => setFilters(prev => ({
+                  ...prev,
+                  showRejectedByDemandeur: !prev.showRejectedByDemandeur,
+                  statut: !prev.showRejectedByDemandeur ? '' : prev.statut
+                }))}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
+                  filters.showRejectedByDemandeur
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <span>Tickets refusés par le demandeur</span>
+                {rejectedTicketsCount > 0 && (
+                  <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                    {rejectedTicketsCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
           {/* Groupe Type de demande à droite + bouton Rapports non lus */}
           <div className="flex gap-2 items-center">
@@ -670,13 +730,17 @@ const TicketList = () => {
           {filteredTickets.map((ticket) => (
             <div
               key={ticket.id}
-              className={`rounded-2xl shadow-lg border flex flex-col md:flex-row items-center justify-between min-h-[140px] px-6 py-5 mb-6 transition-transform hover:scale-[1.015] hover:shadow-2xl group`}
+              className={`rounded-2xl shadow-lg border flex flex-col md:flex-row items-center justify-between min-h-[140px] px-6 py-5 mb-6 transition-transform hover:scale-[1.015] hover:shadow-2xl group
+                ${ticket.reports && ticket.reports.some(report => report.type === 'rejet' && report.Id_Demandeur === ticket.Id_Demandeur) ? 'border-red-600 bg-red-50' : ''}
+              `}
               style={{ transition: 'box-shadow 0.2s, transform 0.2s' }}
             >
               <div className="flex-1 flex flex-col w-full">
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <h3 className="text-2xl font-bold text-gray-900 uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+                    <h3 className={`text-2xl font-bold uppercase tracking-wide group-hover:text-blue-700 transition-colors ${
+                      ticket.reports && ticket.reports.some(report => report.type === 'rejet' && report.Id_Demandeur === ticket.Id_Demandeur) ? 'text-red-700' : 'text-gray-900'
+                    }`}>
                       {ticket.Titre}
                     </h3>
                     <div className="flex gap-2">
@@ -701,10 +765,9 @@ const TicketList = () => {
                           Clôturé le : {formatDate(ticket.DateFinReelle)}
                         </span>
                       )}
-                      {ticket.reports && ticket.reports.filter(report => !report.is_viewed).length > 0 && 
-                       ticket.Id_Demandeur === user?.id && (
+                      {ticket.reports && ticket.reports.some(report => report.type === 'rejet' && report.Id_Demandeur === ticket.Id_Demandeur) && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-200">
-                          {ticket.reports.filter(report => !report.is_viewed).length} rapport(s) non lu(s)
+                          Refusé par le demandeur
                         </span>
                       )}
                     </div>

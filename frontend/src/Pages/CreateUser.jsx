@@ -10,12 +10,27 @@ const CreateUser = () => {
     email: '',
     password: '',
     niveau: '',
-    statut: '1' // 1 par défaut pour actif
+    statut: '1', // 1 par défaut pour actif
+    id_service: '' // Ajout du champ id_service
   });
 
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Charger la liste des services
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await axios.get('/api/services');
+        setServices(response.data);
+      } catch (error) {
+        console.error('Erreur lors du chargement des services:', error);
+      }
+    };
+    fetchServices();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,7 +54,8 @@ const CreateUser = () => {
         email: '',
         password: '',
         niveau: '',
-        statut: '1'
+        statut: '1',
+        id_service: ''
       });
     } catch (error) {
       console.error('Erreur lors de la création:', error);
@@ -119,8 +135,29 @@ const CreateUser = () => {
                 <option value="">Sélectionner un niveau</option>
                 <option value="1">Administrateur</option>
                 <option value="2">Responsable</option>
+                <option value="3">Demandeur</option>
               </select>
             </div>
+
+            {formData.niveau === '3' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Service</label>
+                <select
+                  name="id_service"
+                  value={formData.id_service}
+                  onChange={handleChange}
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                  <option value="">Sélectionner un service</option>
+                  {services.map(service => (
+                    <option key={service.id} value={service.id}>
+                      {service.designation}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Statut</label>

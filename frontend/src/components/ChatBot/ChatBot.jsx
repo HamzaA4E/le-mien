@@ -105,6 +105,16 @@ const ChatBot = () => {
                 }
             };
 
+            // Déterminer le service en fonction du niveau d'utilisateur
+            let service = 'Support';
+            if (userInfo.niveau === 1) {
+                service = 'Administration';
+            } else if (userInfo.niveau === 2) {
+                service = 'Demandeur';
+            }
+
+            contextWithOptions.service = service;
+
             console.log('Options envoyées au chat:', contextWithOptions.ticketOptions);
 
             const response = await chatWithGemini(userMessage, messages, contextWithOptions);

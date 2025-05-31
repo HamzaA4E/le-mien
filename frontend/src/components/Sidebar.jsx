@@ -61,10 +61,9 @@ const Sidebar = () => {
     { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
     { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
     { path: '/admin/pending-tickets', icon: <FaClock />, text: 'Tickets en attente' },
-    { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
+    { path: '/admin/register-requests', icon: <FaUserPlus />, text: 'Demandes d\'inscription' },
     { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
-    { path: '/admin/register-requests', icon: <FaUserPlus />, text: 'Demandes d\'inscription' },
     { path: '/admin/entities', icon: <FaCogs />, text: 'Gestion des référentiels' },
     { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
   ];

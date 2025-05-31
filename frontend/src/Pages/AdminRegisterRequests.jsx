@@ -171,7 +171,7 @@ const AdminRegisterRequests = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-4 py-8">
         <div className="mb-8">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-900">Gestion des demandes d'inscription</h1>
@@ -226,36 +226,36 @@ const AdminRegisterRequests = () => {
         {/* Tableau des demandes */}
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="overflow-x-auto">
-            <table className="min-w-full w-full table-fixed divide-y divide-gray-200">
+            <table className="min-w-full w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom complet</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Niveau</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date de demande</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px] max-w-[260px]">Nom complet</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px] max-w-[260px]">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px] max-w-[180px]">Niveau</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px] max-w-[200px]">Service</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] max-w-[140px]">Statut</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px] max-w-[180px]">Date de demande</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px] max-w-[140px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredRequests.map((request) => (
                   <tr key={request.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">{request.full_name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">{request.email}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{formatLevel(request.level)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 truncate max-w-xs">
-                      {request.level === 'directeur_general' ? '-' : (request.service?.designation || 'N/A')}
+                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-normal break-words max-w-[220px] align-top">{request.full_name}</td>
+                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-normal break-words max-w-[220px] align-top">{request.email}</td>
+                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-normal break-words min-w-[120px] max-w-[180px] align-top">{formatLevel(request.level)}</td>
+                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-normal break-words max-w-[180px] align-top">
+                      {request.level === 'directeur_general' ? 'Pas de service' : (request.service?.designation || 'N/A')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap min-w-[100px] max-w-[140px] align-top">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(request.status)}`}>
                         {getStatusLabel(request.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
+                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap min-w-[140px] max-w-[180px] align-top">
                       {new Date(request.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
+                    <td className="px-4 py-4 text-sm font-medium whitespace-nowrap min-w-[120px] max-w-[140px] align-top">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleViewDetails(request)}
@@ -333,6 +333,14 @@ const AdminRegisterRequests = () => {
                   <p className="text-sm font-medium text-gray-500">Date de demande</p>
                   <p className="mt-1 text-sm text-gray-900">
                     {new Date(selectedRequest.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Date d'action</p>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {(selectedRequest.status === 'approved' || selectedRequest.status === 'rejected')
+                      ? new Date(selectedRequest.updated_at).toLocaleString()
+                      : '-'}
                   </p>
                 </div>
               </div>

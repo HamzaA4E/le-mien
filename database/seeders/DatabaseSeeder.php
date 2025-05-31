@@ -21,12 +21,12 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Supprimer l'utilisateur s'il existe déjà
-        Utilisateur::where('email', 'it.support@famasser.com')->delete();
+        Utilisateur::where('email', 'herohamza24@gmail.com')->delete();
 
         // Créer le nouvel utilisateur
         Utilisateur::create([
             'designation' => 'Reda DAMRI',
-            'email' => 'it.support@famasser.com',
+            'email' => 'herohamza24@gmail.com',
             'password' => Hash::make('password'),
             'niveau' => 1,
             'statut' => 1,

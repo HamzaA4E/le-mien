@@ -64,6 +64,7 @@ const Sidebar = () => {
     { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
     { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
+    { path: '/admin/register-requests', icon: <FaUserPlus />, text: 'Demandes d\'inscription' },
     { path: '/admin/entities', icon: <FaCogs />, text: 'Gestion des référentiels' },
     { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
   ];

@@ -97,4 +97,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Route pour modifier un commentaire d'un ticket
     Route::put('/tickets/{ticketId}/comment/{commentId}', [TicketController::class, 'updateComment']);
+
+    // Routes pour la gestion des demandes d'inscription
+    Route::get('/admin/register-requests', [RegisterRequestController::class, 'index']);
+    Route::post('/admin/register-requests/{id}/approve', [RegisterRequestController::class, 'approve']);
+    Route::post('/admin/register-requests/{id}/reject', [RegisterRequestController::class, 'reject']);
 }); 

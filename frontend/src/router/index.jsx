@@ -1,18 +1,19 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import LoginPage from '../Pages/LoginPage';
-import Dashboard from '../Pages/Dashboard';
-import TicketList from '../Pages/TicketList';
+import LoginPage from '../pages/LoginPage';
+import Dashboard from '../pages/Dashboard';
+import TicketList from '../pages/TicketList';
 import ChatBot from '../components/ChatBot/ChatBot';
-import CreateUser from '../Pages/CreateUser';
-import Profile from '../Pages/Profile';
-import ListUsers from '../Pages/ListUsers';
-import TicketDetails from '../Pages/TicketDetails';
-import EditTicket from '../Pages/EditTicket';
-import AdminEntitiesManagement from '../Pages/AdminEntitiesManagement';
-import PendingTicketsPage from '../Pages/PendingTicketsPage';
-import CompletedTicketsPage from '../Pages/CompletedTicketsPage';
-import Register from '../Pages/Register';
+import CreateUser from '../pages/CreateUser';
+import Profile from '../pages/Profile';
+import ListUsers from '../pages/ListUsers';
+import TicketDetails from '../pages/TicketDetails';
+import EditTicket from '../pages/EditTicket';
+import AdminEntitiesManagement from '../pages/AdminEntitiesManagement';
+import PendingTicketsPage from '../pages/PendingTicketsPage';
+import CompletedTicketsPage from '../pages/CompletedTicketsPage';
+import Register from '../pages/Register';
+import RegisterRequests from '../pages/AdminRegisterRequests';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -92,6 +93,11 @@ const router = createBrowserRouter([
   {
     path: '/admin/pending-tickets',
     element: <PrivateRoute><PendingTicketsPage /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/admin/register-requests',
+    element: <PrivateRoute><RegisterRequests /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
   {

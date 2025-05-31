@@ -11,6 +11,8 @@ use App\Models\Service;
 use App\Models\RegisterRequest;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
 
 class RegisterRequestController extends Controller
 {
@@ -155,6 +157,115 @@ class RegisterRequestController extends Controller
             return response()->json([
                 'message' => 'Une erreur est survenue lors de l\'envoi de la demande: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function index()
+    {
+        try {
+            $requests = RegisterRequest::with('service')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json($requests);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des demandes d\'inscription', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Une erreur est survenue lors de la récupération des demandes'
+            ], 500);
+        }
+    }
+
+    public function approve($id)
+    {
+        try {
+            $request = RegisterRequest::findOrFail($id);
+
+            if ($request->status !== 'pending') {
+                return response()->json([
+                    'message' => 'Cette demande a déjà été traitée'
+                ], 400);
+            }
+
+            // Créer l'utilisateur avec un mot de passe temporaire
+            $temporaryPassword = Str::random(10);
+            $user = new \App\Models\User();
+            $user->name = $request->full_name;
+            $user->email = $request->email;
+            $user->password = Hash::make($temporaryPassword);
+            $user->niveau = $this->getNiveauFromLevel($request->level);
+            $user->service_id = $request->service_id;
+            $user->save();
+
+            // Mettre à jour le statut de la demande
+            $request->status = 'approved';
+            $request->save();
+
+            // Envoyer un email à l'utilisateur avec ses identifiants
+            Mail::to($request->email)->send(new \App\Mail\RegistrationApproved($request->full_name, $request->email, $temporaryPassword));
+
+            return response()->json([
+                'message' => 'Demande approuvée avec succès'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de l\'approbation de la demande', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Une erreur est survenue lors de l\'approbation de la demande'
+            ], 500);
+        }
+    }
+
+    public function reject($id)
+    {
+        try {
+            $request = RegisterRequest::findOrFail($id);
+
+            if ($request->status !== 'pending') {
+                return response()->json([
+                    'message' => 'Cette demande a déjà été traitée'
+                ], 400);
+            }
+
+            // Mettre à jour le statut de la demande
+            $request->status = 'rejected';
+            $request->save();
+
+            // Envoyer un email à l'utilisateur
+            Mail::to($request->email)->send(new \App\Mail\RegistrationRejected($request->full_name));
+
+            return response()->json([
+                'message' => 'Demande rejetée avec succès'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors du rejet de la demande', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Une erreur est survenue lors du rejet de la demande'
+            ], 500);
+        }
+    }
+
+    private function getNiveauFromLevel($level)
+    {
+        switch ($level) {
+            case 'employe':
+                return 4;
+            case 'directeur_departement':
+                return 3;
+            case 'directeur_general':
+                return 2;
+            default:
+                return 4;
         }
     }
 } 

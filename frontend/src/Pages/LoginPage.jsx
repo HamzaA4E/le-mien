@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import { FaUser, FaLock } from 'react-icons/fa';
 
@@ -111,6 +111,15 @@ const LoginPage = () => {
             )}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-gray-600">
+            Vous n'avez pas de compte ?{' '}
+            <Link to="/register" className="text-indigo-600 hover:text-indigo-500 font-medium">
+              Demander un compte
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -18,9 +18,12 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\TicketStatsController;
 use App\Http\Controllers\ExecutantController;
 use App\Http\Controllers\TicketReportController;
+use App\Http\Controllers\RegisterRequestController;
 
 // Routes publiques
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/public/services', [ServiceController::class, 'publicIndex']);
+Route::post('/public/register-request', [RegisterRequestController::class, 'store']);
 
 // Routes protégées
 Route::middleware('auth:sanctum')->group(function () {

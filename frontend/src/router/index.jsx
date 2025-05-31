@@ -12,6 +12,7 @@ import EditTicket from '../Pages/EditTicket';
 import AdminEntitiesManagement from '../Pages/AdminEntitiesManagement';
 import PendingTicketsPage from '../Pages/PendingTicketsPage';
 import CompletedTicketsPage from '../Pages/CompletedTicketsPage';
+import Register from '../Pages/Register';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -36,6 +37,11 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: <LoginPage />,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/register',
+    element: <Register />,
     errorElement: <ErrorBoundary />,
   },
   {

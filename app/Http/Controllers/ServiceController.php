@@ -64,4 +64,22 @@ class ServiceController extends Controller
         $service->update(['is_active' => false]);
         return response()->json(['success' => true]);
     }
+
+    public function publicIndex()
+    {
+        try {
+            $services = Service::select('id', 'designation as name')
+                             ->where('is_active', true)
+                             ->orderBy('designation')
+                             ->get();
+            
+            return response()->json($services);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des services: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des services',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 

@@ -15,7 +15,7 @@ class Utilisateur extends Authenticatable
 
     // Constantes pour les niveaux d'utilisateur
     const NIVEAU_ADMINISTRATEUR = 1;
-    const NIVEAU_DIRECTEUR_GENERAL = 2;
+    const NIVEAU_directeur_general = 2;
     const NIVEAU_DIRECTEUR_DEPARTEMENT = 3;
     const NIVEAU_DEMANDEUR = 4;
 
@@ -60,7 +60,7 @@ class Utilisateur extends Authenticatable
      */
     public function isDirecteurGeneral()
     {
-        return $this->niveau === self::NIVEAU_DIRECTEUR_GENERAL;
+        return $this->niveau === self::NIVEAU_directeur_general;
     }
 
     /**

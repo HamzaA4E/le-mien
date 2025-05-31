@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
+import { FaSyncAlt } from 'react-icons/fa';
 
 const PendingTicketsPage = () => {
     const [tickets, setTickets] = useState([]);
@@ -9,12 +10,14 @@ const PendingTicketsPage = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [showRejected, setShowRejected] = useState(false);
+    const [spin, setSpin] = useState(false);
 
     useEffect(() => {
         fetchTickets();
     }, [showRejected]);
 
     const fetchTickets = async () => {
+        setSpin(true);
         try {
             const response = await axios.get('/api/tickets/pending', {
                 params: { show_rejected: showRejected }
@@ -24,6 +27,8 @@ const PendingTicketsPage = () => {
         } catch (err) {
             setError('Erreur lors du chargement des tickets');
             setLoading(false);
+        } finally {
+            setTimeout(() => setSpin(false), 600);
         }
     };
 
@@ -58,9 +63,18 @@ const PendingTicketsPage = () => {
         <Layout>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">
-                        {showRejected ? 'Tickets refusés' : 'Tickets en attente'}
-                    </h1>
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-2xl font-bold">
+                            {showRejected ? 'Tickets refusés' : 'Tickets en attente'}
+                        </h1>
+                        <button
+                            onClick={fetchTickets}
+                            className="p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
+                            title="Rafraîchir"
+                        >
+                            <FaSyncAlt className={spin ? 'animate-spin-once' : ''} />
+                        </button>
+                    </div>
                     <button
                         onClick={() => setShowRejected(!showRejected)}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${

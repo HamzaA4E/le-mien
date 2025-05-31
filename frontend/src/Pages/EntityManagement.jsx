@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from '../utils/axios';
+import { FaSyncAlt } from 'react-icons/fa';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -12,6 +13,7 @@ const EntityManagement = ({ entity, label }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
+  const [spin, setSpin] = useState(false);
 
   const getCacheKey = (entity) => `entity_cache_${entity}`;
 
@@ -162,7 +164,20 @@ const EntityManagement = ({ entity, label }) => {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded shadow">
-      <h2 className="text-xl font-bold mb-4">Gestion des {label}s</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">Gestion des {label}s</h2>
+        <button
+          onClick={() => {
+            setSpin(true);
+            fetchItems();
+            setTimeout(() => setSpin(false), 600);
+          }}
+          className="p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
+          title="Rafraîchir"
+        >
+          <FaSyncAlt className={spin ? 'animate-spin-once' : ''} />
+        </button>
+      </div>
       <div className="flex gap-2 mb-4">
         <input
           type="text"

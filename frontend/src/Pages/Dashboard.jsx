@@ -49,22 +49,23 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [spin, setSpin] = useState(false);
 
+  const fetchStats = async () => {
+    setSpin(true);
+    setLoading(true);
+    try {
+      // Un seul appel API pour toutes les statistiques
+      const response = await axios.get('/api/dashboard/stats');
+      setStats(response.data);
+      setError('');
+    } catch (err) {
+      setError('Erreur lors du chargement des statistiques');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSpin(false), 600);
+    }
+  };
+
   useEffect(() => {
-    const fetchStats = async () => {
-      setSpin(true);
-      setLoading(true);
-      try {
-        // Un seul appel API pour toutes les statistiques
-        const response = await axios.get('/api/dashboard/stats');
-        setStats(response.data);
-        setError('');
-      } catch (err) {
-        setError('Erreur lors du chargement des statistiques');
-      } finally {
-        setLoading(false);
-        setTimeout(() => setSpin(false), 600);
-      }
-    };
     fetchStats();
   }, []);
 
@@ -99,7 +100,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-2xl font-bold">Tableau de bord</h1>
             <button
-              onClick={() => window.location.reload()}
+              onClick={fetchStats}
               className="ml-2 p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
               title="Rafraîchir"
             >
@@ -185,7 +186,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold">Tableau de bord</h1>
           <button
-            onClick={() => window.location.reload()}
+            onClick={fetchStats}
             className="ml-2 p-2 rounded-full bg-gray-100 hover:bg-blue-100 text-blue-600 transition"
             title="Rafraîchir"
           >

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Config;
 use App\Models\Service;
 use App\Models\RegisterRequest;
+use App\Models\Utilisateur;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -179,45 +180,127 @@ class RegisterRequestController extends Controller
         }
     }
 
-    public function approve($id)
+    public function approve(Request $request, $id)
     {
         try {
-            $request = RegisterRequest::findOrFail($id);
+            Log::info('Début de l\'approbation de la demande', [
+                'request_id' => $id,
+                'request_data' => $request->all()
+            ]);
 
-            if ($request->status !== 'pending') {
+            $request->validate([
+                'password' => 'required|string|min:8'
+            ]);
+
+            $registerRequest = RegisterRequest::findOrFail($id);
+            Log::info('Demande trouvée', [
+                'request' => $registerRequest->toArray()
+            ]);
+
+            if ($registerRequest->status !== 'pending') {
+                Log::warning('Tentative d\'approbation d\'une demande déjà traitée', [
+                    'request_id' => $id,
+                    'status' => $registerRequest->status
+                ]);
                 return response()->json([
                     'message' => 'Cette demande a déjà été traitée'
                 ], 400);
             }
 
-            // Créer l'utilisateur avec un mot de passe temporaire
-            $temporaryPassword = Str::random(10);
-            $user = new \App\Models\User();
-            $user->name = $request->full_name;
-            $user->email = $request->email;
-            $user->password = Hash::make($temporaryPassword);
-            $user->niveau = $this->getNiveauFromLevel($request->level);
-            $user->service_id = $request->service_id;
-            $user->save();
+            // Vérifier si l'utilisateur existe déjà
+            $existingUser = Utilisateur::where('email', $registerRequest->email)->first();
+            if ($existingUser) {
+                Log::warning('Tentative de création d\'un utilisateur avec un email existant', [
+                    'email' => $registerRequest->email
+                ]);
+                return response()->json([
+                    'message' => 'Un utilisateur avec cet email existe déjà'
+                ], 400);
+            }
+
+            // Créer l'utilisateur avec le mot de passe fourni
+            try {
+                $user = new Utilisateur();
+                $user->designation = $registerRequest->full_name;
+                $user->email = $registerRequest->email;
+                $user->password = Hash::make($request->password);
+                $user->niveau = $this->getNiveauFromLevel($registerRequest->level);
+                $user->id_service = $registerRequest->service_id;
+                $user->save();
+
+                Log::info('Utilisateur créé avec succès', [
+                    'user_id' => $user->id,
+                    'email' => $user->email
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de la création de l\'utilisateur', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'user_data' => [
+                        'designation' => $registerRequest->full_name,
+                        'email' => $registerRequest->email,
+                        'niveau' => $this->getNiveauFromLevel($registerRequest->level),
+                        'service_id' => $registerRequest->service_id
+                    ]
+                ]);
+                throw $e;
+            }
 
             // Mettre à jour le statut de la demande
-            $request->status = 'approved';
-            $request->save();
+            try {
+                DB::update(
+                    "UPDATE register_requests SET status = ?, updated_at = GETDATE() WHERE id = ?",
+                    ['approved', $registerRequest->id]
+                );
+                Log::info('Statut de la demande mis à jour', [
+                    'request_id' => $registerRequest->id,
+                    'new_status' => 'approved'
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de la mise à jour du statut de la demande', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'request_id' => $registerRequest->id
+                ]);
+                throw $e;
+            }
 
             // Envoyer un email à l'utilisateur avec ses identifiants
-            Mail::to($request->email)->send(new \App\Mail\RegistrationApproved($request->full_name, $request->email, $temporaryPassword));
+            try {
+                Mail::to($registerRequest->email)->send(new \App\Mail\RegistrationApproved($registerRequest->full_name, $registerRequest->email, $request->password));
+                Log::info('Email envoyé avec succès', [
+                    'email' => $registerRequest->email
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de l\'envoi de l\'email', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'email' => $registerRequest->email
+                ]);
+                // Ne pas échouer si l'email ne peut pas être envoyé
+            }
 
             return response()->json([
                 'message' => 'Demande approuvée avec succès'
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Erreur de validation', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'message' => 'Données invalides',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Erreur lors de l\'approbation de la demande', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request_id' => $id
+                'request_id' => $id,
+                'request_data' => $request->all()
             ]);
             return response()->json([
-                'message' => 'Une erreur est survenue lors de l\'approbation de la demande'
+                'message' => 'Une erreur est survenue lors de l\'approbation de la demande: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -225,23 +308,39 @@ class RegisterRequestController extends Controller
     public function reject($id)
     {
         try {
-            $request = RegisterRequest::findOrFail($id);
+            Log::info('Début du rejet de la demande', ['request_id' => $id]);
 
-            if ($request->status !== 'pending') {
+            $registerRequest = RegisterRequest::findOrFail($id);
+            Log::info('Demande trouvée', ['request' => $registerRequest->toArray()]);
+
+            if ($registerRequest->status !== 'pending') {
+                Log::warning('Tentative de rejet d\'une demande déjà traitée', [
+                    'request_id' => $id,
+                    'status' => $registerRequest->status
+                ]);
                 return response()->json([
                     'message' => 'Cette demande a déjà été traitée'
                 ], 400);
             }
 
-            // Mettre à jour le statut de la demande
-            $request->status = 'rejected';
-            $request->save();
-
-            // Envoyer un email à l'utilisateur
-            Mail::to($request->email)->send(new \App\Mail\RegistrationRejected($request->full_name));
+            // Mettre à jour le statut de la demande avec GETDATE()
+            try {
+                DB::update(
+                    "UPDATE register_requests SET status = 'rejected', updated_at = GETDATE() WHERE id = ?",
+                    [$id]
+                );
+                Log::info('Statut de la demande mis à jour avec succès', ['request_id' => $id]);
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de la mise à jour du statut de la demande', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'request_id' => $id
+                ]);
+                throw $e;
+            }
 
             return response()->json([
-                'message' => 'Demande rejetée avec succès'
+                'message' => 'La demande a été rejetée avec succès'
             ]);
         } catch (\Exception $e) {
             Log::error('Erreur lors du rejet de la demande', [

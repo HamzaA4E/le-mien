@@ -17,7 +17,6 @@ return new class extends Migration
         'T_SERVICE',
         'T_SOCIETE',
         'T_STATUT',
-        'T_TYPEDEMANDE'
     ];
 
     /**

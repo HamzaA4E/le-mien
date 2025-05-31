@@ -8,7 +8,6 @@ use App\Models\Societe;
 use App\Models\Emplacement;
 use App\Models\Priorite;
 use App\Models\Categorie;
-use App\Models\TypeDemande;
 use App\Models\Statut;
 use App\Models\Utilisateur;
 use App\Models\Executant;
@@ -26,7 +25,6 @@ class TicketController extends Controller
             $query = Ticket::with([
                 'statut',
                 'priorite',
-                'typeDemande',
                 'demandeur',
                 'societe',
                 'emplacement',
@@ -45,6 +43,18 @@ class TicketController extends Controller
                     // Aucun ticket si le demandeur n'est pas trouvé
                     $query->whereRaw('1=0');
                 }
+            }
+            // Restriction pour les directeurs département : ils ne voient que les tickets de leur département
+            else if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
+                Log::info('Directeur de département connecté', [
+                    'user_id' => $user->id,
+                    'designation' => $user->designation,
+                    'id_service' => $user->id_service
+                ]);
+                
+                $query->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+                      ->where('T_DEMDEUR.id_service', $user->id_service)
+                      ->select('T_TICKET.*');
             }
 
             // Appliquer les filtres
@@ -71,11 +81,6 @@ class TicketController extends Controller
             }
             if ($request->filled('executant')) {
                 $query->where('Id_Executant', $request->executant);
-            }
-            if ($request->filled('type_demande')) {
-                $query->whereHas('typeDemande', function($q) use ($request) {
-                    $q->where('designation', $request->type_demande);
-                });
             }
 
             // Ajouter le filtre pour les rapports non lus si demandé
@@ -161,7 +166,6 @@ class TicketController extends Controller
                 'id_emplacement' => 'required|exists:T_EMPLACEMENT,id',
                 'id_priorite' => 'required|exists:T_PRIORITE,id',
                 'id_categorie' => 'required|exists:T_CATEGORIE,id',
-                'id_type_demande' => 'required|exists:T_TYPEDEMANDE,id',
                 'id_statut' => 'required|exists:T_STATUT,id',
                 'id_executant' => 'required|exists:T_EXECUTANT,id',
             ]);
@@ -250,7 +254,6 @@ class TicketController extends Controller
                     'Id_Societe' => (int)$validated['id_societe'],
                     'Id_Emplacement' => (int)$validated['id_emplacement'],
                     'Id_Categorie' => (int)$validated['id_categorie'],
-                    'Id_TypeDemande' => (int)$validated['id_type_demande'],
                     'Id_Utilisat' => (int)$validated['id_utilisateur'],
                     'Id_Executant' => (int)$validated['id_executant'],
                     'DateDebut' => $dateDebut,
@@ -303,7 +306,6 @@ class TicketController extends Controller
                 'statut',
                 'priorite',
                 'categorie',
-                'typeDemande',
                 'demandeur',
                 'societe',
                 'emplacement',
@@ -369,7 +371,6 @@ class TicketController extends Controller
                 'Id_Societe' => 'sometimes|exists:T_SOCIETE,id',
                 'Id_Emplacement' => 'sometimes|exists:T_EMPLACEMENT,id',
                 'Id_Categorie' => 'sometimes|exists:T_CATEGORIE,id',
-                'Id_TypeDemande' => 'sometimes|exists:T_TYPEDEMANDE,id',
                 'Id_Executant' => 'sometimes|exists:T_EXECUTANT,id',
                 'DateDebut' => 'sometimes|date_format:d/m/Y',
                 'DateFinPrevue' => [
@@ -463,7 +464,7 @@ class TicketController extends Controller
                 ]);
 
                 // Recharger le ticket avec ses relations
-                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'typeDemande', 'executant'])->find($ticket->id);
+                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'executant'])->find($ticket->id);
                 
                 return response()->json($ticket);
             } catch (\Exception $e) {
@@ -539,7 +540,6 @@ class TicketController extends Controller
             // Charger les autres options avec les bonnes clés
             $tables = [
                 'categories' => Categorie::class,
-                'types' => TypeDemande::class,
                 'emplacements' => Emplacement::class,
                 'priorites' => Priorite::class,
                 'demandeurs' => Demandeur::class,
@@ -564,7 +564,7 @@ class TicketController extends Controller
             $options['executants'] = \App\Models\Executant::where('is_active', true)->get();
 
             // Vérifier que toutes les options requises sont présentes
-            $requiredOptions = ['categories', 'types', 'emplacements', 'priorites'];
+            $requiredOptions = ['categories', 'emplacements', 'priorites'];
             $missingOptions = array_filter($requiredOptions, function($option) use ($options) {
                 return empty($options[$option]);
             });
@@ -584,7 +584,7 @@ class TicketController extends Controller
             Log::error('Erreur lors de la récupération des options: ' . $e->getMessage());
             
             $emptyOptions = array_fill_keys([
-                'categories', 'types', 'emplacements', 'priorites', 
+                'categories', 'emplacements', 'priorites', 
                 'demandeurs', 'societes', 'statuts', 'executants'
             ], collect([]));
             
@@ -605,36 +605,72 @@ class TicketController extends Controller
             // Initialiser le tableau des statistiques par statut
             $statsParStatut = [];
             foreach ($statuts as $statut) {
+                $query = Ticket::where('Id_Statut', $statut->id);
+                
+                // Restriction pour les directeurs département : ils ne voient que les tickets de leur département
+                $user = auth()->user();
+                if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
+                    $query->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+                          ->where('T_DEMDEUR.id_service', $user->id_service)
+                          ->select('T_TICKET.*');
+                }
+                
                 $statsParStatut[] = [
                     'id' => $statut->id,
                     'designation' => $statut->designation,
-                    'total' => Ticket::where('Id_Statut', $statut->id)->count()
+                    'total' => $query->count()
                 ];
             }
 
+            // Requête de base pour le total
+            $totalQuery = Ticket::query();
+            
+            // Restriction pour les directeurs département
+            $user = auth()->user();
+            if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
+                $totalQuery->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+                          ->where('T_DEMDEUR.id_service', $user->id_service)
+                          ->select('T_TICKET.*');
+            }
+
             $stats = [
-                'total' => Ticket::count(),
+                'total' => $totalQuery->count(),
                 'par_statut' => $statsParStatut,
                 //Récupérer les statistiques par priorité
                 'par_priorite' => Priorite::where('is_active', true)
                     ->get()
-                    ->map(function($priorite) {
+                    ->map(function($priorite) use ($user) {
+                        $query = $priorite->tickets();
+                        if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
+                            $query->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+                                  ->where('T_DEMDEUR.id_service', $user->id_service)
+                                  ->select('T_TICKET.*');
+                        }
                         return [
                             'priorite' => $priorite->designation,
-                            'total' => $priorite->tickets()->count()
+                            'total' => $query->count()
                         ];
                     }),
                 //Récupérer les statistiques par catégorie
                 'par_categorie' => Categorie::where('is_active', true)
                     ->get()
-                    ->map(function($categorie) {
+                    ->map(function($categorie) use ($user) {
+                        $query = $categorie->tickets();
+                        if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
+                            $query->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+                                  ->where('T_DEMDEUR.id_service', $user->id_service)
+                                  ->select('T_TICKET.*');
+                        }
                         return [
                             'categorie' => $categorie->designation,
-                            'total' => $categorie->tickets()->count()
+                            'total' => $query->count()
                         ];
                     }),
                 //Récupérer les statistiques par demandeur
                 'par_demandeur' => Demandeur::where('is_active', true)
+                    ->when($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement(), function($query) use ($user) {
+                        return $query->where('id_service', $user->id_service);
+                    })
                     ->get()
                     ->map(function($demandeur) {
                         return [
@@ -645,6 +681,7 @@ class TicketController extends Controller
             ];
 
             return response()->json($stats);
+            
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage());
             return response()->json([
@@ -657,7 +694,7 @@ class TicketController extends Controller
     // Utilitaire pour la commande de rappel
     public static function ticketsFinPrevueDans24hNonCloture()
     {
-        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'typeDemande', 'executant'])
+        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'executant'])
             ->finPrevueDans24hNonCloture()
             ->get();
     }
@@ -710,7 +747,6 @@ class TicketController extends Controller
                 'statuts' => Statut::where('is_active', true)->get(),
                 'priorites' => Priorite::where('is_active', true)->get(),
                 'executants' => Executant::where('is_active', true)->get(),
-                'types_demande' => TypeDemande::where('is_active', true)->get()
             ];
 
             // Construire la requête pour les tickets
@@ -721,7 +757,6 @@ class TicketController extends Controller
                 'societe',
                 'emplacement',
                 'categorie',
-                'typeDemande',
                 'executant'
             ]);
 
@@ -746,11 +781,6 @@ class TicketController extends Controller
             }
             if ($request->filled('executant')) {
                 $query->where('Id_Executant', $request->executant);
-            }
-            if ($request->filled('type_demande')) {
-                $query->whereHas('typeDemande', function($q) use ($request) {
-                    $q->where('designation', $request->type_demande);
-                });
             }
 
             // Ajouter le filtre pour les rapports non lus si demandé
@@ -884,7 +914,6 @@ class TicketController extends Controller
             $tickets = Ticket::with([
                 'statut',
                 'priorite',
-                'typeDemande',
                 'demandeur',
                 'societe',
                 'emplacement',
@@ -976,7 +1005,6 @@ class TicketController extends Controller
             $tickets = Ticket::with([
                 'statut',
                 'priorite',
-                'typeDemande',
                 'demandeur',
                 'societe',
                 'emplacement',

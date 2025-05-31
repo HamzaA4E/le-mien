@@ -64,8 +64,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/priorites', [PrioriteController::class, 'store']);
     Route::get('/categories', [CategorieController::class, 'index']);
     Route::post('/categories', [CategorieController::class, 'store']);
-    Route::get('/types-demande', [TypeDemandeController::class, 'index']);
-    Route::post('/types-demande', [TypeDemandeController::class, 'store']);
     Route::get('/statuts', [StatutController::class, 'index']);
     Route::post('/statuts', [StatutController::class, 'store']);
     Route::get('/services', [ServiceController::class, 'index']);
@@ -83,7 +81,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('services', ServiceController::class);
     Route::apiResource('priorites', PrioriteController::class);
     Route::apiResource('statuts', StatutController::class);
-    Route::apiResource('types', TypeDemandeController::class);
     Route::apiResource('executants', ExecutantController::class);
 
     // Nouvelle route pour les tests de performance

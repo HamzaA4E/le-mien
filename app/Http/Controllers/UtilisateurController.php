@@ -29,9 +29,9 @@ class UtilisateurController extends Controller
                 'designation' => 'required|string|max:255',
                 'email' => 'required|email|unique:T_UTILISAT',
                 'password' => 'required|min:6',
-                'niveau' => 'required|in:1,2,3',
+                'niveau' => 'required|in:1,2,3,4',
                 'statut' => 'required|in:0,1',
-                'id_service' => 'required_if:niveau,3|nullable|exists:T_SERVICE,id'
+                'id_service' => 'required_if:niveau,3,4|nullable|exists:T_SERVICE,id'
             ]);
 
             $user = Utilisateur::create([
@@ -39,7 +39,8 @@ class UtilisateurController extends Controller
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'niveau' => $validated['niveau'],
-                'statut' => $validated['statut']
+                'statut' => $validated['statut'],
+                'id_service' => $validated['id_service']
             ]);
 
             return response()->json([
@@ -80,7 +81,7 @@ class UtilisateurController extends Controller
                 'designation' => 'sometimes|required|string|max:255',
                 'email' => 'sometimes|required|email|unique:T_UTILISAT,email,' . $user->id,
                 'password' => 'sometimes|required|min:6',
-                'niveau' => 'sometimes|required|in:1,2,3',
+                'niveau' => 'sometimes|required|in:1,2,3,4',
                 'statut' => 'sometimes|required|in:0,1'
             ]);
 

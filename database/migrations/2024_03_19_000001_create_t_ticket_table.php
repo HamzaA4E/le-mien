@@ -18,7 +18,6 @@ return new class extends Migration
             $table->unsignedSmallInteger('Id_Emplacement');
             $table->unsignedSmallInteger('Id_Priorite');
             $table->unsignedSmallInteger('Id_Categorie');
-            $table->unsignedSmallInteger('Id_TypeDemande');
             $table->unsignedSmallInteger('Id_Statut');
             $table->string('Titre', 200);
             $table->string('Description', 800)->nullable();
@@ -57,11 +56,6 @@ return new class extends Migration
             $table->foreign('Id_Statut', 'FK_T_TICKET_T_STATUT')
                   ->references('id')
                   ->on('T_STATUT')
-                  ->onDelete('no action');
-
-            $table->foreign('Id_TypeDemande', 'FK_T_TICKET_T_TYPEDEMENDE')
-                  ->references('id')
-                  ->on('T_TYPEDEMANDE')
                   ->onDelete('no action');
 
             $table->foreign('Id_Utilisat', 'FK_T_TICKET_T_UTILISAT')

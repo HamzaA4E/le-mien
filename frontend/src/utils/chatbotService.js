@@ -53,34 +53,40 @@ export const chatWithGemini = async (message, conversationHistory, userInfo) => 
     console.warn('Conversation history length:', conversationHistory.length);
     console.warn('User info:', userInfo);
     
-    try {
-        // Vérification de la clé API
-        if (!API_KEY) {
-            console.error('Erreur: Clé API manquante');
-            throw new Error('La clé API Gemini n\'est pas configurée.');
-        }
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 secondes
 
-        // Vérification des options de ticket
-        if (!userInfo?.ticketOptions) {
-            throw new Error('Les options de ticket ne sont pas disponibles. Veuillez rafraîchir la page.');
-        }
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // Vérification que toutes les options nécessaires sont présentes
-        const requiredOptions = ['categories', 'types', 'emplacements', 'priorites'];
-        const missingOptions = requiredOptions.filter(option => !userInfo.ticketOptions[option]?.length);
-        
-        if (missingOptions.length > 0) {
-            throw new Error(`Les options suivantes ne sont pas disponibles : ${missingOptions.join(', ')}. Veuillez rafraîchir la page.`);
-        }
+    const attemptRequest = async (retryCount = 0) => {
+        try {
+            // Vérification de la clé API
+            if (!API_KEY) {
+                console.error('Erreur: Clé API manquante');
+                throw new Error('La clé API Gemini n\'est pas configurée.');
+            }
 
-        // Fonction utilitaire pour formater les options
-        const formatOptions = (options) => {
-            if (!options || !Array.isArray(options)) return '';
-            return options.map(opt => opt.designation || '').filter(Boolean).join(', ');
-        };
+            // Vérification des options de ticket
+            if (!userInfo?.ticketOptions) {
+                throw new Error('Les options de ticket ne sont pas disponibles. Veuillez rafraîchir la page.');
+            }
 
-        // Définition du SYSTEM_PROMPT avec les informations de l'utilisateur et les options disponibles
-        const SYSTEM_PROMPT = `Tu es un assistant professionnel spécialisé dans la création de tickets de support IT.
+            // Vérification que toutes les options nécessaires sont présentes
+            const requiredOptions = ['categories', 'emplacements', 'priorites'];
+            const missingOptions = requiredOptions.filter(option => !userInfo.ticketOptions[option]?.length);
+            
+            if (missingOptions.length > 0) {
+                throw new Error(`Les options suivantes ne sont pas disponibles : ${missingOptions.join(', ')}. Veuillez rafraîchir la page.`);
+            }
+
+            // Fonction utilitaire pour formater les options
+            const formatOptions = (options) => {
+                if (!options || !Array.isArray(options)) return '';
+                return options.map(opt => opt.designation || '').filter(Boolean).join(', ');
+            };
+
+            // Définition du SYSTEM_PROMPT avec les informations de l'utilisateur et les options disponibles
+            const SYSTEM_PROMPT = `Tu es un assistant professionnel spécialisé dans la création de tickets de support IT.
 Ton rôle est de guider les utilisateurs de manière professionnelle et efficace dans la création de leurs tickets.
 
 RÈGLES STRICTES DE CONVERSATION :
@@ -103,7 +109,6 @@ RÈGLES STRICTES DE CONVERSATION :
 
 OPTIONS DISPONIBLES :
 - Catégories : ${formatOptions(userInfo.ticketOptions.categories)}
-- Types : ${formatOptions(userInfo.ticketOptions.types)}
 - Emplacements : ${formatOptions(userInfo.ticketOptions.emplacements)}
 - Priorités : ${formatOptions(userInfo.ticketOptions.priorites)}
 
@@ -125,39 +130,32 @@ OPTIONS DISPONIBLES :
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-4. DÉTERMINATION DU TYPE DE DEMANDE
-   - Afficher les types disponibles : ${formatOptions(userInfo.ticketOptions.types)}
-   - Demander à l'utilisateur de choisir un type parmi ceux listés
-   - ATTENDRE sa réponse
-   - Passer à l'étape suivante
-
-5. COLLECTE DE L'EMPLACEMENT
+4. COLLECTE DE L'EMPLACEMENT
    - Afficher les emplacements disponibles : ${formatOptions(userInfo.ticketOptions.emplacements)}
    - Demander à l'utilisateur de choisir un emplacement parmi ceux listés
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-6. DÉTERMINATION DE LA PRIORITÉ
+5. DÉTERMINATION DE LA PRIORITÉ
    - Afficher les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}
    - Demander à l'utilisateur de choisir une priorité parmi celles listées
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-7. COLLECTE DES DATES
+6. COLLECTE DES DATES
    - Demander la date de début prévue
    - ATTENDRE sa réponse
    - Demander la date de fin prévue
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-8. RÉSUMÉ ET DEMANDE DE CRÉATION
+7. RÉSUMÉ ET DEMANDE DE CRÉATION
    - Présenter le résumé dans le format suivant :
      📋 RÉSUMÉ DU TICKET
      ──────────────────────────────
      📌 Titre : [titre]
      📝 Description : [description]
      🏷️ Catégorie : [catégorie]
-     📋 Type : [type]
      📍 Emplacement : [emplacement]
      ⚡ Priorité : [priorité]
      📅 Date de début : [date début]
@@ -173,7 +171,6 @@ EXEMPLES DE RÉPONSES PROFESSIONNELLES :
 - "Pour commencer, pourriez-vous me donner un titre concis qui décrit votre problème ?"
 - "Merci pour le titre. Maintenant, pourriez-vous me donner une description détaillée du problème ?"
 - "Voici les catégories disponibles : ${formatOptions(userInfo.ticketOptions.categories)}. Quelle catégorie correspond le mieux à votre demande ?"
-- "Voici les types disponibles : ${formatOptions(userInfo.ticketOptions.types)}. Quel type de demande souhaitez-vous créer ?"
 - "Voici les emplacements disponibles : ${formatOptions(userInfo.ticketOptions.emplacements)}. Quel est l'emplacement concerné ?"
 - "Voici les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}. Quelle priorité souhaitez-vous attribuer à ce ticket ?"
 - "Quelle est la date de début prévue pour ce ticket ?"
@@ -182,66 +179,77 @@ EXEMPLES DE RÉPONSES PROFESSIONNELLES :
 - "Il manque certaines informations. Pourriez-vous me préciser [information manquante] ?"
 - "Toutes les informations sont présentes. Je vais transmettre ces informations pour la création du ticket."`;
 
-        console.warn('Construction du contexte de conversation');
-        // Construire le contexte de la conversation
-        const chat = model.startChat({
-            history: [
-                {
-                    role: "user",
-                    parts: SYSTEM_PROMPT,
-                },
-                ...conversationHistory.map(msg => ({
-                    role: msg.role,
-                    parts: msg.content,
-                })),
-            ],
-        });
-        console.warn('Chat initialisé avec l\'historique');
+            console.warn('Construction du contexte de conversation');
+            // Construire le contexte de la conversation
+            const chat = model.startChat({
+                history: [
+                    {
+                        role: "user",
+                        parts: SYSTEM_PROMPT,
+                    },
+                    ...conversationHistory.map(msg => ({
+                        role: msg.role,
+                        parts: msg.content,
+                    })),
+                ],
+            });
+            console.warn('Chat initialisé avec l\'historique');
 
-        console.warn('Envoi du message à l\'API...');
-        // Envoyer le message avec gestion des timeouts
-        const timeoutDuration = 60000; // Augmenter le timeout à 60 secondes
-        const result = await Promise.race([
-            chat.sendMessage(message).then(response => {
-                console.warn('Réponse brute de l\'API:', response);
-                return response;
-            }),
-            new Promise((_, reject) => 
-                setTimeout(() => {
-                    console.error('Timeout: Délai d\'attente dépassé après', timeoutDuration, 'ms');
-                    reject(new Error('Le temps de réponse est trop long. Veuillez réessayer.'));
-                }, timeoutDuration)
-            )
-        ]);
-        console.warn('Réponse reçue de l\'API');
+            console.warn('Envoi du message à l\'API...');
+            // Envoyer le message avec gestion des timeouts
+            const timeoutDuration = 60000; // Augmenter le timeout à 60 secondes
+            const result = await Promise.race([
+                chat.sendMessage(message).then(response => {
+                    console.warn('Réponse brute de l\'API:', response);
+                    return response;
+                }),
+                new Promise((_, reject) => 
+                    setTimeout(() => {
+                        console.error('Timeout: Délai d\'attente dépassé après', timeoutDuration, 'ms');
+                        reject(new Error('Le temps de réponse est trop long. Veuillez réessayer.'));
+                    }, timeoutDuration)
+                )
+            ]);
+            console.warn('Réponse reçue de l\'API');
 
-        const response = await result.response;
-        console.warn('Texte de la réponse extrait:', response.text());
-        return response.text();
-    } catch (error) {
-        console.error('=== GEMINI API ERROR ===');
-        console.error('Type d\'erreur:', error.constructor.name);
-        console.error('Message d\'erreur:', error.message);
-        console.error('Stack trace:', error.stack);
-        
-        // Gestion spécifique des erreurs
-        if (error.message.includes('API key')) {
-            console.error('Erreur de clé API');
-            throw new Error('Erreur de configuration de l\'API. Veuillez vérifier la clé API.');
-        } else if (error.message.includes('quota')) {
-            console.error('Erreur de quota dépassé');
-            throw new Error('Limite de requêtes atteinte. Veuillez réessayer plus tard.');
-        } else if (error.message.includes('temps de réponse')) {
-            console.error('Erreur de timeout');
-            throw new Error('Le temps de réponse est trop long. Veuillez réessayer.');
-        } else if (error.message.includes('safety')) {
-            console.error('Erreur de sécurité');
-            throw new Error('Le contenu a été bloqué pour des raisons de sécurité.');
-        } else {
-            console.error('Erreur inattendue:', error);
-            throw new Error('Une erreur est survenue lors de la communication avec l\'assistant. Veuillez réessayer.');
+            const response = await result.response;
+            console.warn('Texte de la réponse extrait:', response.text());
+            return response.text();
+        } catch (error) {
+            console.error('=== GEMINI API ERROR ===');
+            console.error('Type d\'erreur:', error.constructor.name);
+            console.error('Message d\'erreur:', error.message);
+            console.error('Stack trace:', error.stack);
+            
+            // Gestion spécifique des erreurs
+            if (error.message.includes('API key')) {
+                console.error('Erreur de clé API');
+                throw new Error('Erreur de configuration de l\'API. Veuillez vérifier la clé API.');
+            } else if (error.message.includes('quota')) {
+                console.error('Erreur de quota dépassé');
+                throw new Error('Limite de requêtes atteinte. Veuillez réessayer plus tard.');
+            } else if (error.message.includes('temps de réponse')) {
+                console.error('Erreur de timeout');
+                throw new Error('Le temps de réponse est trop long. Veuillez réessayer.');
+            } else if (error.message.includes('safety')) {
+                console.error('Erreur de sécurité');
+                throw new Error('Le contenu a été bloqué pour des raisons de sécurité.');
+            } else if (error.message.includes('overloaded') || error.message.includes('503')) {
+                console.error('Erreur de surcharge du modèle');
+                if (retryCount < maxRetries) {
+                    console.log(`Tentative ${retryCount + 1}/${maxRetries} échouée. Nouvelle tentative dans ${retryDelay/1000} secondes...`);
+                    await sleep(retryDelay);
+                    return attemptRequest(retryCount + 1);
+                }
+                throw new Error('Le service est temporairement surchargé. Veuillez réessayer dans quelques instants.');
+            } else {
+                console.error('Erreur inattendue:', error);
+                throw new Error('Une erreur est survenue lors de la communication avec l\'assistant. Veuillez réessayer.');
+            }
         }
-    }
+    };
+
+    return attemptRequest();
 };
 
 export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) => {
@@ -252,8 +260,9 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         title: '',
         description: '',
         category: '',
-        type: '',
-        service: userInfo.niveau === 1 ? 'Administration' : userInfo.niveau === 2 ? 'Demandeur' : 'Support',
+        service: userInfo.niveau === 1 ? 'Administration' : 
+                userInfo.niveau === 2 ? 'Direction Générale' : 
+                userInfo.niveau === 3 ? 'Direction Département' : 'Support',
         location: '',
         company: userInfo.email.split('@')[1] || 'Non spécifiée',
         requester: userInfo.designation,
@@ -267,7 +276,6 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         id_emplacement: null,
         id_priorite: null,
         id_categorie: null,
-        id_type_demande: null,
         id_statut: 1,
         id_executant: 1
     };
@@ -369,18 +377,21 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         return matrix[str2.length][str1.length];
     };
 
-    // Fonction pour extraire une valeur entre deux émojis
-    const extractValue = (text, startEmoji, endEmoji) => {
-        // Pour le type, utiliser une regex plus spécifique
-        if (startEmoji === '📋') {
-            const typeMatch = text.match(/📋 Type : (Projet|Incident|Demande|Problème)/i);
-            return typeMatch ? typeMatch[1].trim() : '';
-        }
-        
-        // Pour les autres champs, utiliser la regex standard
-        const regex = new RegExp(`${startEmoji}[^:]*:\\s*([^${endEmoji}]+)`, 'i');
+    // Fonction pour extraire une valeur après un émoji
+    const extractValue = (text, emoji) => {
+        // Regex pour extraire la valeur après l'émoji jusqu'à la fin de la ligne ou le prochain émoji
+        const regex = new RegExp(`${emoji}\\s*([^\\n📌📝🏷️📍⚡📅]+)`, 'i');
         const match = text.match(regex);
-        return match ? match[1].trim() : '';
+        if (!match) return null;
+        
+        // Nettoyer la valeur extraite
+        let value = match[1].trim();
+        
+        // Supprimer les labels communs et les deux-points
+        value = value.replace(/^(Titre|Description|Catégorie|Emplacement|Priorité|Date de début|Date de fin)\s*:\s*/i, '');
+        value = value.replace(/^:\s*/, ''); // Supprimer les deux-points au début
+        
+        return value;
     };
 
     // Analyser l'historique de la conversation
@@ -394,53 +405,43 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
                 console.log('Résumé de ticket trouvé');
 
                 // Extraire le titre
-                ticketInfo.title = extractValue(content, '📌', '📝');
+                ticketInfo.title = extractValue(content, '📌');
                 console.log('Titre extrait:', ticketInfo.title);
 
                 // Extraire la description
-                ticketInfo.description = extractValue(content, '📝', '🏷️');
+                ticketInfo.description = extractValue(content, '📝');
                 console.log('Description extraite:', ticketInfo.description);
 
                 // Extraire la catégorie
-                ticketInfo.category = extractValue(content, '🏷️', '📋');
+                ticketInfo.category = extractValue(content, '🏷️');
                 ticketInfo.id_categorie = findIdByDesignation(ticketInfo.category, ticketOptions.categories);
                 console.log('Catégorie extraite:', ticketInfo.category, 'ID:', ticketInfo.id_categorie);
 
-                // Extraire le type
-                ticketInfo.type = extractValue(content, '📋', '📍');
-                if (!ticketInfo.type) {
-                    // Si l'extraction échoue, essayer de trouver le type dans le texte complet
-                    const typeMatch = content.match(/Type : (Projet|Incident|Demande|Problème)/i);
-                    if (typeMatch) {
-                        ticketInfo.type = typeMatch[1].trim();
-                    }
-                }
-                ticketInfo.id_type_demande = findIdByDesignation(ticketInfo.type, ticketOptions.types);
-                console.log('Type extrait:', ticketInfo.type, 'ID:', ticketInfo.id_type_demande);
-
                 // Extraire l'emplacement
-                ticketInfo.location = extractValue(content, '📍', '⚡');
+                ticketInfo.location = extractValue(content, '📍');
                 ticketInfo.id_emplacement = findIdByDesignation(ticketInfo.location, ticketOptions.emplacements);
                 console.log('Emplacement extrait:', ticketInfo.location, 'ID:', ticketInfo.id_emplacement);
 
                 // Extraire la priorité
-                ticketInfo.priority = extractValue(content, '⚡', '📅');
+                ticketInfo.priority = extractValue(content, '⚡');
                 ticketInfo.id_priorite = findIdByDesignation(ticketInfo.priority, ticketOptions.priorites);
                 console.log('Priorité extraite:', ticketInfo.priority, 'ID:', ticketInfo.id_priorite);
 
                 // Extraire les dates
-                const dates = content.match(/📅 Date de (début|fin) : (\d{2}\/\d{2}\/\d{4})/g);
-                if (dates) {
-                    dates.forEach(dateStr => {
-                        const [type, date] = dateStr.match(/📅 Date de (début|fin) : (\d{2}\/\d{2}\/\d{4})/).slice(1);
-                        if (type === 'début') {
-                            ticketInfo.startDate = date;
-                            console.log('Date de début extraite:', ticketInfo.startDate);
-                        } else {
-                            ticketInfo.endDate = date;
-                            console.log('Date de fin extraite:', ticketInfo.endDate);
-                        }
-                    });
+                const startDate = extractValue(content, '📅 Date de début');
+                const endDate = extractValue(content, '📅 Date de fin');
+                
+                if (startDate) {
+                    // Convertir la date au format YYYY-MM-DD
+                    const [day, month, year] = startDate.split('/');
+                    ticketInfo.startDate = `${year}-${month}-${day}`;
+                    console.log('Date de début extraite:', ticketInfo.startDate);
+                }
+                if (endDate) {
+                    // Convertir la date au format YYYY-MM-DD
+                    const [day, month, year] = endDate.split('/');
+                    ticketInfo.endDate = `${year}-${month}-${day}`;
+                    console.log('Date de fin extraite:', ticketInfo.endDate);
                 }
             }
         }
@@ -456,7 +457,7 @@ export const createTicketFromChat = async (ticketData) => {
         
         // Vérifier que toutes les données requises sont présentes
         if (!ticketData.title || !ticketData.description || !ticketData.startDate || !ticketData.endDate ||
-            !ticketData.id_categorie || !ticketData.id_emplacement || !ticketData.id_priorite || !ticketData.id_type_demande) {
+            !ticketData.id_categorie || !ticketData.id_emplacement || !ticketData.id_priorite) {
             console.error('Données manquantes:', {
                 title: ticketData.title,
                 description: ticketData.description,
@@ -464,8 +465,7 @@ export const createTicketFromChat = async (ticketData) => {
                 endDate: ticketData.endDate,
                 id_categorie: ticketData.id_categorie,
                 id_emplacement: ticketData.id_emplacement,
-                id_priorite: ticketData.id_priorite,
-                id_type_demande: ticketData.id_type_demande
+                id_priorite: ticketData.id_priorite
             });
             throw new Error('Données de ticket incomplètes');
         }
@@ -489,7 +489,6 @@ export const createTicketFromChat = async (ticketData) => {
             id_emplacement: ticketData.id_emplacement,
             id_priorite: ticketData.id_priorite,
             id_categorie: ticketData.id_categorie,
-            id_type_demande: ticketData.id_type_demande,
             id_statut: ticketData.id_statut,
             id_executant: ticketData.id_executant
         };
@@ -531,4 +530,24 @@ export const createTicketFromChat = async (ticketData) => {
             throw new Error('Une erreur est survenue lors de la création du ticket. Veuillez réessayer.');
         }
     }
+};
+
+const formatTicketInfo = (ticket) => {
+    return `
+      <ticket>
+        <id>${ticket.id}</id>
+        <titre>${ticket.titre}</titre>
+        <description>${ticket.description}</description>
+        <priorite>${ticket.priorite?.designation || 'Non définie'}</priorite>
+        <statut>${ticket.statut?.designation || 'Non défini'}</statut>
+        <categorie>${ticket.categorie?.designation || 'Non définie'}</categorie>
+        <emplacement>${ticket.emplacement?.designation || 'Non défini'}</emplacement>
+        <societe>${ticket.societe?.designation || 'Non définie'}</societe>
+        <demandeur>${ticket.demandeur?.nom || 'Non défini'}</demandeur>
+        <executant>${ticket.executant?.nom || 'Non défini'}</executant>
+        <date_creation>${ticket.DateCreation}</date_creation>
+        <date_fin_prevue>${ticket.DateFinPrevue}</date_fin_prevue>
+        <date_fin_reelle>${ticket.DateFinReelle || 'Non définie'}</date_fin_reelle>
+      </ticket>
+    `;
 };

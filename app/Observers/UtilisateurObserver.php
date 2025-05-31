@@ -14,8 +14,8 @@ class UtilisateurObserver
      */
     public function created(Utilisateur $utilisateur): void
     {
-        // Si l'utilisateur est un demandeur (niveau 3)
-        if ($utilisateur->niveau === 3) {
+        // Si l'utilisateur est un demandeur (niveau 4)
+        if ($utilisateur->niveau === 4) {
             try {
                 // Vérifier si un demandeur existe déjà avec cette désignation
                 $existingDemandeur = Demandeur::where('designation', $utilisateur->designation)->first();
@@ -65,8 +65,8 @@ class UtilisateurObserver
      */
     public function updated(Utilisateur $utilisateur): void
     {
-        // Si l'utilisateur devient un demandeur (niveau 3)
-        if ($utilisateur->niveau === 3 && $utilisateur->isDirty('niveau')) {
+        // Si l'utilisateur devient un demandeur (niveau 4)
+        if ($utilisateur->niveau === 4 && $utilisateur->isDirty('niveau')) {
             try {
                 // Vérifier si un demandeur existe déjà
                 $demandeur = Demandeur::where('designation', $utilisateur->designation)->first();
@@ -115,7 +115,7 @@ class UtilisateurObserver
     public function deleted(Utilisateur $utilisateur): void
     {
         // Si l'utilisateur était un demandeur
-        if ($utilisateur->niveau === 3) {
+        if ($utilisateur->niveau === 4) {
             try {
                 // Désactiver le demandeur correspondant
                 $demandeur = Demandeur::where('designation', $utilisateur->designation)->first();

@@ -6,9 +6,12 @@ use Illuminate\Database\Seeder;
 use App\Models\Utilisateur;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Categorie;
-use App\Models\TypeDemande;
 use App\Models\Emplacement;
 use App\Models\Statut;
+use App\Models\Service;
+use App\Models\Societe;
+use App\Models\Executant;
+use App\Models\Priorite;
 
 class DatabaseSeeder extends Seeder
 {
@@ -31,11 +34,14 @@ class DatabaseSeeder extends Seeder
             'updated_at' => date('Y-m-d'),
         ]);
 
+        Societe::firstOrCreate(['designation' => 'Famasser']);
+
+        Executant::firstOrCreate(['designation' => 'Reda DAMRI']);
+
+        Priorite::firstOrCreate(['designation' => 'Urgent']);
+
         // Ajouter la catégorie "achat"
         Categorie::firstOrCreate(['designation' => 'achat']);
-
-        // Ajouter le type de demande "projet"
-        TypeDemande::firstOrCreate(['designation' => 'projet']);
 
         // Ajouter l'emplacement "sapino"
         Emplacement::firstOrCreate(['designation' => 'sapino']);
@@ -44,6 +50,24 @@ class DatabaseSeeder extends Seeder
         $statuts = ['Nouveau', 'En instance','En cours', 'Terminé','Clôturé', 'Refusé'];
         foreach ($statuts as $statut) {
             Statut::firstOrCreate(['designation' => $statut]);
+        }
+
+        // Ajouter les services
+        $services = [
+            'Achat',
+            'Administration',
+            'Finance et Comptabilité',
+            'Marketing et Communication',
+            'Fabrication',
+            'Logistique',
+            'Commercial'
+        ];
+
+        foreach ($services as $service) {
+            Service::firstOrCreate(
+                ['designation' => $service],
+                ['is_active' => true]
+            );
         }
     }
 }

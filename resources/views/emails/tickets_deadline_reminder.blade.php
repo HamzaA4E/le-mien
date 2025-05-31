@@ -13,7 +13,6 @@
             <th>Société</th>
             <th>Emplacement</th>
             <th>Catégorie</th>
-            <th>Type</th>
             <th>Exécutant</th>
             <th>Date début</th>
             <th>Date fin prévue</th>
@@ -31,11 +30,25 @@
             <td>{{ $ticket->societe->designation ?? $ticket->Id_Societe ?? 'N/A' }}</td>
             <td>{{ $ticket->emplacement->designation ?? $ticket->Id_Emplacement ?? 'N/A' }}</td>
             <td>{{ $ticket->categorie->designation ?? $ticket->Id_Categorie ?? 'N/A' }}</td>
-            <td>{{ $ticket->typeDemande->designation ?? $ticket->Id_TypeDemande ?? 'N/A' }}</td>
             <td>{{ $ticket->executant->designation ?? $ticket->Id_Executant ?? 'N/A' }}</td>
             <td>{{ is_object($ticket->DateDebut) ? $ticket->DateDebut->format('d/m/Y H:i') : $ticket->DateDebut }}</td>
             <td style="color:#dc2626;font-weight:bold;">{{ is_object($ticket->DateFinPrevue) ? $ticket->DateFinPrevue->format('d/m/Y H:i') : $ticket->DateFinPrevue }}</td>
             <td>{{ is_object($ticket->DateFinReelle) ? $ticket->DateFinReelle->format('d/m/Y H:i') : ($ticket->DateFinReelle ?? 'N/A') }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                <strong>Catégorie:</strong> {{ $ticket->categorie->designation }}
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                <strong>Emplacement:</strong> {{ $ticket->emplacement->designation }}
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                <strong>Société:</strong> {{ $ticket->societe->designation }}
+            </td>
         </tr>
     @endforeach
     </tbody>

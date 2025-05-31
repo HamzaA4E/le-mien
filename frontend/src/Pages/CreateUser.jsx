@@ -14,23 +14,20 @@ const CreateUser = () => {
     id_service: '' // Ajout du champ id_service
   });
 
-  const [services, setServices] = useState([]);
+  // Liste des services pour les directeurs département
+  const services = [
+    { id: 1, designation: 'Achat' },
+    { id: 2, designation: 'Administration' },
+    { id: 3, designation: 'Finance et Comptabilité' },
+    { id: 4, designation: 'Marketing et Communication' },
+    { id: 5, designation: 'Fabrication' },
+    { id: 6, designation: 'Logistique' },
+    { id: 7, designation: 'Commercial' }
+  ];
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  // Charger la liste des services
-  useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const response = await axios.get('/api/services');
-        setServices(response.data);
-      } catch (error) {
-        console.error('Erreur lors du chargement des services:', error);
-      }
-    };
-    fetchServices();
-  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -134,12 +131,13 @@ const CreateUser = () => {
               >
                 <option value="">Sélectionner un niveau</option>
                 <option value="1">Administrateur</option>
-                <option value="2">Responsable</option>
-                <option value="3">Demandeur</option>
+                <option value="2">Directeur Général</option>
+                <option value="3">Directeur Département</option>
+                <option value="4">Demandeur</option>
               </select>
             </div>
 
-            {formData.niveau === '3' && (
+            {(formData.niveau === '3' || formData.niveau === '4') && (
               <div>
                 <label className="block text-sm font-medium text-gray-700">Service</label>
                 <select

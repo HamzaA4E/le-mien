@@ -6,7 +6,6 @@ import AddSocieteForm from '../components/forms/AddSocieteForm';
 import AddEmplacementForm from '../components/forms/AddEmplacementForm';
 import AddPrioriteForm from '../components/forms/AddPrioriteForm';
 import AddCategorieForm from '../components/forms/AddCategorieForm';
-import AddTypeDemandeForm from '../components/forms/AddTypeDemandeForm';
 import AddStatutForm from '../components/forms/AddStatutForm';
 import ExecutantForm from '../components/forms/ExecutantForm.jsx';
 
@@ -19,7 +18,6 @@ const CreateTicket = () => {
     id_emplacement: '',
     id_priorite: '',
     id_categorie: '',
-    id_type_demande: '',
     id_statut: '',
     id_executant: '',
     titre: '',
@@ -34,7 +32,6 @@ const CreateTicket = () => {
   const [emplacements, setEmplacements] = useState([]);
   const [priorites, setPriorites] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [typesDemande, setTypesDemande] = useState([]);
   const [statuts, setStatuts] = useState([]);
   const [executants, setExecutants] = useState([]);
 
@@ -44,7 +41,6 @@ const CreateTicket = () => {
     emplacements: true,
     priorites: true,
     categories: true,
-    typesDemande: true,
     statuts: true,
     executants: true
   });
@@ -58,7 +54,6 @@ const CreateTicket = () => {
     emplacement: false,
     priorite: false,
     categorie: false,
-    type_demande: false,
     statut: false,
     executant: false
   });
@@ -122,7 +117,6 @@ const CreateTicket = () => {
           emplacements: true,
           priorites: true,
           categories: true,
-          typesDemande: true,
           statuts: true,
           executants: true
         }));
@@ -137,7 +131,6 @@ const CreateTicket = () => {
             setEmplacements(data.emplacements || []);
             setPriorites(data.priorites || []);
             setCategories(data.categories || []);
-            setTypesDemande(data.typesDemande || []);
             setStatuts(data.statuts || []);
             setExecutants(data.executants || []);
             setLoadingStates(prev => ({
@@ -146,7 +139,6 @@ const CreateTicket = () => {
               emplacements: false,
               priorites: false,
               categories: false,
-              typesDemande: false,
               statuts: false,
               executants: false
             }));
@@ -170,7 +162,6 @@ const CreateTicket = () => {
         setEmplacements(options.emplacements || []);
         setPriorites(options.priorites || []);
         setCategories(options.categories || []);
-        setTypesDemande(options.typesDemande || []);
         setStatuts(options.statuts || []);
         setExecutants(options.executants || []);
 
@@ -184,7 +175,6 @@ const CreateTicket = () => {
           emplacements: false,
           priorites: false,
           categories: false,
-          typesDemande: false,
           statuts: false,
           executants: false
         }));
@@ -226,7 +216,6 @@ const CreateTicket = () => {
       emplacement: setEmplacements,
       priorite: setPriorites,
       categorie: setCategories,
-      type_demande: setTypesDemande,
       statut: setStatuts
     };
 
@@ -294,7 +283,6 @@ const CreateTicket = () => {
           id_emplacement: '',
           id_priorite: '',
           id_categorie: '',
-          id_type_demande: '',
           id_statut: '',
           id_executant: '',
           titre: '',
@@ -455,9 +443,8 @@ const CreateTicket = () => {
               )}
             </div>
 
-            {/* Catégorie et Type de demande */}
+            {/* Catégorie */}
             {renderSelect('id_categorie', 'Catégorie', categories, loadingStates.categories)}
-            {renderSelect('id_type_demande', 'Type de demande', typesDemande, loadingStates.typesDemande)}
 
             {/* Statut */}
             {renderSelect('id_statut', 'Statut', statuts, loadingStates.statuts)}
@@ -547,14 +534,6 @@ const CreateTicket = () => {
               handleFormSuccess(data, 'categorie');
             }}
             onCancel={() => setShowForms(prev => ({ ...prev, categorie: false }))}
-          />
-        )}
-        {showForms.type_demande && (
-          <AddTypeDemandeForm
-            onSuccess={(data) => {
-              handleFormSuccess(data, 'type_demande');
-            }}
-            onCancel={() => setShowForms(prev => ({ ...prev, type_demande: false }))}
           />
         )}
         {showForms.statut && (

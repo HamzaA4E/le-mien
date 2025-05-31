@@ -40,7 +40,7 @@ const ChatBot = () => {
 
                 const options = optionsResponse.data.options;
                 // Vérifier que toutes les options requises sont présentes
-                const requiredOptions = ['categories', 'types', 'emplacements', 'priorites'];
+                const requiredOptions = ['categories', 'emplacements', 'priorites'];
                 const missingOptions = requiredOptions.filter(option => !options[option]?.length);
                 
                 if (missingOptions.length > 0) {
@@ -79,7 +79,7 @@ const ChatBot = () => {
         }
 
         // Vérifier que toutes les options requises sont présentes
-        const requiredOptions = ['categories', 'types', 'emplacements', 'priorites'];
+        const requiredOptions = ['categories', 'emplacements', 'priorites'];
         const missingOptions = requiredOptions.filter(option => !ticketOptions[option]?.length);
         
         if (missingOptions.length > 0) {
@@ -99,7 +99,6 @@ const ChatBot = () => {
                 ...userInfo,
                 ticketOptions: {
                     categories: ticketOptions.categories || [],
-                    types: ticketOptions.types || [],
                     emplacements: ticketOptions.emplacements || [],
                     priorites: ticketOptions.priorites || []
                 }
@@ -228,15 +227,6 @@ const ChatBot = () => {
                                 <td className="px-4 py-2 text-center">
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ticketData?.category ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                         {ticketData?.category ? '✓' : '✗'}
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td className="px-4 py-2 text-sm text-gray-700">Type</td>
-                                <td className="px-4 py-2 text-sm text-gray-600">{ticketData?.type || '-'}</td>
-                                <td className="px-4 py-2 text-center">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ticketData?.type ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {ticketData?.type ? '✓' : '✗'}
                                     </span>
                                 </td>
                             </tr>

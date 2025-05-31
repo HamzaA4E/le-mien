@@ -750,16 +750,6 @@ const TicketList = () => {
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 border border-green-200">
                         {ticket.priorite?.designation || 'Sans priorité'}
                       </span>
-                      {(() => {
-                        const typeColors = ticket.type_demande?.designation 
-                          ? (TYPE_COLORS[ticket.type_demande.designation] || TYPE_COLORS.default)
-                          : TYPE_COLORS.default;
-                        return (
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${typeColors.bg} ${typeColors.text} border ${typeColors.border}`}>
-                            {ticket.type_demande?.designation || 'Sans type'}
-                          </span>
-                        );
-                      })()}
                       {ticket.statut?.designation === 'Clôturé' && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-gray-700 border border-gray-200">
                           Clôturé le : {formatDate(ticket.DateFinReelle)}

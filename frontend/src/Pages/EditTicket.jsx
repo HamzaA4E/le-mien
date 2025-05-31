@@ -18,7 +18,6 @@ const EditTicket = () => {
     Id_Societe: '',
     Id_Emplacement: '',
     Id_Categorie: '',
-    Id_TypeDemande: '',
     Id_Executant: '',
     DateDebut: '',
     DateFinPrevue: '',
@@ -31,7 +30,6 @@ const EditTicket = () => {
     societes: [],
     emplacements: [],
     categories: [],
-    typesDemande: [],
     executants: []
   });
   const [currentAttachment, setCurrentAttachment] = useState(null);
@@ -70,7 +68,6 @@ const EditTicket = () => {
           Id_Societe: ticket.Id_Societe || '',
           Id_Emplacement: ticket.Id_Emplacement || '',
           Id_Categorie: ticket.Id_Categorie || '',
-          Id_TypeDemande: ticket.Id_TypeDemande || '',
           Id_Executant: ticket.Id_Executant || '',
           DateDebut: formatDate(ticket.DateDebut),
           DateFinPrevue: formatDate(ticket.DateFinPrevue),
@@ -89,7 +86,6 @@ const EditTicket = () => {
           societes: options.societes || [],
           emplacements: options.emplacements || [],
           categories: options.categories || [],
-          typesDemande: options.typesDemande || [],
           executants: options.executants || []
         });
 
@@ -170,7 +166,6 @@ const EditTicket = () => {
         Id_Societe: parseInt(formData.Id_Societe),
         Id_Emplacement: parseInt(formData.Id_Emplacement),
         Id_Categorie: parseInt(formData.Id_Categorie),
-        Id_TypeDemande: parseInt(formData.Id_TypeDemande),
         Id_Executant: parseInt(formData.Id_Executant),
         DateDebut: formatDateForBackend(formData.DateDebut),
         DateFinPrevue: formatDateForBackend(formData.DateFinPrevue)
@@ -443,27 +438,6 @@ const EditTicket = () => {
                 {options.categories.map(categorie => (
                   <option key={categorie.id} value={categorie.id}>
                     {categorie.designation}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="Id_TypeDemande" className="block text-sm font-medium text-gray-700">
-                Type de demande
-              </label>
-              <select
-                name="Id_TypeDemande"
-                id="Id_TypeDemande"
-                required
-                value={formData.Id_TypeDemande}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                <option value="">Sélectionner un type de demande</option>
-                {options.typesDemande.map(type => (
-                  <option key={type.id} value={type.id}>
-                    {type.designation}
                   </option>
                 ))}
               </select>

@@ -68,8 +68,16 @@ const Sidebar = () => {
     { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
   ];
 
-  // Si responsable (niveau 2), on limite le menu
+  // Si directeur général (niveau 2), on limite le menu
   if (niveau === '2' || niveau === 2) {
+    menuItems = [
+      { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
+      { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
+      { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
+    ];
+  }
+  // Si directeur département (niveau 3), on limite le menu
+  else if (niveau === '3' || niveau === 3) {
     menuItems = [
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
@@ -77,8 +85,8 @@ const Sidebar = () => {
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }
-  // Si demandeur (niveau 3), on limite encore plus le menu
-  else if (niveau === '3' || niveau === 3) {
+  // Si demandeur (niveau 4), on limite encore plus le menu
+  else if (niveau === '4' || niveau === 4) {
     menuItems = [
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
@@ -120,7 +128,7 @@ const Sidebar = () => {
                 {loading ? (
                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.908l2-2.617zm10 0l2 2.617A7.962 7 0 0020 12h-4a8 8 0 01-2 5.291z"></path>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.908l2-2.617zm10 0l2 2.617A7.962 7.962 0 0020 12h-4a8 8 0 01-2 5.291z"></path>
                   </svg>
                 ) : (
                   <FaSignOutAlt />

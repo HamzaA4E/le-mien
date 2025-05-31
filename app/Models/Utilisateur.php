@@ -15,8 +15,9 @@ class Utilisateur extends Authenticatable
 
     // Constantes pour les niveaux d'utilisateur
     const NIVEAU_ADMINISTRATEUR = 1;
-    const NIVEAU_RESPONSABLE = 2;
-    const NIVEAU_DEMANDEUR = 3;
+    const NIVEAU_DIRECTEUR_GENERAL = 2;
+    const NIVEAU_DIRECTEUR_DEPARTEMENT = 3;
+    const NIVEAU_DEMANDEUR = 4;
 
     protected $table = 'T_UTILISAT';
     protected $primaryKey = 'id';
@@ -29,6 +30,7 @@ class Utilisateur extends Authenticatable
         'password',
         'niveau',
         'statut',
+        'id_service',
     ];
 
     protected $hidden = [
@@ -40,6 +42,7 @@ class Utilisateur extends Authenticatable
         'id' => 'integer',
         'niveau' => 'integer',
         'statut' => 'integer',
+        'id_service' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -53,11 +56,19 @@ class Utilisateur extends Authenticatable
     }
 
     /**
-     * Vérifie si l'utilisateur est un responsable
+     * Vérifie si l'utilisateur est un directeur général
      */
-    public function isResponsable()
+    public function isDirecteurGeneral()
     {
-        return $this->niveau === self::NIVEAU_RESPONSABLE;
+        return $this->niveau === self::NIVEAU_DIRECTEUR_GENERAL;
+    }
+
+    /**
+     * Vérifie si l'utilisateur est un directeur département
+     */
+    public function isDirecteurDepartement()
+    {
+        return $this->niveau === self::NIVEAU_DIRECTEUR_DEPARTEMENT;
     }
 
     /**

@@ -11,6 +11,11 @@ const ChatBot = () => {
     const [ticketOptions, setTicketOptions] = useState(null);
     const [error, setError] = useState(null);
     const [userInfo, setUserInfo] = useState(null);
+    const [showCategories, setShowCategories] = useState(false);
+    const [showLocations, setShowLocations] = useState(false);
+    const [showPriorities, setShowPriorities] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [dateType, setDateType] = useState(null); // 'start' ou 'end'
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
@@ -71,6 +76,182 @@ const ChatBot = () => {
         initializeChat();
     }, []);
 
+    const handleOptionSelect = (option, type) => {
+        switch (type) {
+            case 'category':
+                setShowCategories(false);
+                break;
+            case 'location':
+                setShowLocations(false);
+                break;
+            case 'priority':
+                setShowPriorities(false);
+                break;
+        }
+        setInput(option.designation);
+        handleSubmit(new Event('submit'));
+    };
+
+    const handleDateSelect = (date) => {
+        setShowDatePicker(false);
+        // Formater la date au format YYYY-MM-DD
+        const formattedDate = new Date(date).toISOString().split('T')[0];
+        setInput(formattedDate);
+        handleSubmit(new Event('submit'));
+    };
+
+    const renderOptionTable = (options, type, title) => {
+        if (!options || options.length === 0) return null;
+
+        const getTableStyle = () => {
+            switch (type) {
+                case 'category':
+                    return 'bg-blue-50 hover:bg-blue-100 text-blue-800';
+                case 'location':
+                    return 'bg-green-50 hover:bg-green-100 text-green-800';
+                case 'priority':
+                    return 'bg-purple-50 hover:bg-purple-100 text-purple-800';
+                default:
+                    return 'bg-gray-50 hover:bg-gray-100 text-gray-800';
+            }
+        };
+
+        return (
+            <div className="mt-4 p-4 bg-white rounded-lg shadow-lg border border-gray-200">
+                <h3 className="text-lg font-semibold mb-4 text-gray-700">{title}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                    {options.map((option) => (
+                        <button
+                            key={option.id}
+                            onClick={() => handleOptionSelect(option, type)}
+                            className={`p-4 rounded-lg transition-all duration-200 ${getTableStyle()} 
+                                     flex items-center justify-center text-center font-medium
+                                     transform hover:scale-105 hover:shadow-md`}
+                        >
+                            {option.designation}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    const renderCategories = () => {
+        if (!showCategories || !ticketOptions?.categories) return null;
+        return renderOptionTable(ticketOptions.categories, 'category', 'Sélectionnez une catégorie :');
+    };
+
+    const renderLocations = () => {
+        if (!showLocations || !ticketOptions?.emplacements) return null;
+        return renderOptionTable(ticketOptions.emplacements, 'location', 'Sélectionnez un emplacement :');
+    };
+
+    const renderPriorities = () => {
+        if (!showPriorities || !ticketOptions?.priorites) return null;
+        return renderOptionTable(ticketOptions.priorites, 'priority', 'Sélectionnez une priorité :');
+    };
+
+    const renderDatePicker = () => {
+        if (!showDatePicker) return null;
+
+        const today = new Date().toISOString().split('T')[0];
+        const title = dateType === 'start' ? 'Sélectionnez la date de début :' : 'Sélectionnez la date de fin :';
+
+        return (
+            <div className="mt-4 p-4 bg-white rounded-lg shadow-lg border border-gray-200">
+                <h3 className="text-lg font-semibold mb-4 text-gray-700">{title}</h3>
+                <div className="flex flex-col items-center space-y-4">
+                    <input
+                        type="date"
+                        min={dateType === 'end' && ticketData?.startDate ? ticketData.startDate : today}
+                        className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-xs"
+                        onChange={(e) => handleDateSelect(e.target.value)}
+                    />
+                    <p className="text-sm text-gray-500">
+                        {dateType === 'end' && ticketData?.startDate 
+                            ? `La date doit être postérieure au ${ticketData.startDate}`
+                            : 'Sélectionnez une date valide'}
+                    </p>
+                </div>
+            </div>
+        );
+    };
+
+    const renderTicketSummary = (ticketData) => {
+        if (!ticketData) return null;
+
+        return (
+            <div className="mt-4 p-4 bg-white rounded-lg shadow-lg border border-gray-200">
+                <h3 className="text-lg font-semibold mb-4 text-gray-700">📋 RÉSUMÉ DU TICKET</h3>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white">
+                        <tbody className="divide-y divide-gray-200">
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600 w-1/3">Titre</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{ticketData.title || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Description</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{ticketData.description || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Catégorie</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{ticketData.category || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Priorité</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        ${ticketData.priority === 'Urgent' ? 'bg-red-100 text-red-800' :
+                                        ticketData.priority === 'Moyenne' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-green-100 text-green-800'}`}>
+                                        {ticketData.priority || '-'}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Emplacement</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{ticketData.location || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Date de début</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">
+                                    {ticketData.startDate ? new Date(ticketData.startDate).toLocaleDateString('fr-FR') : '-'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Date de fin</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">
+                                    {ticketData.endDate ? new Date(ticketData.endDate).toLocaleDateString('fr-FR') : '-'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Statut</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        ${ticketData.status === 'Nouveau' ? 'bg-blue-100 text-blue-800' :
+                                        ticketData.status === 'En cours' ? 'bg-yellow-100 text-yellow-800' :
+                                        ticketData.status === 'Terminé' ? 'bg-green-100 text-green-800' :
+                                        'bg-gray-100 text-gray-800'}`}>
+                                        {ticketData.status || '-'}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Demandeur</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{ticketData.requester || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Service</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{ticketData.service || '-'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!input.trim() || !userInfo || !ticketOptions) {
@@ -118,15 +299,40 @@ const ChatBot = () => {
 
             const response = await chatWithGemini(userMessage, messages, contextWithOptions);
             
+            // Vérifier le type de demande dans la réponse
+            const lowerResponse = response.toLowerCase();
+            setShowCategories(lowerResponse.includes('catégorie'));
+            setShowLocations(lowerResponse.includes('emplacement'));
+            setShowPriorities(lowerResponse.includes('priorité'));
+            
+            // Gestion des dates
+            if (lowerResponse.includes('date de début')) {
+                setShowDatePicker(true);
+                setDateType('start');
+            } else if (lowerResponse.includes('date de fin')) {
+                setShowDatePicker(true);
+                setDateType('end');
+            } else {
+                setShowDatePicker(false);
+            }
+
             // Vérifier si la réponse contient plusieurs questions
             const questions = response.split('?').filter(q => q.trim().length > 0);
             
-            if (questions.length > 1) {
-                // Si plusieurs questions, ne garder que la première
-                const firstQuestion = questions[0] + '?';
-                setMessages(prev => [...prev, { role: 'assistant', content: firstQuestion }]);
-            } else {
-                setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+            // Vérifier si la dernière question est similaire à la précédente
+            const lastMessage = messages[messages.length - 1];
+            const isRepeatedQuestion = lastMessage && 
+                lastMessage.role === 'assistant' && 
+                lastMessage.content.toLowerCase() === response.toLowerCase();
+
+            if (!isRepeatedQuestion) {
+                if (questions.length > 1) {
+                    // Si plusieurs questions, ne garder que la première
+                    const firstQuestion = questions[0] + '?';
+                    setMessages(prev => [...prev, { role: 'assistant', content: firstQuestion }]);
+                } else {
+                    setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+                }
             }
 
             // Vérifier si la réponse contient un résumé de ticket
@@ -138,6 +344,17 @@ const ChatBot = () => {
                 );
                 console.log('Informations extraites du résumé:', extractedInfo);
                 setTicketData(extractedInfo);
+                // Fermer tous les sélecteurs après le résumé
+                setShowCategories(false);
+                setShowLocations(false);
+                setShowPriorities(false);
+                setShowDatePicker(false);
+                // Ajouter le résumé du ticket dans les messages
+                setMessages(prev => [...prev, { 
+                    role: 'assistant', 
+                    content: 'Voici le résumé de votre ticket :',
+                    component: renderTicketSummary(extractedInfo)
+                }]);
             }
 
             // Si l'utilisateur a répondu "oui" à la création du ticket
@@ -164,7 +381,15 @@ const ChatBot = () => {
         try {
             setIsLoading(true);
             setError(null);
-            const response = await createTicketFromChat(ticketData);
+
+            // Formater les dates avant l'envoi
+            const formattedTicketData = {
+                ...ticketData,
+                startDate: ticketData.startDate ? new Date(ticketData.startDate).toISOString().split('T')[0] : null,
+                endDate: ticketData.endDate ? new Date(ticketData.endDate).toISOString().split('T')[0] : null
+            };
+
+            const response = await createTicketFromChat(formattedTicketData);
             setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: `Ticket créé avec succès ! Numéro du ticket : ${response.id}`
@@ -285,9 +510,14 @@ const ChatBot = () => {
                                     }`}
                                 >
                                     {message.content}
+                                    {message.component}
                                 </div>
                             </div>
                         ))}
+                        {renderCategories()}
+                        {renderLocations()}
+                        {renderPriorities()}
+                        {renderDatePicker()}
                         <div ref={messagesEndRef} />
                     </div>
                     <form onSubmit={handleSubmit} className="border-t p-4">

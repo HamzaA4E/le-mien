@@ -447,19 +447,21 @@ const TicketDetails = () => {
             >
               Retour à la liste
             </Link>
-            <Link
-              to={`/tickets/${id}/edit`}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Modifier
-            </Link>
-            {user && ticket && Number(user.id) === Number(ticket.Id_Demandeur) && (
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-              >
-                Supprimer
-              </button>
+            {user && ticket && Number(user.id) === Number(ticket.Id_Utilisat) && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Modifier
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                >
+                  Supprimer
+                </button>
+              </div>
             )}
           </div>
         </div>

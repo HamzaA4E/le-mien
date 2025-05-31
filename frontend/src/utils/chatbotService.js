@@ -471,10 +471,13 @@ export const createTicketFromChat = async (ticketData) => {
         }
 
         // Vérifier que l'ID de l'utilisateur est valide
-        if (!ticketData.id_utilisateur || ticketData.id_utilisateur <= 0) {
-            console.error('ID utilisateur invalide:', ticketData.id_utilisateur);
-            throw new Error('ID utilisateur invalide. Veuillez vous reconnecter.');
+        const currentUser = JSON.parse(localStorage.getItem('user'));
+        if (!currentUser || !currentUser.id) {
+            console.error('Utilisateur non connecté ou ID invalide');
+            throw new Error('Vous devez être connecté pour créer un ticket.');
         }
+        ticketData.id_utilisateur = currentUser.id;
+        ticketData.id_demandeur = currentUser.id;
 
         // Transformer les données en format attendu par l'API
         const transformedData = {
@@ -483,7 +486,7 @@ export const createTicketFromChat = async (ticketData) => {
             date_debut: ticketData.startDate,
             date_fin_prevue: ticketData.endDate,
             date_fin_reelle: '',
-            id_demandeur: ticketData.id_utilisateur,
+            id_demandeur: ticketData.id_demandeur,
             id_utilisateur: ticketData.id_utilisateur,
             id_societe: ticketData.id_societe,
             id_emplacement: ticketData.id_emplacement,

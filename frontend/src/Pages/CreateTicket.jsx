@@ -262,7 +262,9 @@ const CreateTicket = () => {
       });
 
       // Add user ID and other required fields
-      formDataObj.append('id_utilisateur', 1);
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      formDataObj.append('id_utilisateur', currentUser.id);
+      formDataObj.append('id_demandeur', currentUser.id);
       formDataObj.append('date_fin_reelle', ''); // Add empty string for date_fin_reelle
 
       // Log the FormData contents for debugging

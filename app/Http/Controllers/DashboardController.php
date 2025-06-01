@@ -11,81 +11,155 @@ use App\Models\Demandeur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
+    private $cacheDuration = 300; // 5 minutes en secondes
+
     public function getStats(Request $request)
     {
         try {
             $user = $request->user();
-            $baseTicketQuery = Ticket::query()
-                ->where('Id_Statut', '!=', 1);
-
-            // Appliquer les filtres selon le type d'utilisateur
-            if ($user->isDemandeur()) {
-                // Trouver l'ID du demandeur correspondant à l'utilisateur
-                $demandeur = Demandeur::where('designation', $user->designation)->first();
-                if ($demandeur) {
-                    $baseTicketQuery->where('Id_Demandeur', $demandeur->id);
-                } else {
-                    // Si aucun demandeur n'est trouvé, retourner des statistiques vides
-                    return response()->json([
-                        'total' => 0,
-                        'ticketsByStatut' => [],
-                        'ticketsByPriorite' => [],
-                        'ticketsByCategorie' => []
-                    ]);
-                }
-            } elseif ($user->isDirecteurDepartement()) {
-                $baseTicketQuery->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
-                    ->where('T_DEMDEUR.id_service', $user->id_service);
+            if (!$user) {
+                Log::error('Utilisateur non authentifié');
+                return response()->json(['error' => 'Non authentifié'], 401);
             }
 
-            // Statistiques par statut
-            $ticketsByStatut = Statut::select('T_STATUT.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
-                ->leftJoinSub($baseTicketQuery->select('T_TICKET.id', 'T_TICKET.Id_Statut'), 'filtered_tickets', function($join) {
-                    $join->on('T_STATUT.id', '=', 'filtered_tickets.Id_Statut');
-                })
-                ->groupBy('T_STATUT.designation')
-                ->get();
+            $cacheKey = "dashboard_stats_{$user->id}";
+            $forceRefresh = $request->query('refresh', false);
 
-            // Statistiques par priorité
-            $ticketsByPriorite = Priorite::select('T_PRIORITE.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
-                ->leftJoinSub($baseTicketQuery->select('T_TICKET.id', 'T_TICKET.Id_Priorite'), 'filtered_tickets', function($join) {
-                    $join->on('T_PRIORITE.id', '=', 'filtered_tickets.Id_Priorite');
-                })
-                ->groupBy('T_PRIORITE.designation')
-                ->get();
+            // Si forceRefresh est true, on efface le cache
+            if ($forceRefresh) {
+                Cache::forget($cacheKey);
+                Log::info('Cache effacé pour le rafraîchissement', ['cache_key' => $cacheKey]);
+            }
 
-            // Statistiques par catégorie
-            $ticketsByCategorie = Categorie::select('T_CATEGORIE.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
-                ->leftJoinSub($baseTicketQuery->select('T_TICKET.id', 'T_TICKET.Id_Categorie'), 'filtered_tickets', function($join) {
-                    $join->on('T_CATEGORIE.id', '=', 'filtered_tickets.Id_Categorie');
-                })
-                ->groupBy('T_CATEGORIE.designation')
-                ->get();
+            // Vérifier si les données sont en cache
+            if (!$forceRefresh && Cache::has($cacheKey)) {
+                return response()->json(Cache::get($cacheKey));
+            }
 
-            // Total des tickets
-            $total = $baseTicketQuery->count();
+            try {
+                // Requête de base optimisée avec les jointures nécessaires
+                $baseQuery = DB::table('T_TICKET')
+                    ->select([
+                        'T_TICKET.id',
+                        'T_TICKET.Id_Statut',
+                        'T_TICKET.Id_Priorite',
+                        'T_TICKET.Id_Categorie',
+                        'T_STATUT.designation as statut_designation',
+                        'T_PRIORITE.designation as priorite_designation',
+                        'T_CATEGORIE.designation as categorie_designation'
+                    ])
+                    ->join('T_STATUT', 'T_TICKET.Id_Statut', '=', 'T_STATUT.id')
+                    ->join('T_PRIORITE', 'T_TICKET.Id_Priorite', '=', 'T_PRIORITE.id')
+                    ->join('T_CATEGORIE', 'T_TICKET.Id_Categorie', '=', 'T_CATEGORIE.id')
+                    ->where('T_TICKET.Id_Statut', '!=', 1);
 
-            \Log::info('Statistiques récupérées', [
-                'user_id' => $user->id,
-                'user_designation' => $user->designation,
-                'demandeur_id' => $demandeur->id ?? null,
-                'total' => $total
+                // Appliquer les filtres selon le type d'utilisateur
+                if ($user->isDemandeur()) {
+                    $demandeur = Demandeur::where('designation', $user->designation)->first();
+                    if ($demandeur) {
+                        $baseQuery->where('T_TICKET.Id_Demandeur', $demandeur->id);
+                    } else {
+                        return $this->getEmptyResponse($cacheKey);
+                    }
+                } elseif ($user->isDirecteurDepartement()) {
+                    $baseQuery->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+                        ->where('T_DEMDEUR.id_service', $user->id_service);
+                }
+
+                // Exécuter la requête une seule fois
+                $tickets = $baseQuery->get();
+
+                // Calculer les statistiques à partir des résultats
+                $stats = [
+                    'total' => $tickets->count(),
+                    'ticketsByStatut' => $this->groupByDesignation($tickets, 'statut_designation'),
+                    'ticketsByPriorite' => $this->groupByDesignation($tickets, 'priorite_designation'),
+                    'ticketsByCategorie' => $this->groupByDesignation($tickets, 'categorie_designation')
+                ];
+
+                // Mettre en cache la réponse
+                Cache::put($cacheKey, $stats, $this->cacheDuration);
+
+                return response()->json($stats);
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de l\'exécution des requêtes', [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'user_id' => $user->id,
+                    'sql_state' => $e->getCode(),
+                    'error_info' => $e->errorInfo ?? null
+                ]);
+                throw $e;
+            }
+        } catch (\Exception $e) {
+            Log::error('Erreur dans getStats', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->id ?? null,
+                'sql_state' => $e->getCode(),
+                'error_info' => $e->errorInfo ?? null
             ]);
+            return response()->json([
+                'error' => 'Une erreur est survenue lors de la récupération des statistiques',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function clearCache(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['error' => 'Non authentifié'], 401);
+            }
+
+            $cacheKey = "dashboard_stats_{$user->id}";
+            Cache::forget($cacheKey);
 
             return response()->json([
-                'total' => $total,
-                'ticketsByStatut' => $ticketsByStatut,
-                'ticketsByPriorite' => $ticketsByPriorite,
-                'ticketsByCategorie' => $ticketsByCategorie
+                'message' => 'Cache effacé avec succès',
+                'cache_key' => $cacheKey
             ]);
         } catch (\Exception $e) {
-            \Log::error('Erreur dans getStats: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
-            return response()->json(['error' => 'Erreur lors de la récupération des statistiques: ' . $e->getMessage()], 500);
+            Log::error('Erreur lors de l\'effacement du cache', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Une erreur est survenue lors de l\'effacement du cache',
+                'message' => $e->getMessage()
+            ], 500);
         }
+    }
+
+    private function getEmptyResponse($cacheKey)
+    {
+        $emptyResponse = [
+            'total' => 0,
+            'ticketsByStatut' => [],
+            'ticketsByPriorite' => [],
+            'ticketsByCategorie' => []
+        ];
+        Cache::put($cacheKey, $emptyResponse, $this->cacheDuration);
+        return response()->json($emptyResponse);
+    }
+
+    private function groupByDesignation($tickets, $designationField)
+    {
+        return $tickets->groupBy($designationField)
+            ->map(function ($group) use ($designationField) {
+                return [
+                    'designation' => $group->first()->$designationField,
+                    'count' => $group->count()
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
     public function getStatsByUser()

@@ -21,7 +21,6 @@ class Ticket extends Model
         'Id_Priorite',
         'Id_Statut',
         'Id_Demandeur',
-        'Id_Societe',
         'Id_Emplacement',
         'Id_Categorie',
         'Id_Utilisat',
@@ -35,7 +34,6 @@ class Ticket extends Model
         'Id_Priorite' => 'integer',
         'Id_Statut' => 'integer',
         'Id_Demandeur' => 'integer',
-        'Id_Societe' => 'integer',
         'Id_Emplacement' => 'integer',
         'Id_Categorie' => 'integer',
         'Id_Utilisat' => 'integer'
@@ -65,11 +63,6 @@ class Ticket extends Model
     public function demandeur()
     {
         return $this->belongsTo(Demandeur::class, 'Id_Demandeur');
-    }
-
-    public function societe()
-    {
-        return $this->belongsTo(Societe::class, 'Id_Societe');
     }
 
     public function emplacement()

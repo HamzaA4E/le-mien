@@ -60,7 +60,6 @@ const TicketList = () => {
   const [filters, setFilters] = useState(() => ({
     categorie: searchParams.get('categorie') || '',
     demandeur: searchParams.get('demandeur') || '',
-    societe: searchParams.get('societe') || '',
     emplacement: searchParams.get('emplacement') || '',
     statut: searchParams.get('statut') ? parseInt(searchParams.get('statut'), 10) : '',
     priorite: searchParams.get('priorite') || '',
@@ -83,7 +82,6 @@ const TicketList = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState([]);
   const [demandeurs, setDemandeurs] = useState([]);
-  const [societes, setSocietes] = useState([]);
   const [emplacements, setEmplacements] = useState([]);
   const [priorites, setPriorites] = useState([]);
   const [statuts, setStatuts] = useState([]);
@@ -229,7 +227,6 @@ const TicketList = () => {
           setStatuts(optionsData.statuts || []);
           setCategories(optionsData.categories || []);
           setDemandeurs(optionsData.demandeurs || []);
-          setSocietes(optionsData.societes || []);
           setEmplacements(optionsData.emplacements || []);
           setPriorites(optionsData.priorites || []);
         }
@@ -246,7 +243,6 @@ const TicketList = () => {
   }, [
     filters.categorie,
     filters.demandeur,
-    filters.societe,
     filters.emplacement,
     filters.statut,
     filters.priorite,
@@ -388,7 +384,6 @@ const TicketList = () => {
     setFilters({
       categorie: '',
       demandeur: '',
-      societe: '',
       emplacement: '',
       statut: '',
       priorite: '',
@@ -538,20 +533,6 @@ const TicketList = () => {
                   value={localTitleFilter}
                   onChange={e => handleTitleFilterChange(e.target.value)}
                 />
-              </div>
-              {/* Société */}
-              <div className="flex flex-col w-full gap-2">
-                <label className="text-sm font-medium text-gray-700">Société</label>
-                <select
-                  value={filters.societe}
-                  onChange={(e) => handleFilterChange('societe', e.target.value)}
-                  className="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Toutes</option>
-                  {societes.map(soc => (
-                    <option key={soc.id} value={soc.id}>{soc.designation}</option>
-                  ))}
-                </select>
               </div>
               {/* Demandeur */}
               <div className="flex flex-col w-full gap-2">
@@ -764,10 +745,6 @@ const TicketList = () => {
                       <div>
                         <span className="text-gray-500">Date fin prévue :</span>
                         <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateFinPrevue)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Société :</span>
-                        <span className="font-semibold text-gray-900 ml-1">{ticket.societe?.designation || 'Non spécifiée'}</span>
                       </div>
                       <div>
                         <span className="text-gray-500">Emplacement :</span>

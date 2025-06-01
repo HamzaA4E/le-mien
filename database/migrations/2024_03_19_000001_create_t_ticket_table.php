@@ -13,7 +13,6 @@ return new class extends Migration
             $table->dateTime('DateCreation');
             $table->unsignedSmallInteger('Id_Demandeur');
             $table->unsignedSmallInteger('Id_Utilisat');
-            $table->unsignedSmallInteger('Id_Societe');
             $table->unsignedSmallInteger('Id_Emplacement');
             $table->unsignedSmallInteger('Id_Priorite');
             $table->unsignedSmallInteger('Id_Categorie');
@@ -45,11 +44,6 @@ return new class extends Migration
             $table->foreign('Id_Priorite', 'FK_T_TICKET_T_PRIORITE')
                   ->references('id')
                   ->on('T_PRIORITE')
-                  ->onDelete('no action');
-
-            $table->foreign('Id_Societe', 'FK_T_TICKET_T_SOCIETE')
-                  ->references('id')
-                  ->on('T_SOCIETE')
                   ->onDelete('no action');
 
             $table->foreign('Id_Statut', 'FK_T_TICKET_T_STATUT')

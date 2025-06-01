@@ -9,7 +9,6 @@ use App\Models\Categorie;
 use App\Models\Emplacement;
 use App\Models\Statut;
 use App\Models\Service;
-use App\Models\Societe;
 
 use App\Models\Priorite;
 
@@ -33,10 +32,6 @@ class DatabaseSeeder extends Seeder
             'created_at' => date('Y-m-d'),
             'updated_at' => date('Y-m-d'),
         ]);
-
-        Societe::firstOrCreate(['designation' => 'Famasser']);
-
-       
 
         Priorite::firstOrCreate(['designation' => 'Urgent']);
 

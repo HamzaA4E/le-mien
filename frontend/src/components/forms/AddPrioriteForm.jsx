@@ -3,14 +3,12 @@ import axios from '../../utils/axios';
 
 const AddPrioriteForm = ({ onSuccess, onCancel }) => {
   const [designation, setDesignation] = useState('');
-  const [order, setOrder] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'designation') setDesignation(value);
-    if (name === 'order') setOrder(value);
   };
 
   const handleSubmit = async (e) => {
@@ -18,7 +16,7 @@ const AddPrioriteForm = ({ onSuccess, onCancel }) => {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.post('/api/priorites', { designation, order });
+      const response = await axios.post('/api/priorites', { designation });
       onSuccess(response.data);
     } catch (error) {
       setError(error.response?.data?.message || "Erreur lors de la création de la priorité");
@@ -45,18 +43,6 @@ const AddPrioriteForm = ({ onSuccess, onCancel }) => {
                 name="designation"
                 value={designation}
                 onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Ordre</label>
-              <input
-                type="number"
-                name="order"
-                value={order}
-                onChange={handleChange}
-                min="1"
                 required
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />

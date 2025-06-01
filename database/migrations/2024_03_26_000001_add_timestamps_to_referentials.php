@@ -13,8 +13,7 @@ return new class extends Migration
             'T_SERVICE',
             'T_EMPLACEMENT',
             'T_EXECUTANT',
-            'T_PRIORITE',
-            'T_SOCIETE'
+            'T_PRIORITE'
         ];
 
         foreach ($tables as $table) {
@@ -38,8 +37,7 @@ return new class extends Migration
             'T_SERVICE',
             'T_EMPLACEMENT',
             'T_EXECUTANT',
-            'T_PRIORITE',
-            'T_SOCIETE'
+            'T_PRIORITE'
         ];
 
         foreach ($tables as $table) {

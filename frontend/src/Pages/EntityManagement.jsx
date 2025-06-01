@@ -6,16 +6,28 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const EntityManagement = ({ entity, label }) => {
   const [items, setItems] = useState([]);
+  const [services, setServices] = useState([]);
   const [designation, setDesignation] = useState('');
+  const [idService, setIdService] = useState('');
   const [editId, setEditId] = useState(null);
   const [editDesignation, setEditDesignation] = useState('');
   const [editIsActive, setEditIsActive] = useState(true);
+  const [editIdService, setEditIdService] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
   const [spin, setSpin] = useState(false);
 
   const getCacheKey = (entity) => `entity_cache_${entity}`;
+
+  const fetchServices = async () => {
+    try {
+      const res = await axios.get('/api/services?all=1');
+      setServices(res.data);
+    } catch (err) {
+      console.error('Erreur lors du chargement des services:', err);
+    }
+  };
 
   const fetchItems = async () => {
     try {
@@ -54,6 +66,9 @@ const EntityManagement = ({ entity, label }) => {
 
   useEffect(() => {
     fetchItems();
+    if (entity === 'demandeurs') {
+      fetchServices();
+    }
   }, [entity]);
 
   const invalidateCache = () => {
@@ -69,11 +84,18 @@ const EntityManagement = ({ entity, label }) => {
   const handleAdd = async () => {
     if (!designation.trim()) return;
     try {
-      await axios.post(`/api/${entity}`, { 
+      const data = { 
         designation,
         is_active: true 
-      });
+      };
+      
+      if (entity === 'demandeurs' && idService) {
+        data.id_service = parseInt(idService);
+      }
+
+      await axios.post(`/api/${entity}`, data);
       setDesignation('');
+      setIdService('');
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
@@ -87,18 +109,28 @@ const EntityManagement = ({ entity, label }) => {
     setEditId(item.id);
     setEditDesignation(item.designation);
     setEditIsActive(item.is_active);
+    if (entity === 'demandeurs') {
+      setEditIdService(item.id_service?.toString() || '');
+    }
   };
 
   const handleUpdate = async () => {
     if (!editDesignation.trim()) return;
     try {
-      await axios.put(`/api/${entity}/${editId}`, { 
+      const data = { 
         designation: editDesignation,
         is_active: editIsActive
-      });
+      };
+
+      if (entity === 'demandeurs' && editIdService) {
+        data.id_service = parseInt(editIdService);
+      }
+
+      await axios.put(`/api/${entity}/${editId}`, data);
       setEditId(null);
       setEditDesignation('');
       setEditIsActive(true);
+      setEditIdService('');
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
@@ -186,6 +218,20 @@ const EntityManagement = ({ entity, label }) => {
           placeholder={`Nouveau/Nouvelle ${label.toLowerCase()}`}
           className="border rounded px-2 py-1 flex-1"
         />
+        {entity === 'demandeurs' && (
+          <select
+            value={idService}
+            onChange={e => setIdService(e.target.value)}
+            className="border rounded px-2 py-1"
+          >
+            <option value="">Sélectionner un service</option>
+            {services.map(service => (
+              <option key={service.id} value={service.id}>
+                {service.designation}
+              </option>
+            ))}
+          </select>
+        )}
         <button 
           onClick={handleAdd} 
           className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 transition-colors"
@@ -197,6 +243,9 @@ const EntityManagement = ({ entity, label }) => {
         <thead>
           <tr>
             <th className="border px-2 py-1">Nom</th>
+            {entity === 'demandeurs' && (
+              <th className="border px-2 py-1">Service</th>
+            )}
             <th className="border px-2 py-1">Statut</th>
             <th className="border px-2 py-1">Actions</th>
           </tr>
@@ -209,6 +258,11 @@ const EntityManagement = ({ entity, label }) => {
                 <td className="border px-2 py-1">
                   <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
                 </td>
+                {entity === 'demandeurs' && (
+                  <td className="border px-2 py-1">
+                    <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+                  </td>
+                )}
                 <td className="border px-2 py-1 text-center">
                   <div className="h-6 w-16 mx-auto bg-gray-200 rounded animate-pulse"></div>
                 </td>
@@ -222,15 +276,36 @@ const EntityManagement = ({ entity, label }) => {
               <tr key={item.id}>
                 <td className="border px-2 py-1">
                   {editId === item.id ? (
-                    <input
-                      value={editDesignation}
-                      onChange={e => setEditDesignation(e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                    />
+                    <>
+                      <input
+                        value={editDesignation}
+                        onChange={e => setEditDesignation(e.target.value)}
+                        className="border rounded px-2 py-1 w-full"
+                      />
+                      {entity === 'demandeurs' && (
+                        <select
+                          value={editIdService}
+                          onChange={e => setEditIdService(e.target.value)}
+                          className="border rounded px-2 py-1 w-full mt-2"
+                        >
+                          <option value="">Sélectionner un service</option>
+                          {services.map(service => (
+                            <option key={service.id} value={service.id}>
+                              {service.designation}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </>
                   ) : (
                     item.designation
                   )}
                 </td>
+                {entity === 'demandeurs' && (
+                  <td className="border px-2 py-1">
+                    {services.find(s => s.id === item.id_service)?.designation || '-'}
+                  </td>
+                )}
                 <td className="border px-2 py-1 text-center">
                   <span className={
                     item.is_active
@@ -275,9 +350,15 @@ const EntityManagement = ({ entity, label }) => {
                       </button>
                       <button
                         onClick={() => handleEdit(item)}
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors font-semibold"
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors font-semibold mr-2"
                       >
                         Modifier
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors font-semibold"
+                      >
+                        Supprimer
                       </button>
                     </>
                   )}

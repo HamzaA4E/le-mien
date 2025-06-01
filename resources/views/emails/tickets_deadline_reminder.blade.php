@@ -10,7 +10,6 @@
             <th>Statut</th>
             <th>Priorité</th>
             <th>Demandeur</th>
-            <th>Société</th>
             <th>Emplacement</th>
             <th>Catégorie</th>
             <th>Exécutant</th>
@@ -27,7 +26,6 @@
             <td>{{ $ticket->statut->designation ?? $ticket->Id_Statut ?? 'N/A' }}</td>
             <td>{{ $ticket->priorite->designation ?? $ticket->Id_Priorite ?? 'N/A' }}</td>
             <td>{{ $ticket->demandeur->designation ?? $ticket->Id_Demandeur ?? 'N/A' }}</td>
-            <td>{{ $ticket->societe->designation ?? $ticket->Id_Societe ?? 'N/A' }}</td>
             <td>{{ $ticket->emplacement->designation ?? $ticket->Id_Emplacement ?? 'N/A' }}</td>
             <td>{{ $ticket->categorie->designation ?? $ticket->Id_Categorie ?? 'N/A' }}</td>
             <td>{{ $ticket->executant->designation ?? $ticket->Id_Executant ?? 'N/A' }}</td>
@@ -43,11 +41,6 @@
         <tr>
             <td style="padding: 10px; border-bottom: 1px solid #eee;">
                 <strong>Emplacement:</strong> {{ $ticket->emplacement->designation }}
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;">
-                <strong>Société:</strong> {{ $ticket->societe->designation }}
             </td>
         </tr>
     @endforeach

@@ -15,7 +15,6 @@ return new class extends Migration
         'T_EMPLACEMENT',
         'T_PRIORITE',
         'T_SERVICE',
-        'T_SOCIETE',
         'T_STATUT',
     ];
 

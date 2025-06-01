@@ -18,113 +18,55 @@ class DashboardController extends Controller
         try {
             Log::info('Début de la récupération des statistiques');
 
-            // Récupération des filtres
             $statut = $request->query('statut');
             $priorite = $request->query('priorite');
             $demandeur = $request->query('demandeur');
-            $societe = $request->query('societe');
             $categorie = $request->query('categorie');
-
-            // Construction de la requête filtrée
-            $ticketQuery = Ticket::query();
-
-            // Restriction pour les directeurs département : ils ne voient que les tickets de leur département
             $user = auth()->user();
-            if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
-                $ticketQuery->whereHas('demandeur', function($q) use ($user) {
-                    $q->where('id_service', $user->id_service);
-                });
-            }
 
-            if ($statut) $ticketQuery->where('Id_Statut', $statut);
-            if ($priorite) $ticketQuery->where('Id_Priorite', $priorite);
-            if ($demandeur) $ticketQuery->where('Id_Demandeur', $demandeur);
-            if ($societe) $ticketQuery->where('Id_Societe', $societe);
-            if ($categorie) $ticketQuery->where('Id_Categorie', $categorie);
-
-            // Total des tickets filtrés
-            $total = (clone $ticketQuery)->count();
-
-            // Tickets par statut
-            $en_cours = (clone $ticketQuery)->whereHas('statut', function($query) {
-                $query->where('designation', 'En cours');
-            })->count();
-            $en_instance = (clone $ticketQuery)->whereHas('statut', function($query) {
-                $query->where('designation', 'En instance');
-            })->count();
-            $cloture = (clone $ticketQuery)->whereHas('statut', function($query) {
-                $query->where('designation', 'Clôturé');
-            })->count();
-
-            // Statistiques des tickets par priorité
-            $par_priorite = Priorite::select('T_PRIORITE.designation as priorite', DB::raw('count(T_TICKET.id) as total'))
-                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $societe, $categorie, $user) {
-                    $join->on('T_PRIORITE.id', '=', 'T_TICKET.id_priorite');
+            // Requête pour les tickets par statut
+            $ticketsByStatut = DB::table('T_STATUT')
+                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $categorie, $user) {
+                    $join->on('T_STATUT.id', '=', 'T_TICKET.Id_Statut');
                     if ($statut) $join->where('T_TICKET.Id_Statut', $statut);
                     if ($priorite) $join->where('T_TICKET.Id_Priorite', $priorite);
                     if ($demandeur) $join->where('T_TICKET.Id_Demandeur', $demandeur);
-                    if ($societe) $join->where('T_TICKET.Id_Societe', $societe);
                     if ($categorie) $join->where('T_TICKET.Id_Categorie', $categorie);
-                    if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
-                        $join->whereExists(function($query) use ($user) {
-                            $query->select(DB::raw(1))
-                                ->from('T_DEMDEUR')
-                                ->whereRaw('T_DEMDEUR.id = T_TICKET.Id_Demandeur')
-                                ->where('T_DEMDEUR.id_service', $user->id_service);
-                        });
-                    }
                 })
-                ->groupBy('T_PRIORITE.id', 'T_PRIORITE.designation')
-                ->orderBy('T_PRIORITE.id')
+                ->select('T_STATUT.designation', DB::raw('COUNT(T_TICKET.id) as count'))
+                ->groupBy('T_STATUT.designation')
                 ->get();
 
-            // Statistiques des tickets par catégorie
-            $par_categorie = Categorie::select('T_CATEGORIE.designation as categorie', DB::raw('count(T_TICKET.id) as total'))
-                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $societe, $categorie, $user) {
-                    $join->on('T_CATEGORIE.id', '=', 'T_TICKET.id_categorie');
+            // Requête pour les tickets par priorité
+            $ticketsByPriorite = DB::table('T_PRIORITE')
+                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $categorie, $user) {
+                    $join->on('T_PRIORITE.id', '=', 'T_TICKET.Id_Priorite');
                     if ($statut) $join->where('T_TICKET.Id_Statut', $statut);
                     if ($priorite) $join->where('T_TICKET.Id_Priorite', $priorite);
                     if ($demandeur) $join->where('T_TICKET.Id_Demandeur', $demandeur);
-                    if ($societe) $join->where('T_TICKET.Id_Societe', $societe);
                     if ($categorie) $join->where('T_TICKET.Id_Categorie', $categorie);
-                    if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
-                        $join->whereExists(function($query) use ($user) {
-                            $query->select(DB::raw(1))
-                                ->from('T_DEMDEUR')
-                                ->whereRaw('T_DEMDEUR.id = T_TICKET.Id_Demandeur')
-                                ->where('T_DEMDEUR.id_service', $user->id_service);
-                        });
-                    }
                 })
-                ->groupBy('T_CATEGORIE.id', 'T_CATEGORIE.designation')
-                ->orderBy('T_CATEGORIE.id')
+                ->select('T_PRIORITE.designation', DB::raw('COUNT(T_TICKET.id) as count'))
+                ->groupBy('T_PRIORITE.designation')
                 ->get();
 
-            // Statistiques des tickets par demandeur
-            $par_demandeur = \App\Models\Demandeur::select('T_DEMDEUR.designation as demandeur', DB::raw('count(T_TICKET.id) as total'))
-                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $societe, $categorie, $user) {
-                    $join->on('T_DEMDEUR.id', '=', 'T_TICKET.id_demandeur');
+            // Requête pour les tickets par catégorie
+            $ticketsByCategorie = DB::table('T_CATEGORIE')
+                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $categorie, $user) {
+                    $join->on('T_CATEGORIE.id', '=', 'T_TICKET.Id_Categorie');
                     if ($statut) $join->where('T_TICKET.Id_Statut', $statut);
                     if ($priorite) $join->where('T_TICKET.Id_Priorite', $priorite);
                     if ($demandeur) $join->where('T_TICKET.Id_Demandeur', $demandeur);
-                    if ($societe) $join->where('T_TICKET.Id_Societe', $societe);
                     if ($categorie) $join->where('T_TICKET.Id_Categorie', $categorie);
-                    if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
-                        $join->where('T_DEMDEUR.id_service', $user->id_service);
-                    }
                 })
-                ->groupBy('T_DEMDEUR.id', 'T_DEMDEUR.designation')
-                ->orderBy('T_DEMDEUR.designation')
+                ->select('T_CATEGORIE.designation', DB::raw('COUNT(T_TICKET.id) as count'))
+                ->groupBy('T_CATEGORIE.designation')
                 ->get();
 
             $stats = [
-                'total' => $total,
-                'en_cours' => $en_cours,
-                'en_instance' => $en_instance,
-                'cloture' => $cloture,
-                'par_priorite' => $par_priorite,
-                'par_categorie' => $par_categorie,
-                'par_demandeur' => $par_demandeur,
+                'ticketsByStatut' => $ticketsByStatut,
+                'ticketsByPriorite' => $ticketsByPriorite,
+                'ticketsByCategorie' => $ticketsByCategorie
             ];
 
             Log::info('Statistiques récupérées avec succès', $stats);

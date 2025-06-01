@@ -6,7 +6,6 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UtilisateurController;
 use App\Http\Controllers\DemandeurController;
-use App\Http\Controllers\SocieteController;
 use App\Http\Controllers\EmplacementController;
 use App\Http\Controllers\PrioriteController;
 use App\Http\Controllers\CategorieController;
@@ -60,8 +59,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les listes déroulantes
     Route::get('/demandeurs', [DemandeurController::class, 'index']);
     Route::post('/demandeurs', [DemandeurController::class, 'store']);
-    Route::get('/societes', [SocieteController::class, 'index']);
-    Route::post('/societes', [SocieteController::class, 'store']);
     Route::get('/emplacements', [EmplacementController::class, 'index']);
     Route::post('/emplacements', [EmplacementController::class, 'store']);
     Route::get('/priorites', [PrioriteController::class, 'index']);
@@ -80,7 +77,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les entités modifiables
     Route::apiResource('categories', CategorieController::class);
     Route::apiResource('emplacements', EmplacementController::class);
-    Route::apiResource('societes', SocieteController::class);
     Route::apiResource('demandeurs', DemandeurController::class);
     Route::apiResource('services', ServiceController::class);
     Route::apiResource('priorites', PrioriteController::class);

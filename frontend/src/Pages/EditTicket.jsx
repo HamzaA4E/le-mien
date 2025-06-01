@@ -15,7 +15,6 @@ const EditTicket = () => {
     Id_Priorite: '',
     Id_Statut: '',
     Id_Demandeur: '',
-    Id_Societe: '',
     Id_Emplacement: '',
     Id_Categorie: '',
     DateDebut: '',
@@ -26,7 +25,6 @@ const EditTicket = () => {
     priorites: [],
     statuts: [],
     demandeurs: [],
-    societes: [],
     emplacements: [],
     categories: []
   });
@@ -63,7 +61,6 @@ const EditTicket = () => {
           Id_Priorite: ticket.Id_Priorite || '',
           Id_Statut: ticket.Id_Statut || '',
           Id_Demandeur: ticket.Id_Demandeur || '',
-          Id_Societe: ticket.Id_Societe || '',
           Id_Emplacement: ticket.Id_Emplacement || '',
           Id_Categorie: ticket.Id_Categorie || '',
           DateDebut: formatDate(ticket.DateDebut),
@@ -80,7 +77,6 @@ const EditTicket = () => {
           priorites: options.priorites || [],
           statuts: options.statuts || [],
           demandeurs: options.demandeurs || [],
-          societes: options.societes || [],
           emplacements: options.emplacements || [],
           categories: options.categories || []
         });
@@ -159,7 +155,6 @@ const EditTicket = () => {
         Id_Priorite: parseInt(formData.Id_Priorite),
         Id_Statut: parseInt(formData.Id_Statut),
         Id_Demandeur: parseInt(formData.Id_Demandeur),
-        Id_Societe: parseInt(formData.Id_Societe),
         Id_Emplacement: parseInt(formData.Id_Emplacement),
         Id_Categorie: parseInt(formData.Id_Categorie),
         DateDebut: formatDateForBackend(formData.DateDebut),
@@ -351,27 +346,6 @@ const EditTicket = () => {
                 {options.demandeurs.map(demandeur => (
                   <option key={demandeur.id} value={demandeur.id}>
                     {demandeur.designation}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="Id_Societe" className="block text-sm font-medium text-gray-700">
-                Société
-              </label>
-              <select
-                name="Id_Societe"
-                id="Id_Societe"
-                required
-                value={formData.Id_Societe}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                <option value="">Sélectionner une société</option>
-                {options.societes.map(societe => (
-                  <option key={societe.id} value={societe.id}>
-                    {societe.designation}
                   </option>
                 ))}
               </select>

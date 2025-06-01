@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Ticket;
 use App\Models\Demandeur;
-use App\Models\Societe;
 use App\Models\Emplacement;
 use App\Models\Priorite;
 use App\Models\Categorie;
@@ -18,6 +17,14 @@ use Illuminate\Support\Facades\Log;
 
 class TicketController extends Controller
 {
+    protected $relations = [
+        'statut',
+        'priorite',
+        'demandeur',
+        'emplacement',
+        'categorie'
+    ];
+
     public function index(Request $request)
     {
         try {
@@ -25,7 +32,6 @@ class TicketController extends Controller
                 'statut',
                 'priorite',
                 'demandeur',
-                'societe',
                 'emplacement',
                 'categorie',
                 'reports'
@@ -64,9 +70,6 @@ class TicketController extends Controller
             }
             if ($request->filled('demandeur')) {
                 $query->where('Id_Demandeur', $request->demandeur);
-            }
-            if ($request->filled('societe')) {
-                $query->where('Id_Societe', $request->societe);
             }
             if ($request->filled('emplacement')) {
                 $query->where('Id_Emplacement', $request->emplacement);
@@ -157,7 +160,6 @@ class TicketController extends Controller
                 'date_fin_reelle' => 'nullable|date',
                 'id_demandeur' => 'required|exists:T_UTILISAT,id',
                 'id_utilisateur' => 'required|exists:T_UTILISAT,id',
-                'id_societe' => 'required|exists:T_SOCIETE,id',
                 'id_emplacement' => 'required|exists:T_EMPLACEMENT,id',
                 'id_priorite' => 'required|exists:T_PRIORITE,id',
                 'id_categorie' => 'required|exists:T_CATEGORIE,id',
@@ -245,7 +247,6 @@ class TicketController extends Controller
                     'Id_Priorite' => (int)$validated['id_priorite'],
                     'Id_Statut' => (int)$validated['id_statut'],
                     'Id_Demandeur' => (int)$validated['id_demandeur'],
-                    'Id_Societe' => (int)$validated['id_societe'],
                     'Id_Emplacement' => (int)$validated['id_emplacement'],
                     'Id_Categorie' => (int)$validated['id_categorie'],
                     'Id_Utilisat' => (int)$validated['id_utilisateur'],
@@ -300,7 +301,6 @@ class TicketController extends Controller
                 'priorite',
                 'categorie',
                 'demandeur',
-                'societe',
                 'emplacement',
                 'utilisateur'
             ])->findOrFail($id);
@@ -359,7 +359,6 @@ class TicketController extends Controller
                 'Id_Priorite' => 'sometimes|exists:T_PRIORITE,id',
                 'Id_Statut' => 'sometimes|exists:T_STATUT,id',
                 'Id_Demandeur' => 'sometimes|exists:T_UTILISAT,id',
-                'Id_Societe' => 'sometimes|exists:T_SOCIETE,id',
                 'Id_Emplacement' => 'sometimes|exists:T_EMPLACEMENT,id',
                 'Id_Categorie' => 'sometimes|exists:T_CATEGORIE,id',
                 'DateDebut' => 'sometimes|date_format:d/m/Y',
@@ -454,7 +453,7 @@ class TicketController extends Controller
                 ]);
 
                 // Recharger le ticket avec ses relations
-                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie'])->find($ticket->id);
+                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'emplacement', 'categorie'])->find($ticket->id);
                 
                 return response()->json($ticket);
             } catch (\Exception $e) {
@@ -511,76 +510,15 @@ class TicketController extends Controller
     //Récupérer les options
     public function getOptions()
     {
-        try {
-            Log::info('Début de la récupération des options');
-
-            $options = [];
-            $errors = [];
-
-            // Charger les statuts
-            try {
-                $statuts = Statut::where('is_active', true)->get();
-                $options['statuts'] = $statuts;
-            } catch (\Exception $e) {
-                Log::error("Erreur lors de la récupération des statuts: " . $e->getMessage());
-                $errors['statuts'] = $e->getMessage();
-                $options['statuts'] = collect([]);
-            }
-
-            // Charger les autres options avec les bonnes clés
-            $tables = [
-                'categories' => Categorie::class,
-                'emplacements' => Emplacement::class,
-                'priorites' => Priorite::class,
-                'demandeurs' => Demandeur::class,
-                'societes' => Societe::class
-            ];
-
-            foreach ($tables as $key => $model) {
-                try {
-                    if ($key === 'demandeurs') {
-                        $options[$key] = $model::where('is_active', true)->with('service')->get();
-                    } else {
-                        $options[$key] = $model::where('is_active', true)->get();
-                    }
-                } catch (\Exception $e) {
-                    Log::error("Erreur lors de la récupération des {$key}: " . $e->getMessage());
-                    $errors[$key] = $e->getMessage();
-                    $options[$key] = collect([]);
-                }
-            }
-
-            // Vérifier que toutes les options requises sont présentes
-            $requiredOptions = ['categories', 'emplacements', 'priorites'];
-            $missingOptions = array_filter($requiredOptions, function($option) use ($options) {
-                return empty($options[$option]);
-            });
-
-            if (!empty($missingOptions)) {
-                Log::error('Options manquantes:', ['missing' => $missingOptions]);
-                $errors['missing_options'] = 'Options manquantes: ' . implode(', ', $missingOptions);
-            }
-
-            return response()->json([
-                'options' => $options,
-                'errors' => $errors,
-                'hasErrors' => !empty($errors)
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des options: ' . $e->getMessage());
-            
-            $emptyOptions = array_fill_keys([
-                'categories', 'emplacements', 'priorites', 
-                'demandeurs', 'societes', 'statuts'
-            ], collect([]));
-            
-            return response()->json([
-                'options' => $emptyOptions,
-                'errors' => ['general' => $e->getMessage()],
-                'hasErrors' => true
-            ], 200);
-        }
+        return response()->json([
+            'options' => [
+                'statuts' => Statut::where('is_active', true)->get(),
+                'priorites' => Priorite::where('is_active', true)->get(),
+                'demandeurs' => Demandeur::where('is_active', true)->get(),
+                'emplacements' => Emplacement::where('is_active', true)->get(),
+                'categories' => Categorie::where('is_active', true)->get()
+            ]
+        ]);
     }
     //Récupérer les statistiques
     public function getStats()
@@ -681,7 +619,7 @@ class TicketController extends Controller
     // Utilitaire pour la commande de rappel
     public static function ticketsFinPrevueDans24hNonCloture()
     {
-        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie'])
+        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'emplacement', 'categorie'])
             ->finPrevueDans24hNonCloture()
             ->get();
     }
@@ -729,7 +667,6 @@ class TicketController extends Controller
             $filterData = [
                 'categories' => Categorie::where('is_active', true)->get(),
                 'demandeurs' => Demandeur::where('is_active', true)->get(),
-                'societes' => Societe::where('is_active', true)->get(),
                 'emplacements' => Emplacement::where('is_active', true)->get(),
                 'statuts' => Statut::where('is_active', true)->get(),
                 'priorites' => Priorite::where('is_active', true)->get(),
@@ -740,7 +677,6 @@ class TicketController extends Controller
                 'statut',
                 'priorite',
                 'demandeur',
-                'societe',
                 'emplacement',
                 'categorie',
             ]);
@@ -751,9 +687,6 @@ class TicketController extends Controller
             }
             if ($request->filled('demandeur')) {
                 $query->where('Id_Demandeur', $request->demandeur);
-            }
-            if ($request->filled('societe')) {
-                $query->where('Id_Societe', $request->societe);
             }
             if ($request->filled('emplacement')) {
                 $query->where('Id_Emplacement', $request->emplacement);
@@ -897,7 +830,6 @@ class TicketController extends Controller
                 'statut',
                 'priorite',
                 'demandeur',
-                'societe',
                 'emplacement',
                 'categorie',
             ]);
@@ -996,7 +928,6 @@ class TicketController extends Controller
                 'statut',
                 'priorite',
                 'demandeur',
-                'societe',
                 'emplacement',
                 'categorie',
             ])

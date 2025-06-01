@@ -11,12 +11,10 @@ return new class extends Migration
         $tables = [
             'T_CATEGORIE',
             'T_EMPLACEMENT',
-            'T_SOCIETE',
             'T_DEMDEUR',
             'T_SERVICE',
             'T_PRIORITE',
             'T_STATUT',
-            
         ];
 
         foreach ($tables as $table) {
@@ -31,12 +29,10 @@ return new class extends Migration
         $tables = [
             'T_CATEGORIE',
             'T_EMPLACEMENT',
-            'T_SOCIETE',
             'T_DEMDEUR',
             'T_SERVICE',
             'T_PRIORITE',
             'T_STATUT',
-            
         ];
 
         foreach ($tables as $table) {

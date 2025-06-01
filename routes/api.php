@@ -46,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tickets/pending', [TicketController::class, 'pending']);
     Route::get('/tickets/pending/count', [TicketController::class, 'countPending']);
     Route::get('/tickets/completed', [TicketController::class, 'completed']);
+    Route::get('/tickets/completed/count', [TicketController::class, 'countCompleted']);
     Route::post('/tickets/{id}/approve', [TicketController::class, 'approve']);
     Route::post('/tickets/{id}/reject', [TicketController::class, 'reject']);
     Route::post('/tickets/{id}/demandeur-approve', [TicketController::class, 'demandeurApprove']);

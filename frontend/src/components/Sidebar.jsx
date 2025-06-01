@@ -12,6 +12,7 @@ const Sidebar = () => {
   const [loading, setLoading] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
+  const [completedTicketsCount, setCompletedTicketsCount] = useState(0);
 
   // Récupérer le user depuis le localStorage
   let user = null;
@@ -41,6 +42,10 @@ const Sidebar = () => {
         // Récupérer le nombre de tickets en attente (tous les niveaux)
         const ticketsResponse = await axios.get('/api/tickets/pending/count', { headers });
         setPendingTicketsCount(ticketsResponse.data.count);
+
+        // Récupérer le nombre de tickets terminés (tous les niveaux)
+        const completedResponse = await axios.get('/api/tickets/completed/count', { headers });
+        setCompletedTicketsCount(completedResponse.data.count);
       } catch (error) {
         console.error('Error fetching counts:', error);
       }
@@ -150,7 +155,12 @@ const Sidebar = () => {
         text: 'Tickets en attente',
         badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
       },
-      { path: '/completed-tickets', icon: <FaCheckCircle />, text: 'Tickets terminés' },
+      { 
+        path: '/completed-tickets', 
+        icon: <FaCheckCircle />, 
+        text: 'Tickets terminés',
+        badge: completedTicketsCount > 0 ? completedTicketsCount : null
+      },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }

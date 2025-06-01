@@ -1087,4 +1087,35 @@ class TicketController extends Controller
             ], 500);
         }
     }
+
+    public function countCompleted()
+    {
+        try {
+            $user = auth()->user();
+            $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
+
+            if (!$demandeur) {
+                return response()->json(['count' => 0]);
+            }
+
+            $count = Ticket::where('Id_Demandeur', $demandeur->id)
+                ->whereHas('statut', function($q) {
+                    $q->where('designation', 'Terminé');
+                })
+                ->whereDoesntHave('reports', function($q) {
+                    $q->whereIn('type', ['approbation', 'rejet']);
+                })
+                ->count();
+
+            return response()->json(['count' => $count]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors du comptage des tickets terminés', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Une erreur est survenue lors du comptage des tickets terminés'
+            ], 500);
+        }
+    }
 } 

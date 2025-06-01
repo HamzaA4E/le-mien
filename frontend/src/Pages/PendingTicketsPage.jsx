@@ -1,10 +1,167 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { FaSyncAlt, FaEye, FaTicketAlt, FaTimesCircle } from 'react-icons/fa';
 
-// Fonction utilitaire pour formater les dates Laravel ou string
-function formatDate(dateValue) {
+// Composant Modal d'approbation
+const ApproveModal = ({ isOpen, onClose, onApprove, ticketId }) => {
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [error, setError] = useState('');
+
+    const handleSubmit = useCallback(() => {
+        if (!startDate || !endDate) {
+            setError('Veuillez renseigner les deux dates.');
+            return;
+        }
+        if (endDate < startDate) {
+            setError('La date de fin prévue doit être postérieure à la date de début.');
+            return;
+        }
+        onApprove(ticketId, startDate, endDate);
+    }, [startDate, endDate, ticketId, onApprove]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">Définir les dates du ticket</h2>
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
+                    <input
+                        type="date"
+                        className="w-full border rounded px-3 py-2"
+                        value={startDate}
+                        onChange={e => setStartDate(e.target.value)}
+                    />
+                </div>
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin prévue</label>
+                    <input
+                        type="date"
+                        className="w-full border rounded px-3 py-2"
+                        value={endDate}
+                        onChange={e => setEndDate(e.target.value)}
+                        min={startDate}
+                    />
+                </div>
+                {error && <div className="mb-2 text-red-600 text-sm">{error}</div>}
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                    >Annuler</button>
+                    <button
+                        onClick={handleSubmit}
+                        className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                    >Valider</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Composant Modal de détails
+const DetailModal = ({ isOpen, onClose, ticket, onApprove, onReject, loading }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+            <div className="relative bg-white p-8 rounded-xl shadow-xl w-full max-w-2xl">
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition"
+                    title="Fermer"
+                >
+                    ×
+                </button>
+                <h2 className="text-xl font-bold text-blue-700 mb-6">Résumé du ticket</h2>
+                {loading ? (
+                    <div className="text-center text-blue-600 font-semibold">Chargement...</div>
+                ) : ticket ? (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 mb-6">
+                            <div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Titre :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.Titre}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Description :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.Description}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Catégorie :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.categorie?.designation}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Emplacement :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.emplacement?.designation}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Service :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.demandeur?.service?.designation}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Commentaire :</span>
+                                    <span className="ml-2 text-gray-900">
+                                        {ticket.formatted_comments && ticket.formatted_comments.length > 0
+                                            ? ticket.formatted_comments[ticket.formatted_comments.length-1].content
+                                            : 'Aucun'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Date de début :</span>
+                                    <span className="ml-2 text-gray-900">{formatDate(ticket.DateDebut)}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Date de fin :</span>
+                                    <span className="ml-2 text-gray-900">{formatDate(ticket.DateFinPrevue)}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Priorité :</span>
+                                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
+                                        ticket.priorite?.designation === 'Urgent'
+                                            ? 'bg-red-50 text-red-600 border border-red-200'
+                                            : 'bg-green-50 text-green-700 border border-green-200'
+                                    }`}>
+                                        {ticket.priorite?.designation}
+                                    </span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Demandeur :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.demandeur?.designation}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-2">
+                            <button
+                                onClick={() => { onClose(); onApprove(ticket.id); }}
+                                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm transition"
+                            >
+                                Approuver
+                            </button>
+                            <button
+                                onClick={() => { onClose(); onReject(ticket.id); }}
+                                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-semibold shadow-sm transition"
+                            >
+                                Refuser
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <div className="text-center text-red-600">Erreur lors du chargement du ticket.</div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Fonction utilitaire pour formater les dates
+const formatDate = (dateValue) => {
     if (!dateValue) return '-';
     let dateString = dateValue;
     if (typeof dateValue === 'object' && dateValue.date) {
@@ -20,7 +177,7 @@ function formatDate(dateValue) {
         month: '2-digit',
         day: '2-digit'
     });
-}
+};
 
 const PendingTicketsPage = () => {
     const [tickets, setTickets] = useState([]);
@@ -32,73 +189,46 @@ const PendingTicketsPage = () => {
     const [spin, setSpin] = useState(false);
     const [showApproveModal, setShowApproveModal] = useState(false);
     const [approveTicketId, setApproveTicketId] = useState(null);
-    const [approveStartDate, setApproveStartDate] = useState('');
-    const [approveEndDate, setApproveEndDate] = useState('');
-    const [approveError, setApproveError] = useState('');
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
 
-    useEffect(() => {
-        fetchTickets();
-    }, [showRejected]);
-
-    const fetchTickets = async () => {
+    const fetchTickets = useCallback(async () => {
         setSpin(true);
         try {
             const response = await axios.get('/api/tickets/pending', {
                 params: { show_rejected: showRejected }
             });
             setTickets(response.data);
-            setLoading(false);
+            setError(null);
         } catch (err) {
             setError('Erreur lors du chargement des tickets');
-            setLoading(false);
         } finally {
+            setLoading(false);
             setTimeout(() => setSpin(false), 600);
         }
-    };
+    }, [showRejected]);
 
-    const openApproveModal = (id) => {
-        setApproveTicketId(id);
-        setApproveStartDate('');
-        setApproveEndDate('');
-        setApproveError('');
-        setShowApproveModal(true);
-    };
+    useEffect(() => {
+        fetchTickets();
+    }, [fetchTickets]);
 
-    const closeApproveModal = () => {
-        setShowApproveModal(false);
-        setApproveTicketId(null);
-        setApproveStartDate('');
-        setApproveEndDate('');
-        setApproveError('');
-    };
-
-    const handleApproveWithDates = async () => {
-        if (!approveStartDate || !approveEndDate) {
-            setApproveError('Veuillez renseigner les deux dates.');
-            return;
-        }
-        if (approveEndDate < approveStartDate) {
-            setApproveError('La date de fin prévue doit être postérieure à la date de début.');
-            return;
-        }
+    const handleApprove = useCallback(async (ticketId, startDate, endDate) => {
         try {
-            await axios.post(`/api/tickets/${approveTicketId}/approve`, {
-                DateDebut: approveStartDate,
-                DateFinPrevue: approveEndDate
+            await axios.post(`/api/tickets/${ticketId}/approve`, {
+                DateDebut: startDate,
+                DateFinPrevue: endDate
             });
             setSuccessMessage('Le ticket a été approuvé avec succès.');
             setErrorMessage('');
-            closeApproveModal();
+            setShowApproveModal(false);
             fetchTickets();
         } catch (err) {
-            setApproveError("Une erreur est survenue lors de l'approbation du ticket.");
+            setErrorMessage("Une erreur est survenue lors de l'approbation du ticket.");
         }
-    };
+    }, [fetchTickets]);
 
-    const handleReject = async (id) => {
+    const handleReject = useCallback(async (id) => {
         try {
             await axios.post(`/api/tickets/${id}/reject`);
             setSuccessMessage('Le ticket a été refusé avec succès.');
@@ -106,11 +236,10 @@ const PendingTicketsPage = () => {
             fetchTickets();
         } catch (err) {
             setErrorMessage("Une erreur est survenue lors du refus du ticket.");
-            setSuccessMessage('');
         }
-    };
+    }, [fetchTickets]);
 
-    const openDetailModal = async (ticketId) => {
+    const openDetailModal = useCallback(async (ticketId) => {
         setLoadingDetail(true);
         setShowDetailModal(true);
         try {
@@ -120,12 +249,35 @@ const PendingTicketsPage = () => {
             setSelectedTicket(null);
         }
         setLoadingDetail(false);
-    };
+    }, []);
 
-    const closeDetailModal = () => {
+    const closeDetailModal = useCallback(() => {
         setShowDetailModal(false);
         setSelectedTicket(null);
-    };
+    }, []);
+
+    const openApproveModal = useCallback((id) => {
+        setApproveTicketId(id);
+        setShowApproveModal(true);
+    }, []);
+
+    const closeApproveModal = useCallback(() => {
+        setShowApproveModal(false);
+        setApproveTicketId(null);
+    }, []);
+
+    const clearMessages = useCallback(() => {
+        setSuccessMessage('');
+        setErrorMessage('');
+    }, []);
+
+    // Effet pour nettoyer les messages après 5 secondes
+    useEffect(() => {
+        if (successMessage || errorMessage) {
+            const timer = setTimeout(clearMessages, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [successMessage, errorMessage, clearMessages]);
 
     if (loading) {
         return (
@@ -145,6 +297,7 @@ const PendingTicketsPage = () => {
             </Layout>
         );
     }
+
     if (error) {
         return (
             <Layout>
@@ -187,49 +340,14 @@ const PendingTicketsPage = () => {
                         {showRejected ? 'Voir les tickets en attente' : 'Voir les tickets refusés'}
                     </button>
                 </div>
+
                 {successMessage && (
                     <div className="mb-4 p-4 bg-green-100 text-green-800 rounded">{successMessage}</div>
                 )}
                 {errorMessage && (
                     <div className="mb-4 p-4 bg-red-100 text-red-800 rounded">{errorMessage}</div>
                 )}
-                {showApproveModal && (
-                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-                        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-                            <h2 className="text-xl font-bold mb-4">Définir les dates du ticket</h2>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
-                                <input
-                                    type="date"
-                                    className="w-full border rounded px-3 py-2"
-                                    value={approveStartDate}
-                                    onChange={e => setApproveStartDate(e.target.value)}
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin prévue</label>
-                                <input
-                                    type="date"
-                                    className="w-full border rounded px-3 py-2"
-                                    value={approveEndDate}
-                                    onChange={e => setApproveEndDate(e.target.value)}
-                                    min={approveStartDate}
-                                />
-                            </div>
-                            {approveError && <div className="mb-2 text-red-600 text-sm">{approveError}</div>}
-                            <div className="flex justify-end gap-2">
-                                <button
-                                    onClick={closeApproveModal}
-                                    className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
-                                >Annuler</button>
-                                <button
-                                    onClick={handleApproveWithDates}
-                                    className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-                                >Valider</button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
                 <div className="bg-white rounded-lg shadow overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
@@ -253,13 +371,7 @@ const PendingTicketsPage = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                {ticket.DateCreation && ticket.DateCreation.date
-                                                    ? new Date(ticket.DateCreation.date.replace(' ', 'T')).toLocaleDateString('fr-FR', {
-                                                        year: 'numeric',
-                                                        month: '2-digit',
-                                                        day: '2-digit'
-                                                    })
-                                                    : 'Date non disponible'}
+                                                {formatDate(ticket.DateCreation)}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -296,98 +408,22 @@ const PendingTicketsPage = () => {
                         </table>
                     </div>
                 </div>
-                {showDetailModal && (
-                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-                        <div className="relative bg-white p-8 rounded-xl shadow-xl w-full max-w-2xl">
-                            <button
-                                onClick={closeDetailModal}
-                                className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition"
-                                title="Fermer"
-                            >
-                                ×
-                            </button>
-                            <h2 className="text-xl font-bold text-blue-700 mb-6">Résumé du ticket</h2>
-                            {loadingDetail ? (
-                                <div className="text-center text-blue-600 font-semibold">Chargement...</div>
-                            ) : selectedTicket ? (
-                                <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 mb-6">
-                                        <div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Titre :</span>
-                                                <span className="ml-2 text-gray-900">{selectedTicket.Titre}</span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Description :</span>
-                                                <span className="ml-2 text-gray-900">{selectedTicket.Description}</span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Catégorie :</span>
-                                                <span className="ml-2 text-gray-900">{selectedTicket.categorie?.designation}</span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Emplacement :</span>
-                                                <span className="ml-2 text-gray-900">{selectedTicket.emplacement?.designation}</span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Service :</span>
-                                                <span className="ml-2 text-gray-900">{selectedTicket.demandeur?.service?.designation}</span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Commentaire :</span>
-                                                <span className="ml-2 text-gray-900">
-                                                    {selectedTicket.formatted_comments && selectedTicket.formatted_comments.length > 0
-                                                        ? selectedTicket.formatted_comments[selectedTicket.formatted_comments.length-1].content
-                                                        : 'Aucun'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Date de début :</span>
-                                                <span className="ml-2 text-gray-900">{formatDate(selectedTicket.DateDebut)}</span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Date de fin :</span>
-                                                <span className="ml-2 text-gray-900">{formatDate(selectedTicket.DateFinPrevue)}</span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Priorité :</span>
-                                                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                                                    selectedTicket.priorite?.designation === 'Urgent'
-                                                        ? 'bg-red-50 text-red-600 border border-red-200'
-                                                        : 'bg-green-50 text-green-700 border border-green-200'
-                                                }`}>
-                                                    {selectedTicket.priorite?.designation}
-                                                </span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Demandeur :</span>
-                                                <span className="ml-2 text-gray-900">{selectedTicket.demandeur?.designation}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-3 mt-2">
-                                        <button
-                                            onClick={() => { closeDetailModal(); openApproveModal(selectedTicket.id); }}
-                                            className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm transition"
-                                        >
-                                            Approuver
-                                        </button>
-                                        <button
-                                            onClick={() => { closeDetailModal(); handleReject(selectedTicket.id); }}
-                                            className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-semibold shadow-sm transition"
-                                        >
-                                            Refuser
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="text-center text-red-600">Erreur lors du chargement du ticket.</div>
-                            )}
-                        </div>
-                    </div>
-                )}
+
+                <ApproveModal
+                    isOpen={showApproveModal}
+                    onClose={closeApproveModal}
+                    onApprove={handleApprove}
+                    ticketId={approveTicketId}
+                />
+
+                <DetailModal
+                    isOpen={showDetailModal}
+                    onClose={closeDetailModal}
+                    ticket={selectedTicket}
+                    onApprove={openApproveModal}
+                    onReject={handleReject}
+                    loading={loadingDetail}
+                />
             </div>
         </Layout>
     );

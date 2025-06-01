@@ -35,7 +35,7 @@ class TicketController extends Controller
                 'emplacement',
                 'categorie',
                 'reports'
-            ]);
+            ])->where('Id_Statut', '!=', 1); // Exclure les tickets avec statut "Nouveau"
 
             // Restriction pour les demandeurs : ils ne voient que leurs tickets
             $user = auth()->user();
@@ -512,7 +512,9 @@ class TicketController extends Controller
     {
         return response()->json([
             'options' => [
-                'statuts' => Statut::where('is_active', true)->get(),
+                'statuts' => Statut::where('is_active', true)
+                    ->where('id', '!=', 1) // Exclure le statut "Nouveau"
+                    ->get(),
                 'priorites' => Priorite::where('is_active', true)->get(),
                 'demandeurs' => Demandeur::where('is_active', true)->get(),
                 'emplacements' => Emplacement::where('is_active', true)->get(),

@@ -131,7 +131,7 @@ const ListUsers = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-2xl font-bold mb-8">Liste des Utilisateurs</h1>
           {renderSkeleton()}
         </div>
@@ -142,7 +142,7 @@ const ListUsers = () => {
   if (error) {
     return (
       <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="p-4 bg-red-100 text-red-700 rounded">
             {error}
           </div>
@@ -153,7 +153,7 @@ const ListUsers = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-9">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-bold">Liste des Utilisateurs</h1>
           <button
@@ -212,25 +212,25 @@ const ListUsers = () => {
 
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                     Utilisateur
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Email
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                     Niveau d'accès
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                     Service
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/10">
                     Statut
                   </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                     Actions
                   </th>
                 </tr>
@@ -238,57 +238,59 @@ const ListUsers = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {users.map((user) => (
                   <tr key={user.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <FaUser className="h-10 w-10 text-gray-400" />
+                        <div className="flex-shrink-0 h-8 w-8">
+                          <FaUser className="h-8 w-8 text-gray-400" />
                         </div>
-                        <div className="ml-4">
+                        <div className="ml-2">
                           <div className="text-sm font-medium text-gray-900">
                             {user.designation}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3">
                       <div className="text-sm text-gray-900">{user.email}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3">
                       <div className="text-sm text-gray-900">{getNiveauText(user.niveau)}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3">
                       <div className="text-sm text-gray-900">
                         {user.niveau === '2' ? 'Pas de service' : (user.service?.designation || 'Non spécifié')}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3">
                       {user.statut === 1 ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           Actif
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                           Inactif
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {currentUser?.niveau === 1 && user.id !== currentUser?.id && (
-                        <button
-                          onClick={() => handleSetStatut(user.id, user.statut === 1 ? 0 : 1)}
-                          className={user.statut === 1 ? 'text-red-600 hover:text-red-900 ml-4' : 'text-green-600 hover:text-green-900 ml-4'}
-                        >
-                          {user.statut === 1 ? 'Désactiver' : 'Activer'}
-                        </button>
-                      )}
-                      {user.id !== currentUser?.id && (
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          className="text-red-600 hover:text-red-900 ml-4"
-                        >
-                          <FaTrash />
-                        </button>
-                      )}
+                    <td className="px-3 py-3 text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-2 gap-2">
+                        {currentUser?.niveau === 1 && user.id !== currentUser?.id && (
+                          <button
+                            onClick={() => handleSetStatut(user.id, user.statut === 1 ? 0 : 1)}
+                            className={user.statut === 1 ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}
+                          >
+                            {user.statut === 1 ? 'Désactiver' : 'Activer'}
+                          </button>
+                        )}
+                        {user.id !== currentUser?.id && (
+                          <button
+                            onClick={() => handleDelete(user.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

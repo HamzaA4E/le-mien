@@ -45,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tickets/options', [TicketController::class, 'getOptions']);
     Route::get('/tickets/{id}/download', [TicketController::class, 'downloadAttachment']);
     Route::get('/tickets/pending', [TicketController::class, 'pending']);
+    Route::get('/tickets/pending/count', [TicketController::class, 'countPending']);
     Route::get('/tickets/completed', [TicketController::class, 'completed']);
     Route::post('/tickets/{id}/approve', [TicketController::class, 'approve']);
     Route::post('/tickets/{id}/reject', [TicketController::class, 'reject']);
@@ -100,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Routes pour la gestion des demandes d'inscription
     Route::get('/admin/register-requests', [RegisterRequestController::class, 'index']);
+    Route::get('/admin/register-requests/count', [RegisterRequestController::class, 'count']);
     Route::post('/admin/register-requests/{id}/approve', [RegisterRequestController::class, 'approve']);
     Route::post('/admin/register-requests/{id}/reject', [RegisterRequestController::class, 'reject']);
 }); 

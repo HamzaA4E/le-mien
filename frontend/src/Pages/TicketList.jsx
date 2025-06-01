@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { FaSyncAlt, FaFilter, FaTimes } from 'react-icons/fa';
 import { BiCategory } from 'react-icons/bi';
 import { MdPerson, MdBusinessCenter, MdLocationOn, MdDateRange } from 'react-icons/md';
+import { toast, Toaster } from 'react-hot-toast';
 
 // Mapping des couleurs pour les types de demande
 const TYPE_COLORS = {
@@ -346,13 +347,23 @@ const TicketList = () => {
   const handleStatutChange = async (ticketId, newStatutId) => {
     try {
       const selectedStatut = statuts.find(s => s.id === parseInt(newStatutId, 10));
-      const isCloture = selectedStatut?.designation === 'Clôturé';
+      
+      // Vérifier si le statut est l'un des statuts manuels autorisés
+      const manualStatuses = ['En instance', 'En cours', 'Terminé'];
+      const isManualStatus = manualStatuses.includes(selectedStatut?.designation);
+
+      // Si ce n'est pas un statut manuel et que l'utilisateur n'est pas admin, empêcher le changement
+      if (!isManualStatus && !(niveau === '1' || niveau === 1)) {
+        toast.error('Vous ne pouvez pas modifier ce statut.');
+        return;
+      }
 
       const updateData = {
         Id_Statut: parseInt(newStatutId, 10)
       };
 
-      if (isCloture) {
+      // Si le statut est "Terminé", ajouter la date de fin réelle
+      if (selectedStatut?.designation === 'Terminé') {
         updateData.DateFinReelle = new Date().toISOString().split('T')[0];
       }
 
@@ -364,15 +375,17 @@ const TicketList = () => {
             ...ticket,
             Id_Statut: parseInt(newStatutId, 10),
             statut: response.data.statut,
-            DateFinReelle: isCloture ? updateData.DateFinReelle : ticket.DateFinReelle
+            DateFinReelle: selectedStatut?.designation === 'Terminé' ? updateData.DateFinReelle : ticket.DateFinReelle
           };
         }
         return ticket;
       }));
 
+      toast.success('Statut mis à jour avec succès');
+
     } catch (error) {
       console.error('Error updating status:', error);
-      setError(error.response?.data?.message || 'Erreur lors de la mise à jour du statut du ticket.');
+      toast.error(error.response?.data?.message || 'Erreur lors de la mise à jour du statut du ticket.');
     }
   };
 
@@ -421,6 +434,7 @@ const TicketList = () => {
   if (loading && !allTickets.length) {
     return (
       <Layout>
+        <Toaster position="top-right" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Liste des Tickets</h1>
@@ -437,6 +451,7 @@ const TicketList = () => {
 
   return (
     <Layout>
+      <Toaster position="top-right" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Liste des Tickets</h1>
@@ -727,107 +742,167 @@ const TicketList = () => {
         )}
 
         <div className="space-y-4">
-          {filteredTickets.map((ticket) => (
-            <div
-              key={ticket.id}
-              className={`rounded-2xl shadow-lg border flex flex-col md:flex-row items-center justify-between min-h-[140px] px-6 py-5 mb-6 transition-transform hover:scale-[1.015] hover:shadow-2xl group
-                ${ticket.reports && ticket.reports.some(report => report.type === 'rejet' && report.Id_Demandeur === ticket.Id_Demandeur) ? 'border-red-600 bg-red-50' : ''}
-              `}
-              style={{ transition: 'box-shadow 0.2s, transform 0.2s' }}
-            >
-              <div className="flex-1 flex flex-col w-full">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <h3 className={`text-2xl font-bold uppercase tracking-wide group-hover:text-blue-700 transition-colors ${
-                      ticket.reports && ticket.reports.some(report => report.type === 'rejet' && report.Id_Demandeur === ticket.Id_Demandeur) ? 'text-red-700' : 'text-gray-900'
+          {filteredTickets.map((ticket) => {
+            // Affichage temporaire pour debug
+            console.log('TICKET DEBUG:', ticket.id, ticket.Titre, ticket.reports, ticket.Id_Demandeur);
+            // Vérifier si le ticket est refusé par le demandeur
+            const isRejectedByDemandeur = ticket.reports && 
+              ticket.reports.some(report => report.type === 'rejet');
+            
+            // Déterminer la classe de style en fonction du statut
+            const getTicketStyle = () => {
+              if (ticket.statut?.designation === 'Refusé') {
+                return 'border-red-600 bg-red-50 hover:bg-red-100';
+              }
+              if (isRejectedByDemandeur) {
+                return 'border-orange-600 bg-orange-50 hover:bg-orange-100';
+              }
+              return '';
+            };
+
+            const ticketStyle = getTicketStyle();
+
+            // TEST : injecter un faux report pour le ticket id=1
+            if (ticket.id === 1) {
+              ticket.reports = [{ type: 'rejet', Id_Demandeur: ticket.Id_Demandeur }];
+            }
+
+            return (
+              <div
+                key={ticket.id}
+                className={`rounded-2xl shadow-lg border flex flex-col md:flex-row items-center justify-between min-h-[140px] px-6 py-5 mb-6 transition-transform hover:scale-[1.015] hover:shadow-2xl group ${ticketStyle}`}
+                style={{ transition: 'box-shadow 0.2s, transform 0.2s' }}
+              >
+                <div className="flex-1 flex flex-col w-full">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                      <h3 className={`text-2xl font-bold uppercase tracking-wide group-hover:text-blue-700 transition-colors ${
+                        ticket.statut?.designation === 'Refusé' ? 'text-red-700' : 
+                        isRejectedByDemandeur ? 'text-orange-700' : 
+                        'text-gray-900'
+                      }`}>
+                        {ticket.Titre}
+                      </h3>
+                      <div className="flex gap-2">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${
+                          ticket.statut?.designation === 'Refusé' ? 'bg-red-100 text-red-700 border-red-200' :
+                          isRejectedByDemandeur ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                          'bg-blue-100 text-blue-700 border-blue-200'
+                        }`}>
+                          {ticket.statut?.designation || 'Sans statut'}
+                        </span>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 border border-green-200">
+                          {ticket.priorite?.designation || 'Sans priorité'}
+                        </span>
+                        {ticket.statut?.designation === 'Clôturé' && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-gray-700 border border-gray-200">
+                            Clôturé le : {formatDate(ticket.DateFinReelle)}
+                          </span>
+                        )}
+                        {isRejectedByDemandeur && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                            Refusé précédemment par le demandeur
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className={`text-base mb-4 line-clamp-2 ${
+                      ticket.statut?.designation === 'Refusé' ? 'text-red-700' : 
+                      isRejectedByDemandeur ? 'text-orange-700' : 
+                      'text-gray-700'
                     }`}>
-                      {ticket.Titre}
-                    </h3>
-                    <div className="flex gap-2">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-                        {ticket.statut?.designation || 'Sans statut'}
-                      </span>
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 border border-green-200">
-                        {ticket.priorite?.designation || 'Sans priorité'}
-                      </span>
-                      {ticket.statut?.designation === 'Clôturé' && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-gray-700 border border-gray-200">
-                          Clôturé le : {formatDate(ticket.DateFinReelle)}
-                        </span>
-                      )}
-                      {ticket.reports && ticket.reports.some(report => report.type === 'rejet' && report.Id_Demandeur === ticket.Id_Demandeur) && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 border border-red-200">
-                          Refusé par le demandeur
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-base text-gray-700 mb-4 line-clamp-2">
-                    {ticket.Description || 'Aucune description'}
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm">
-                    <div>
-                      <span className="text-gray-500">Demandeur :</span>
-                      <span className="font-semibold text-gray-900 ml-1">{ticket.demandeur?.designation || 'Non spécifié'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Exécutant :</span>
-                      <span className="font-semibold text-gray-900 ml-1">{ticket.executant?.designation || 'Non assigné'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Date début :</span>
-                      <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateDebut)}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Date fin prévue :</span>
-                      <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateFinPrevue)}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Société :</span>
-                      <span className="font-semibold text-gray-900 ml-1">{ticket.societe?.designation || 'Non spécifiée'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Emplacement :</span>
-                      <span className="font-semibold text-gray-900 ml-1">{ticket.emplacement?.designation || 'Non spécifié'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Catégorie :</span>
-                      <span className="font-semibold text-gray-900 ml-1">{ticket.categorie?.designation || 'Non spécifiée'}</span>
+                      {ticket.Description || 'Aucune description'}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm">
+                      <div>
+                        <span className="text-gray-500">Demandeur :</span>
+                        <span className="font-semibold text-gray-900 ml-1">{ticket.demandeur?.designation || 'Non spécifié'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Exécutant :</span>
+                        <span className="font-semibold text-gray-900 ml-1">{ticket.executant?.designation || 'Non assigné'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Date début :</span>
+                        <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateDebut)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Date fin prévue :</span>
+                        <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateFinPrevue)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Société :</span>
+                        <span className="font-semibold text-gray-900 ml-1">{ticket.societe?.designation || 'Non spécifiée'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Emplacement :</span>
+                        <span className="font-semibold text-gray-900 ml-1">{ticket.emplacement?.designation || 'Non spécifié'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Catégorie :</span>
+                        <span className="font-semibold text-gray-900 ml-1">{ticket.categorie?.designation || 'Non spécifiée'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="mt-6 md:mt-0 md:ml-6 flex-shrink-0 flex flex-col items-end justify-between h-full gap-2">
-                {(niveau === '1' || niveau === 1) && (
-                  <select
-                    value={ticket.Id_Statut}
-                    onChange={e => handleStatutChange(ticket.id, e.target.value)}
-                    className="mb-2 px-2 py-1 rounded border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                <div className="mt-6 md:mt-0 md:ml-6 flex-shrink-0 flex flex-col items-end justify-between h-full gap-2">
+                  {(niveau === '1' || niveau === 1) && (
+                    <>
+                      {['En instance', 'En cours', 'Terminé'].includes(ticket.statut?.designation) ? (
+                        <select
+                          value={ticket.Id_Statut}
+                          onChange={e => handleStatutChange(ticket.id, e.target.value)}
+                          className={`mb-2 px-2 py-1 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                            ticket.statut?.designation === 'Refusé' ? 'border-red-300 bg-red-50' :
+                            isRejectedByDemandeur ? 'border-orange-300 bg-orange-50' :
+                            'border-gray-300'
+                          }`}
+                        >
+                          {statuts && statuts.length > 0 ? (
+                            statuts
+                              .filter(s => ['En instance', 'En cours', 'Terminé'].includes(s.designation))
+                              .map(s => (
+                                <option key={s.id} value={s.id}>{s.designation}</option>
+                              ))
+                          ) : (
+                            <option value="">Chargement des statuts...</option>
+                          )}
+                        </select>
+                      ) : (
+                        <div className={`mb-2 px-2 py-1 text-sm ${
+                          ticket.statut?.designation === 'Refusé' ? 'text-red-700' :
+                          isRejectedByDemandeur ? 'text-orange-700' :
+                          'text-gray-700'
+                        }`}>
+                          Statut : {ticket.statut?.designation || 'Non défini'}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {!(niveau === '1' || niveau === 1) && (
+                    <div className={`mb-2 px-2 py-1 text-sm ${
+                      ticket.statut?.designation === 'Refusé' ? 'text-red-700' :
+                      isRejectedByDemandeur ? 'text-orange-700' :
+                      'text-gray-700'
+                    }`}>
+                      Statut : {ticket.statut?.designation || 'Non défini'}
+                    </div>
+                  )}
+                  <Link
+                    to={`/tickets/${ticket.id}`}
+                    className={`inline-flex items-center gap-2 text-white font-semibold px-5 py-2 rounded-lg shadow transition-colors text-base ${
+                      ticket.statut?.designation === 'Refusé' ? 'bg-red-600 hover:bg-red-700' :
+                      isRejectedByDemandeur ? 'bg-orange-600 hover:bg-orange-700' :
+                      'bg-blue-600 hover:bg-blue-700'
+                    }`}
                   >
-                    {statuts && statuts.length > 0 ? (
-                      statuts.map(s => (
-                        <option key={s.id} value={s.id}>{s.designation}</option>
-                      ))
-                    ) : (
-                      <option value="">Chargement des statuts...</option>
-                    )}
-                  </select>
-                )}
-                {!(niveau === '1' || niveau === 1) && (
-                  <div className="mb-2 px-2 py-1 text-sm text-gray-700">
-                    Statut : {ticket.statut?.designation || 'Non défini'}
-                  </div>
-                )}
-                <Link
-                  to={`/tickets/${ticket.id}`}
-                  className="inline-flex items-center gap-2 text-white bg-blue-600 hover:bg-blue-700 font-semibold px-5 py-2 rounded-lg shadow transition-colors text-base"
-                >
-                  <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M15 19l-7-7 7-7' /></svg>
-                  Voir détails
-                </Link>
+                    <svg xmlns='http://www.w3.org/2000/svg' className='h-4 w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M15 19l-7-7 7-7' /></svg>
+                    Voir détails
+                  </Link>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {hasMore && (
             <div ref={observerTarget} className="h-16 flex items-center justify-center">

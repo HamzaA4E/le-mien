@@ -2,6 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { chatWithGemini, createTicketFromChat, extractTicketInfo } from '../../utils/chatbotService';
 import Layout from '../Layout';
 import axios from '../../utils/axios';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { fr } from 'date-fns/locale';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ChatBot = () => {
     const [messages, setMessages] = useState([]);
@@ -17,6 +22,7 @@ const ChatBot = () => {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [dateType, setDateType] = useState(null); // 'start' ou 'end'
     const messagesEndRef = useRef(null);
+    const inputRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -88,16 +94,104 @@ const ChatBot = () => {
                 setShowPriorities(false);
                 break;
         }
-        setInput(option.designation);
-        handleSubmit(new Event('submit'));
-    };
+        const userMessage = option.designation;
+        setInput('');
+        setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+        setIsLoading(true);
+        setError(null);
 
-    const handleDateSelect = (date) => {
-        setShowDatePicker(false);
-        // Formater la date au format YYYY-MM-DD
-        const formattedDate = new Date(date).toISOString().split('T')[0];
-        setInput(formattedDate);
-        handleSubmit(new Event('submit'));
+        // Préparer le contexte avec les options disponibles
+        const contextWithOptions = {
+            ...userInfo,
+            ticketOptions: {
+                categories: ticketOptions.categories || [],
+                emplacements: ticketOptions.emplacements || [],
+                priorites: ticketOptions.priorites || []
+            }
+        };
+
+        // Déterminer le service en fonction du niveau d'utilisateur
+        let service = 'Support';
+        if (userInfo.niveau === 1) {
+            service = 'Administration';
+        } else if (userInfo.niveau === 2) {
+            service = 'Demandeur';
+        }
+
+        contextWithOptions.service = service;
+
+        // Envoyer le message directement
+        chatWithGemini(userMessage, messages, contextWithOptions)
+            .then(response => {
+                // Vérifier le type de demande dans la réponse
+                const lowerResponse = response.toLowerCase();
+                setShowCategories(lowerResponse.includes('catégorie'));
+                setShowLocations(lowerResponse.includes('emplacement'));
+                setShowPriorities(lowerResponse.includes('priorité'));
+                
+                // Gestion des dates
+                if (lowerResponse.includes('date de début')) {
+                    setShowDatePicker(true);
+                    setDateType('start');
+                } else if (lowerResponse.includes('date de fin')) {
+                    setShowDatePicker(true);
+                    setDateType('end');
+                } else {
+                    setShowDatePicker(false);
+                }
+
+                // Vérifier si la réponse contient plusieurs questions
+                const questions = response.split('?').filter(q => q.trim().length > 0);
+                
+                // Vérifier si la dernière question est similaire à la précédente
+                const lastMessage = messages[messages.length - 1];
+                const isRepeatedQuestion = lastMessage && 
+                    lastMessage.role === 'assistant' && 
+                    lastMessage.content.toLowerCase() === response.toLowerCase();
+
+                if (!isRepeatedQuestion) {
+                    if (questions.length > 1) {
+                        // Si plusieurs questions, ne garder que la première
+                        const firstQuestion = questions[0] + '?';
+                        setMessages(prev => [...prev, { role: 'assistant', content: firstQuestion }]);
+                    } else {
+                        setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+                    }
+                }
+
+                // Vérifier si la réponse contient un résumé de ticket
+                if (response.includes('📋 RÉSUMÉ DU TICKET')) {
+                    const extractedInfo = extractTicketInfo(
+                        [...messages, { role: 'user', content: userMessage }, { role: 'assistant', content: response }], 
+                        ticketOptions, 
+                        userInfo
+                    );
+                    console.log('Informations extraites du résumé:', extractedInfo);
+                    setTicketData(extractedInfo);
+                    // Fermer tous les sélecteurs après le résumé
+                    setShowCategories(false);
+                    setShowLocations(false);
+                    setShowPriorities(false);
+                    setShowDatePicker(false);
+                    // Ajouter le résumé du ticket dans les messages
+                    setMessages(prev => [...prev, { 
+                        role: 'assistant', 
+                        content: 'Voici le résumé de votre ticket :',
+                        component: renderTicketSummary(extractedInfo)
+                    }]);
+                }
+            })
+            .catch(error => {
+                const errorMessage = error.message || "Une erreur est survenue. Veuillez réessayer.";
+                setError(errorMessage);
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: errorMessage
+                }]);
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
     };
 
     const renderOptionTable = (options, type, title) => {
@@ -154,24 +248,70 @@ const ChatBot = () => {
     const renderDatePicker = () => {
         if (!showDatePicker) return null;
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date();
         const title = dateType === 'start' ? 'Sélectionnez la date de début :' : 'Sélectionnez la date de fin :';
+        
+        // Calculer la date minimale pour la date de fin
+        const minEndDate = dateType === 'end' && ticketData?.startDate 
+            ? new Date(ticketData.startDate)
+            : today;
+
+        // Calculer la date maximale (1 an à partir d'aujourd'hui)
+        const maxDate = new Date();
+        maxDate.setFullYear(maxDate.getFullYear() + 1);
 
         return (
             <div className="mt-4 p-4 bg-white rounded-lg shadow-lg border border-gray-200">
                 <h3 className="text-lg font-semibold mb-4 text-gray-700">{title}</h3>
                 <div className="flex flex-col items-center space-y-4">
-                    <input
-                        type="date"
-                        min={dateType === 'end' && ticketData?.startDate ? ticketData.startDate : today}
-                        className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-xs"
-                        onChange={(e) => handleDateSelect(e.target.value)}
-                    />
-                    <p className="text-sm text-gray-500">
-                        {dateType === 'end' && ticketData?.startDate 
-                            ? `La date doit être postérieure au ${ticketData.startDate}`
-                            : 'Sélectionnez une date valide'}
-                    </p>
+                    <div className="relative w-full max-w-xs">
+                        <DatePicker
+                            selected={dateType === 'start' ? (ticketData?.startDate ? new Date(ticketData.startDate) : null) : 
+                                           (ticketData?.endDate ? new Date(ticketData.endDate) : null)}
+                            onChange={(date) => {
+                                if (date) {
+                                    handleDateSelect(date);
+                                }
+                            }}
+                            minDate={minEndDate}
+                            maxDate={maxDate}
+                            dateFormat="dd/MM/yyyy"
+                            locale={fr}
+                            placeholderText="Sélectionnez une date"
+                            className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            showPopperArrow={false}
+                            popperClassName="react-datepicker-popper"
+                            popperPlacement="bottom"
+                            popperModifiers={[
+                                {
+                                    name: "offset",
+                                    options: {
+                                        offset: [0, 8]
+                                    }
+                                }
+                            ]}
+                            customInput={
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Sélectionnez une date"
+                                    />
+                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            }
+                        />
+                    </div>
+                    <div className="text-sm text-gray-500 space-y-1">
+                        {dateType === 'end' && ticketData?.startDate && (
+                            <p>La date doit être postérieure au {new Date(ticketData.startDate).toLocaleDateString('fr-FR')}</p>
+                        )}
+                        <p>Vous pouvez sélectionner une date jusqu'à un an à partir d'aujourd'hui</p>
+                    </div>
                 </div>
             </div>
         );
@@ -252,10 +392,130 @@ const ChatBot = () => {
         );
     };
 
+    const handleDateSelect = (date) => {
+        setShowDatePicker(false);
+        
+        // Formater la date au format YYYY-MM-DD
+        const formattedDate = date.toISOString().split('T')[0];
+        
+        // Mettre à jour le ticketData avec la nouvelle date
+        if (dateType === 'start') {
+            setTicketData(prev => ({
+                ...prev,
+                startDate: formattedDate
+            }));
+        } else {
+            setTicketData(prev => ({
+                ...prev,
+                endDate: formattedDate
+            }));
+        }
+
+        // Envoyer le message avec la date sélectionnée
+        const userMessage = formattedDate;
+        setInput('');
+        setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+        setIsLoading(true);
+        setError(null);
+
+        // Préparer le contexte avec les options disponibles
+        const contextWithOptions = {
+            ...userInfo,
+            ticketOptions: {
+                categories: ticketOptions.categories || [],
+                emplacements: ticketOptions.emplacements || [],
+                priorites: ticketOptions.priorites || []
+            }
+        };
+
+        // Déterminer le service en fonction du niveau d'utilisateur
+        let service = 'Support';
+        if (userInfo.niveau === 1) {
+            service = 'Administration';
+        } else if (userInfo.niveau === 2) {
+            service = 'Demandeur';
+        }
+
+        contextWithOptions.service = service;
+
+        // Envoyer le message directement
+        chatWithGemini(userMessage, messages, contextWithOptions)
+            .then(response => {
+                // Vérifier le type de demande dans la réponse
+                const lowerResponse = response.toLowerCase();
+                setShowCategories(lowerResponse.includes('catégorie'));
+                setShowLocations(lowerResponse.includes('emplacement'));
+                setShowPriorities(lowerResponse.includes('priorité'));
+                
+                // Gestion des dates
+                if (lowerResponse.includes('date de début')) {
+                    setShowDatePicker(true);
+                    setDateType('start');
+                } else if (lowerResponse.includes('date de fin')) {
+                    setShowDatePicker(true);
+                    setDateType('end');
+                } else {
+                    setShowDatePicker(false);
+                }
+
+                // Vérifier si la réponse contient plusieurs questions
+                const questions = response.split('?').filter(q => q.trim().length > 0);
+                
+                // Vérifier si la dernière question est similaire à la précédente
+                const lastMessage = messages[messages.length - 1];
+                const isRepeatedQuestion = lastMessage && 
+                    lastMessage.role === 'assistant' && 
+                    lastMessage.content.toLowerCase() === response.toLowerCase();
+
+                if (!isRepeatedQuestion) {
+                    if (questions.length > 1) {
+                        // Si plusieurs questions, ne garder que la première
+                        const firstQuestion = questions[0] + '?';
+                        setMessages(prev => [...prev, { role: 'assistant', content: firstQuestion }]);
+                    } else {
+                        setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+                    }
+                }
+
+                // Vérifier si la réponse contient un résumé de ticket
+                if (response.includes('📋 RÉSUMÉ DU TICKET')) {
+                    const extractedInfo = extractTicketInfo(
+                        [...messages, { role: 'user', content: userMessage }, { role: 'assistant', content: response }], 
+                        ticketOptions, 
+                        userInfo
+                    );
+                    console.log('Informations extraites du résumé:', extractedInfo);
+                    setTicketData(extractedInfo);
+                    // Fermer tous les sélecteurs après le résumé
+                    setShowCategories(false);
+                    setShowLocations(false);
+                    setShowPriorities(false);
+                    setShowDatePicker(false);
+                    // Ajouter le résumé du ticket dans les messages
+                    setMessages(prev => [...prev, { 
+                        role: 'assistant', 
+                        content: 'Voici le résumé de votre ticket :',
+                        component: renderTicketSummary(extractedInfo)
+                    }]);
+                }
+            })
+            .catch(error => {
+                const errorMessage = error.message || "Une erreur est survenue. Veuillez réessayer.";
+                setError(errorMessage);
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: errorMessage
+                }]);
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!input.trim() || !userInfo || !ticketOptions) {
-            setError('Veuillez attendre le chargement des données avant de continuer.');
+            toast.error('Veuillez attendre le chargement des données avant de continuer.');
             return;
         }
 
@@ -264,7 +524,7 @@ const ChatBot = () => {
         const missingOptions = requiredOptions.filter(option => !ticketOptions[option]?.length);
         
         if (missingOptions.length > 0) {
-            setError(`Les options suivantes ne sont pas disponibles : ${missingOptions.join(', ')}. Veuillez rafraîchir la page.`);
+            toast.error(`Les options suivantes ne sont pas disponibles : ${missingOptions.join(', ')}. Veuillez rafraîchir la page.`);
             return;
         }
 
@@ -407,9 +667,44 @@ const ChatBot = () => {
         }
     };
 
+    // Ajouter le gestionnaire de clic sur les messages
+    const handleMessageClick = (message) => {
+        if (message.role === 'assistant' && !isLoading) {
+            setInput(message.content);
+            handleSubmit(new Event('submit'));
+        }
+    };
+
+    // Ajouter le gestionnaire de la touche Entrée
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e);
+        }
+    };
+
+    // Garder le focus sur l'input
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [messages, isLoading]);
+
     return (
         <Layout>
             <div className="container mx-auto px-4 py-8">
+                <ToastContainer
+                    position="top-right"
+                    autoClose={5000}
+                    hideProgressBar={false}
+                    newestOnTop
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss
+                    draggable
+                    pauseOnHover
+                    theme="light"
+                />
                 <h1 className="text-2xl font-bold mb-6">Création de ticket assistée par IA</h1>
                 {error && (
                     <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
@@ -503,10 +798,11 @@ const ChatBot = () => {
                                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                                 <div
-                                    className={`max-w-[80%] rounded-lg p-3 ${
+                                    onClick={() => handleMessageClick(message)}
+                                    className={`max-w-[80%] rounded-lg p-3 cursor-pointer transition-all duration-200 ${
                                         message.role === 'user'
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-gray-100 text-gray-800'
+                                            ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                                     }`}
                                 >
                                     {message.content}
@@ -523,9 +819,11 @@ const ChatBot = () => {
                     <form onSubmit={handleSubmit} className="border-t p-4">
                         <div className="flex space-x-2">
                             <input
+                                ref={inputRef}
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
+                                onKeyPress={handleKeyPress}
                                 placeholder="Tapez votre message..."
                                 className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 disabled={isLoading}

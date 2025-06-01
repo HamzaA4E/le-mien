@@ -1125,6 +1125,15 @@ class TicketController extends Controller
             $ticket->Id_Statut = $statutEnCours->id;
             $ticket->save();
 
+            // Créer un report de type "rejet" pour garder l'historique du refus
+            \App\Models\TicketReport::create([
+                'Id_Ticket' => $ticket->id,
+                'Id_Responsable' => $user->id,
+                'Raison' => 'Refusé par le demandeur',
+                'type' => 'rejet',
+                'is_viewed' => false
+            ]);
+
             return response()->json([
                 'message' => 'Ticket remis en cours',
                 'ticket' => $ticket->load(['statut'])
@@ -1139,6 +1148,22 @@ class TicketController extends Controller
             return response()->json([
                 'message' => 'Erreur lors du refus du ticket',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function countPending()
+    {
+        try {
+            $count = Ticket::where('statut', 'pending')->count();
+            return response()->json(['count' => $count]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors du comptage des tickets en attente', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Une erreur est survenue lors du comptage des tickets'
             ], 500);
         }
     }

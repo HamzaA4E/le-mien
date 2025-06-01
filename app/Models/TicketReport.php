@@ -18,7 +18,9 @@ class TicketReport extends Model
         'Id_Ticket',
         'Id_Responsable',
         'Raison',
-        'DateReport'
+        'DateReport',
+        'type',
+        'is_viewed'
     ];
 
     protected $casts = [

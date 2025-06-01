@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs, FaRobot, FaClock, FaCheckCircle } from 'react-icons/fa';
 import axios from 'axios';
-import { useState } from 'react';
 
 // Configuration de la base URL pour axios
 axios.defaults.baseURL = 'http://localhost:8000';
@@ -11,6 +10,8 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
   // Récupérer le user depuis le localStorage
   let user = null;
@@ -20,6 +21,36 @@ const Sidebar = () => {
     user = null;
   }
   const niveau = user?.niveau;
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        };
+
+        // Récupérer le nombre de demandes en attente (admin seulement)
+        if (niveau === 1) {
+          const requestsResponse = await axios.get('/api/admin/register-requests/count', { headers });
+          setPendingRequestsCount(requestsResponse.data.count);
+        }
+
+        // Récupérer le nombre de tickets en attente (tous les niveaux)
+        const ticketsResponse = await axios.get('/api/tickets/pending/count', { headers });
+        setPendingTicketsCount(ticketsResponse.data.count);
+      } catch (error) {
+        console.error('Error fetching counts:', error);
+      }
+    };
+
+    fetchCounts();
+    // Rafraîchir les compteurs toutes les 30 secondes
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, [niveau]);
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -60,8 +91,18 @@ const Sidebar = () => {
   let menuItems = [
     { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
     { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
-    { path: '/admin/pending-tickets', icon: <FaClock />, text: 'Tickets en attente' },
-    { path: '/admin/register-requests', icon: <FaUserPlus />, text: 'Demandes d\'inscription' },
+    { 
+      path: '/admin/pending-tickets', 
+      icon: <FaClock />, 
+      text: 'Tickets en attente',
+      badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
+    },
+    { 
+      path: '/admin/register-requests', 
+      icon: <FaUserPlus />, 
+      text: 'Demandes d\'inscription',
+      badge: pendingRequestsCount > 0 ? pendingRequestsCount : null
+    },
     { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
     { path: '/admin/entities', icon: <FaCogs />, text: 'Gestion des référentiels' },
@@ -73,6 +114,12 @@ const Sidebar = () => {
     menuItems = [
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
+      { 
+        path: '/admin/pending-tickets', 
+        icon: <FaClock />, 
+        text: 'Tickets en attente',
+        badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
+      },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }
@@ -81,6 +128,12 @@ const Sidebar = () => {
     menuItems = [
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
+      { 
+        path: '/admin/pending-tickets', 
+        icon: <FaClock />, 
+        text: 'Tickets en attente',
+        badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
+      },
       { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
@@ -91,6 +144,12 @@ const Sidebar = () => {
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Mes Tickets' },
+      { 
+        path: '/admin/pending-tickets', 
+        icon: <FaClock />, 
+        text: 'Tickets en attente',
+        badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
+      },
       { path: '/completed-tickets', icon: <FaCheckCircle />, text: 'Tickets terminés' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
@@ -114,7 +173,12 @@ const Sidebar = () => {
                 }`}
               >
                 <span className="text-lg">{item.icon}</span>
-                <span>{item.text}</span>
+                <span className="flex-1">{item.text}</span>
+                {item.badge && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             </li>
           ))}

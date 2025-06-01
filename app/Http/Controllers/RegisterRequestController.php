@@ -354,6 +354,22 @@ class RegisterRequestController extends Controller
         }
     }
 
+    public function count()
+    {
+        try {
+            $count = RegisterRequest::where('status', 'pending')->count();
+            return response()->json(['count' => $count]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors du comptage des demandes en attente', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Une erreur est survenue lors du comptage des demandes'
+            ], 500);
+        }
+    }
+
     private function getNiveauFromLevel($level)
     {
         switch ($level) {

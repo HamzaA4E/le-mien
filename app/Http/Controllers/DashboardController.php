@@ -7,6 +7,7 @@ use App\Models\Statut;
 use App\Models\Priorite;
 use App\Models\Categorie;
 use App\Models\Utilisateur;
+use App\Models\Demandeur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -16,69 +17,74 @@ class DashboardController extends Controller
     public function getStats(Request $request)
     {
         try {
-            Log::info('Début de la récupération des statistiques');
+            $user = $request->user();
+            $baseTicketQuery = Ticket::query()
+                ->where('Id_Statut', '!=', 1);
 
-            $statut = $request->query('statut');
-            $priorite = $request->query('priorite');
-            $demandeur = $request->query('demandeur');
-            $categorie = $request->query('categorie');
-            $user = auth()->user();
+            // Appliquer les filtres selon le type d'utilisateur
+            if ($user->isDemandeur()) {
+                // Trouver l'ID du demandeur correspondant à l'utilisateur
+                $demandeur = Demandeur::where('designation', $user->designation)->first();
+                if ($demandeur) {
+                    $baseTicketQuery->where('Id_Demandeur', $demandeur->id);
+                } else {
+                    // Si aucun demandeur n'est trouvé, retourner des statistiques vides
+                    return response()->json([
+                        'total' => 0,
+                        'ticketsByStatut' => [],
+                        'ticketsByPriorite' => [],
+                        'ticketsByCategorie' => []
+                    ]);
+                }
+            } elseif ($user->isDirecteurDepartement()) {
+                $baseTicketQuery->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+                    ->where('T_DEMDEUR.id_service', $user->id_service);
+            }
 
-            // Requête pour les tickets par statut
-            $ticketsByStatut = DB::table('T_STATUT')
-                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $categorie, $user) {
-                    $join->on('T_STATUT.id', '=', 'T_TICKET.Id_Statut');
-                    if ($statut) $join->where('T_TICKET.Id_Statut', $statut);
-                    if ($priorite) $join->where('T_TICKET.Id_Priorite', $priorite);
-                    if ($demandeur) $join->where('T_TICKET.Id_Demandeur', $demandeur);
-                    if ($categorie) $join->where('T_TICKET.Id_Categorie', $categorie);
+            // Statistiques par statut
+            $ticketsByStatut = Statut::select('T_STATUT.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
+                ->leftJoinSub($baseTicketQuery, 'filtered_tickets', function($join) {
+                    $join->on('T_STATUT.id', '=', 'filtered_tickets.Id_Statut');
                 })
-                ->select('T_STATUT.designation', DB::raw('COUNT(T_TICKET.id) as count'))
                 ->groupBy('T_STATUT.designation')
                 ->get();
 
-            // Requête pour les tickets par priorité
-            $ticketsByPriorite = DB::table('T_PRIORITE')
-                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $categorie, $user) {
-                    $join->on('T_PRIORITE.id', '=', 'T_TICKET.Id_Priorite');
-                    if ($statut) $join->where('T_TICKET.Id_Statut', $statut);
-                    if ($priorite) $join->where('T_TICKET.Id_Priorite', $priorite);
-                    if ($demandeur) $join->where('T_TICKET.Id_Demandeur', $demandeur);
-                    if ($categorie) $join->where('T_TICKET.Id_Categorie', $categorie);
+            // Statistiques par priorité
+            $ticketsByPriorite = Priorite::select('T_PRIORITE.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
+                ->leftJoinSub($baseTicketQuery, 'filtered_tickets', function($join) {
+                    $join->on('T_PRIORITE.id', '=', 'filtered_tickets.Id_Priorite');
                 })
-                ->select('T_PRIORITE.designation', DB::raw('COUNT(T_TICKET.id) as count'))
                 ->groupBy('T_PRIORITE.designation')
                 ->get();
 
-            // Requête pour les tickets par catégorie
-            $ticketsByCategorie = DB::table('T_CATEGORIE')
-                ->leftJoin('T_TICKET', function($join) use ($statut, $priorite, $demandeur, $categorie, $user) {
-                    $join->on('T_CATEGORIE.id', '=', 'T_TICKET.Id_Categorie');
-                    if ($statut) $join->where('T_TICKET.Id_Statut', $statut);
-                    if ($priorite) $join->where('T_TICKET.Id_Priorite', $priorite);
-                    if ($demandeur) $join->where('T_TICKET.Id_Demandeur', $demandeur);
-                    if ($categorie) $join->where('T_TICKET.Id_Categorie', $categorie);
+            // Statistiques par catégorie
+            $ticketsByCategorie = Categorie::select('T_CATEGORIE.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
+                ->leftJoinSub($baseTicketQuery, 'filtered_tickets', function($join) {
+                    $join->on('T_CATEGORIE.id', '=', 'filtered_tickets.Id_Categorie');
                 })
-                ->select('T_CATEGORIE.designation', DB::raw('COUNT(T_TICKET.id) as count'))
                 ->groupBy('T_CATEGORIE.designation')
                 ->get();
 
-            $stats = [
+            // Total des tickets
+            $total = $baseTicketQuery->count();
+
+            \Log::info('Statistiques récupérées', [
+                'user_id' => $user->id,
+                'user_designation' => $user->designation,
+                'demandeur_id' => $demandeur->id ?? null,
+                'total' => $total
+            ]);
+
+            return response()->json([
+                'total' => $total,
                 'ticketsByStatut' => $ticketsByStatut,
                 'ticketsByPriorite' => $ticketsByPriorite,
                 'ticketsByCategorie' => $ticketsByCategorie
-            ];
-
-            Log::info('Statistiques récupérées avec succès', $stats);
-
-            return response()->json($stats);
+            ]);
         } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération des statistiques: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-            return response()->json([
-                'message' => 'Erreur lors de la récupération des statistiques',
-                'error' => $e->getMessage()
-            ], 500);
+            \Log::error('Erreur dans getStats: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Erreur lors de la récupération des statistiques: ' . $e->getMessage()], 500);
         }
     }
 

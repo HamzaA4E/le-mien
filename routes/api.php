@@ -37,7 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/{report}/download-attachment', [TicketReportController::class, 'downloadAttachment']);
 
     // Routes pour le dashboard
-    Route::get('/dashboard/stats', [TicketController::class, 'getStats']);
+    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
     Route::get('/tickets/stats', [DashboardController::class, 'getStatsByUser']);
     
     // Routes pour les tickets

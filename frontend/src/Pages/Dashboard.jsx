@@ -17,8 +17,6 @@ const dashboardCache = {
   cacheDuration: 5 * 60 * 1000
 };
 
-
-
 const statutColors = {
   'tickets': 'border-blue-400 text-blue-600 bg-white',
   'En instance': 'border-red-400 text-red-600 bg-white',
@@ -37,13 +35,9 @@ const statutHoverBg = {
 const Dashboard = () => {
   const [stats, setStats] = useState({
     total: 0,
-    en_cours: 0,
-    en_instance: 0,
-    cloture: 0,
-    par_priorite: [],
-    par_categorie: [],
-    par_demandeur: [],
-    par_statut: {}
+    ticketsByStatut: [],
+    ticketsByPriorite: [],
+    ticketsByCategorie: []
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,12 +47,12 @@ const Dashboard = () => {
     setSpin(true);
     setLoading(true);
     try {
-      // Un seul appel API pour toutes les statistiques
       const response = await axios.get('/api/dashboard/stats');
       setStats(response.data);
       setError('');
     } catch (err) {
       setError('Erreur lors du chargement des statistiques');
+      console.error('Erreur:', err);
     } finally {
       setLoading(false);
       setTimeout(() => setSpin(false), 600);
@@ -125,27 +119,13 @@ const Dashboard = () => {
     );
   }
 
-  // Configuration du graphique en barres pour les demandeurs
-  const demandeurData = {
-    labels: (stats.par_demandeur || []).map(item => item.demandeur || ''),
-    datasets: [
-      {
-        label: 'Nombre de tickets',
-        data: (stats.par_demandeur || []).map(item => item.total || 0),
-        backgroundColor: 'rgba(255, 99, 132, 0.6)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        borderWidth: 1,
-      },
-    ],
-  };
-
   // Configuration du graphique en barres pour les priorités
   const priorityData = {
-    labels: (stats.par_priorite || []).map(item => item.priorite || ''),
+    labels: stats.ticketsByPriorite.map(item => item.designation),
     datasets: [
       {
         label: 'Nombre de tickets',
-        data: (stats.par_priorite || []).map(item => item.total || 0),
+        data: stats.ticketsByPriorite.map(item => item.count),
         backgroundColor: 'rgba(54, 162, 235, 0.6)',
         borderColor: 'rgba(54, 162, 235, 1)',
         borderWidth: 1,
@@ -155,11 +135,11 @@ const Dashboard = () => {
 
   // Configuration du graphique en barres pour les catégories
   const categoryData = {
-    labels: (stats.par_categorie || []).map(item => item.categorie || ''),
+    labels: stats.ticketsByCategorie.map(item => item.designation),
     datasets: [
       {
         label: 'Nombre de tickets',
-        data: (stats.par_categorie || []).map(item => item.total || 0),
+        data: stats.ticketsByCategorie.map(item => item.count),
         backgroundColor: 'rgba(75, 192, 192, 0.6)',
         borderColor: 'rgba(75, 192, 192, 1)',
         borderWidth: 1,
@@ -200,19 +180,19 @@ const Dashboard = () => {
             <h3 className="text-lg font-bold text-black">Total tickets</h3>
             <p className="mt-2 text-3xl font-extrabold text-blue-600">{stats.total}</p>
           </Link>
-          {stats.par_statut && Array.isArray(stats.par_statut) && stats.par_statut.map((statutObj) => {
+          {stats.ticketsByStatut.map((statutObj) => {
             const borderClass = statutColors[statutObj.designation] || 'border-purple-500 bg-white';
             const hoverClass = statutHoverBg[statutObj.designation] || 'hover:bg-purple-50';
             const textColor = (borderClass.match(/text-[^ ]+/) || ['text-purple-700'])[0];
             return (
               <Link
-                key={statutObj.id}
-                to={`/tickets?statut=${statutObj.id}`}
+                key={statutObj.designation}
+                to={`/tickets?statut=${statutObj.designation}`}
                 className={`border-l-4 p-6 rounded-lg shadow flex flex-col items-start transition-colors cursor-pointer ${borderClass} ${hoverClass}`}
                 style={{ minWidth: 220 }}
               >
                 <h3 className="text-lg font-bold text-black mb-2">{statutObj.designation}</h3>
-                <p className={`mt-2 text-4xl font-extrabold ${textColor}`}>{statutObj.total}</p>
+                <p className={`mt-2 text-4xl font-extrabold ${textColor}`}>{statutObj.count}</p>
               </Link>
             );
           })}
@@ -220,12 +200,6 @@ const Dashboard = () => {
 
         {/* Graphiques */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Répartition par demandeur</h3>
-            <div className="h-80">
-              <Bar data={demandeurData} options={options} />
-            </div>
-          </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">Répartition par priorité</h3>
             <div className="h-80">

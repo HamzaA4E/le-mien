@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import { FaUser, FaEnvelope, FaUserShield, FaClock, FaEdit, FaTrash, FaSyncAlt, FaExclamationTriangle } from 'react-icons/fa';
+import { useLocation } from 'react-router-dom';
 
 // Cache pour les utilisateurs
 const userCache = {
@@ -11,6 +12,7 @@ const userCache = {
 };
 
 const ListUsers = () => {
+  const location = useLocation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -75,8 +77,8 @@ const ListUsers = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    fetchUsers(true);
+  }, [location.pathname]);
 
   const handleDelete = async (userId) => {
     setUserToDelete(userId);

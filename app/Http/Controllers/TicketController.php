@@ -300,7 +300,7 @@ class TicketController extends Controller
                 'statut',
                 'priorite',
                 'categorie',
-                'demandeur',
+                'demandeur.service',
                 'emplacement',
                 'utilisateur'
             ])->findOrFail($id);

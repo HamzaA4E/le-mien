@@ -260,18 +260,6 @@ const ChatBot = () => {
                                 <td className="px-4 py-2 text-sm text-gray-800">{ticketData.location || '-'}</td>
                             </tr>
                             <tr>
-                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Date de début</td>
-                                <td className="px-4 py-2 text-sm text-gray-800">
-                                    {ticketData.startDate ? new Date(ticketData.startDate).toLocaleDateString('fr-FR') : '-'}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Date de fin</td>
-                                <td className="px-4 py-2 text-sm text-gray-800">
-                                    {ticketData.endDate ? new Date(ticketData.endDate).toLocaleDateString('fr-FR') : '-'}
-                                </td>
-                            </tr>
-                            <tr>
                                 <td className="px-4 py-2 text-sm font-medium text-gray-600">Statut</td>
                                 <td className="px-4 py-2 text-sm text-gray-800">
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium

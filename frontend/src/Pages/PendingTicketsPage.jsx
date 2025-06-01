@@ -127,8 +127,38 @@ const PendingTicketsPage = () => {
         setSelectedTicket(null);
     };
 
-    if (loading) return <div>Chargement...</div>;
-    if (error) return <div>{error}</div>;
+    if (loading) {
+        return (
+            <Layout>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="flex justify-between items-center mb-6">
+                        <h1 className="text-2xl font-bold text-gray-900">
+                            {showRejected ? 'Tickets refusés' : 'Tickets en attente'}
+                        </h1>
+                    </div>
+                    <div className="animate-pulse">
+                        <div className="h-24 bg-gray-200 rounded mb-4"></div>
+                        <div className="h-24 bg-gray-200 rounded mb-4"></div>
+                        <div className="h-24 bg-gray-200 rounded mb-4"></div>
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
+    if (error) {
+        return (
+            <Layout>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="flex justify-between items-center mb-6">
+                        <h1 className="text-2xl font-bold text-gray-900">
+                            {showRejected ? 'Tickets refusés' : 'Tickets en attente'}
+                        </h1>
+                    </div>
+                    <div className="text-red-600">{error}</div>
+                </div>
+            </Layout>
+        );
+    }
 
     return (
         <Layout>

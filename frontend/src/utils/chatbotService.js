@@ -249,9 +249,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         title: '',
         description: '',
         category: '',
-        service: userInfo.niveau === 1 ? 'Administration' : 
-                userInfo.niveau === 2 ? 'Direction Générale' : 
-                userInfo.niveau === 3 ? 'Direction Département' : 'Support',
+        service: userInfo?.service?.designation || '',
         location: '',
         company: userInfo.email.split('@')[1] || 'Non spécifiée',
         requester: userInfo.designation,

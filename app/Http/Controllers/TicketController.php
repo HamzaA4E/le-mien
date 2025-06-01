@@ -10,7 +10,6 @@ use App\Models\Priorite;
 use App\Models\Categorie;
 use App\Models\Statut;
 use App\Models\Utilisateur;
-use App\Models\Executant;
 use App\Models\TicketReport;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -29,7 +28,6 @@ class TicketController extends Controller
                 'societe',
                 'emplacement',
                 'categorie',
-                'executant',
                 'reports'
             ]);
 
@@ -78,9 +76,6 @@ class TicketController extends Controller
             }
             if ($request->filled('priorite')) {
                 $query->where('Id_Priorite', $request->priorite);
-            }
-            if ($request->filled('executant')) {
-                $query->where('Id_Executant', $request->executant);
             }
 
             // Ajouter le filtre pour les rapports non lus si demandé
@@ -167,7 +162,6 @@ class TicketController extends Controller
                 'id_priorite' => 'required|exists:T_PRIORITE,id',
                 'id_categorie' => 'required|exists:T_CATEGORIE,id',
                 'id_statut' => 'required|exists:T_STATUT,id',
-                'id_executant' => 'required|exists:T_EXECUTANT,id',
             ]);
 
             Log::info('Données validées:', $validated);
@@ -255,7 +249,6 @@ class TicketController extends Controller
                     'Id_Emplacement' => (int)$validated['id_emplacement'],
                     'Id_Categorie' => (int)$validated['id_categorie'],
                     'Id_Utilisat' => (int)$validated['id_utilisateur'],
-                    'Id_Executant' => (int)$validated['id_executant'],
                     'DateDebut' => $dateDebut,
                     'DateFinPrevue' => $dateFinPrevue,
                     'DateFinReelle' => $dateFinReelle,
@@ -309,8 +302,6 @@ class TicketController extends Controller
                 'demandeur',
                 'societe',
                 'emplacement',
-                'executant',
-                'reports.responsable',
                 'utilisateur'
             ])->findOrFail($id);
 
@@ -371,7 +362,6 @@ class TicketController extends Controller
                 'Id_Societe' => 'sometimes|exists:T_SOCIETE,id',
                 'Id_Emplacement' => 'sometimes|exists:T_EMPLACEMENT,id',
                 'Id_Categorie' => 'sometimes|exists:T_CATEGORIE,id',
-                'Id_Executant' => 'sometimes|exists:T_EXECUTANT,id',
                 'DateDebut' => 'sometimes|date_format:d/m/Y',
                 'DateFinPrevue' => [
                     'sometimes',
@@ -464,7 +454,7 @@ class TicketController extends Controller
                 ]);
 
                 // Recharger le ticket avec ses relations
-                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'executant'])->find($ticket->id);
+                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie'])->find($ticket->id);
                 
                 return response()->json($ticket);
             } catch (\Exception $e) {
@@ -560,9 +550,6 @@ class TicketController extends Controller
                 }
             }
 
-            // Ajout des exécutants
-            $options['executants'] = \App\Models\Executant::where('is_active', true)->get();
-
             // Vérifier que toutes les options requises sont présentes
             $requiredOptions = ['categories', 'emplacements', 'priorites'];
             $missingOptions = array_filter($requiredOptions, function($option) use ($options) {
@@ -585,7 +572,7 @@ class TicketController extends Controller
             
             $emptyOptions = array_fill_keys([
                 'categories', 'emplacements', 'priorites', 
-                'demandeurs', 'societes', 'statuts', 'executants'
+                'demandeurs', 'societes', 'statuts'
             ], collect([]));
             
             return response()->json([
@@ -694,7 +681,7 @@ class TicketController extends Controller
     // Utilitaire pour la commande de rappel
     public static function ticketsFinPrevueDans24hNonCloture()
     {
-        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie', 'executant'])
+        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'societe', 'emplacement', 'categorie'])
             ->finPrevueDans24hNonCloture()
             ->get();
     }
@@ -746,7 +733,6 @@ class TicketController extends Controller
                 'emplacements' => Emplacement::where('is_active', true)->get(),
                 'statuts' => Statut::where('is_active', true)->get(),
                 'priorites' => Priorite::where('is_active', true)->get(),
-                'executants' => Executant::where('is_active', true)->get(),
             ];
 
             // Construire la requête pour les tickets
@@ -757,7 +743,6 @@ class TicketController extends Controller
                 'societe',
                 'emplacement',
                 'categorie',
-                'executant'
             ]);
 
             // Appliquer les filtres
@@ -778,9 +763,6 @@ class TicketController extends Controller
             }
             if ($request->filled('priorite')) {
                 $query->where('Id_Priorite', $request->priorite);
-            }
-            if ($request->filled('executant')) {
-                $query->where('Id_Executant', $request->executant);
             }
 
             // Ajouter le filtre pour les rapports non lus si demandé
@@ -918,7 +900,6 @@ class TicketController extends Controller
                 'societe',
                 'emplacement',
                 'categorie',
-                'executant'
             ]);
 
             if ($request->boolean('show_rejected')) {
@@ -1018,7 +999,6 @@ class TicketController extends Controller
                 'societe',
                 'emplacement',
                 'categorie',
-                'executant'
             ])
             ->where('Id_Demandeur', $demandeur->id)
             ->whereHas('statut', function($q) {

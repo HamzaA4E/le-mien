@@ -10,7 +10,7 @@ use App\Models\Emplacement;
 use App\Models\Statut;
 use App\Models\Service;
 use App\Models\Societe;
-use App\Models\Executant;
+
 use App\Models\Priorite;
 
 class DatabaseSeeder extends Seeder
@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
 
         Societe::firstOrCreate(['designation' => 'Famasser']);
 
-        Executant::firstOrCreate(['designation' => 'Reda DAMRI']);
+       
 
         Priorite::firstOrCreate(['designation' => 'Urgent']);
 

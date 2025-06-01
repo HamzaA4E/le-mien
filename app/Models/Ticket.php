@@ -25,7 +25,6 @@ class Ticket extends Model
         'Id_Emplacement',
         'Id_Categorie',
         'Id_Utilisat',
-        'Id_Executant',
         'DateDebut',
         'DateFinPrevue',
         'DateFinReelle',
@@ -86,11 +85,6 @@ class Ticket extends Model
     public function utilisateur()
     {
         return $this->belongsTo(Utilisateur::class, 'Id_Utilisat');
-    }
-
-    public function executant()
-    {
-        return $this->belongsTo(Executant::class, 'Id_Executant');
     }
 
     public function scopeFinPrevueDans24hNonCloture($query)

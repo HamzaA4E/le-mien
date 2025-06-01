@@ -7,7 +7,6 @@ import AddEmplacementForm from '../components/forms/AddEmplacementForm';
 import AddPrioriteForm from '../components/forms/AddPrioriteForm';
 import AddCategorieForm from '../components/forms/AddCategorieForm';
 import AddStatutForm from '../components/forms/AddStatutForm';
-import ExecutantForm from '../components/forms/ExecutantForm.jsx';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -19,7 +18,6 @@ const CreateTicket = () => {
     id_priorite: '',
     id_categorie: '',
     id_statut: '',
-    id_executant: '',
     titre: '',
     description: '',
     commentaire: '',
@@ -33,7 +31,6 @@ const CreateTicket = () => {
   const [priorites, setPriorites] = useState([]);
   const [categories, setCategories] = useState([]);
   const [statuts, setStatuts] = useState([]);
-  const [executants, setExecutants] = useState([]);
 
   const [loadingStates, setLoadingStates] = useState({
     demandeurs: true,
@@ -42,7 +39,6 @@ const CreateTicket = () => {
     priorites: true,
     categories: true,
     statuts: true,
-    executants: true
   });
 
   const [error, setError] = useState('');
@@ -55,7 +51,6 @@ const CreateTicket = () => {
     priorite: false,
     categorie: false,
     statut: false,
-    executant: false
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -118,7 +113,6 @@ const CreateTicket = () => {
           priorites: true,
           categories: true,
           statuts: true,
-          executants: true
         }));
 
         // Vérifier le cache dans localStorage
@@ -132,7 +126,6 @@ const CreateTicket = () => {
             setPriorites(data.priorites || []);
             setCategories(data.categories || []);
             setStatuts(data.statuts || []);
-            setExecutants(data.executants || []);
             setLoadingStates(prev => ({
               demandeurs: false,
               societes: false,
@@ -140,7 +133,6 @@ const CreateTicket = () => {
               priorites: false,
               categories: false,
               statuts: false,
-              executants: false
             }));
             return;
           }
@@ -163,7 +155,6 @@ const CreateTicket = () => {
         setPriorites(options.priorites || []);
         setCategories(options.categories || []);
         setStatuts(options.statuts || []);
-        setExecutants(options.executants || []);
 
       } catch (err) {
         console.error('Erreur lors du chargement des options:', err);
@@ -176,7 +167,6 @@ const CreateTicket = () => {
           priorites: false,
           categories: false,
           statuts: false,
-          executants: false
         }));
       }
     };
@@ -286,7 +276,6 @@ const CreateTicket = () => {
           id_priorite: '',
           id_categorie: '',
           id_statut: '',
-          id_executant: '',
           titre: '',
           description: '',
           commentaire: '',
@@ -416,35 +405,6 @@ const CreateTicket = () => {
             {renderSelect('id_emplacement', 'Emplacement', emplacements, loadingStates.emplacements)}
             {renderSelect('id_priorite', 'Priorité', priorites, loadingStates.priorites)}
 
-            {/* Exécutant */}
-            <div className="md:col-span-2">
-              <label className="block mb-1">Exécutant</label>
-              {loadingStates.executants ? (
-                <div className="w-full border rounded px-3 py-2 bg-gray-100 animate-pulse">Chargement...</div>
-              ) : (
-                <select
-                  name="id_executant"
-                  value={formData.id_executant}
-                  onChange={e => {
-                    if (e.target.value === 'add_new') {
-                      setShowForms(prev => ({ ...prev, executant: true }));
-                    } else {
-                      handleChange(e);
-                    }
-                  }}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="">Sélectionner l'exécutant</option>
-                  {executants
-                    .filter((option, idx, arr) => option.id && arr.findIndex(o => o.id === option.id) === idx)
-                    .map(option => (
-                      <option key={`executant-${option.id}`} value={option.id}>{option.designation}</option>
-                    ))}
-                  <option key="add_new_executant" value="add_new">+ Ajouter exécutant</option>
-                </select>
-              )}
-            </div>
-
             {/* Catégorie */}
             {renderSelect('id_categorie', 'Catégorie', categories, loadingStates.categories)}
 
@@ -545,24 +505,6 @@ const CreateTicket = () => {
             }}
             onCancel={() => setShowForms(prev => ({ ...prev, statut: false }))}
           />
-        )}
-
-        {/* Modal d'ajout exécutant */}
-        {showForms.executant && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
-            <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4">Ajouter un exécutant</h2>
-              <ExecutantForm
-                onSuccess={(data) => {
-                  setExecutants(prev => [...prev, { ...data, id: data.id.toString() }]);
-                  setFormData(prev => ({ ...prev, id_executant: data.id.toString() }));
-                  setShowForms(prev => ({ ...prev, executant: false }));
-                  invalidateCache('executants');
-                }}
-                onCancel={() => setShowForms(prev => ({ ...prev, executant: false }))}
-              />
-            </div>
-          </div>
         )}
 
         {/* Debug section */}

@@ -22,7 +22,8 @@ return [
     'allowed_origins' => [
         env('FRONTEND_URL', 'http://localhost:3000'),
         'http://ticket.local',
-        'http://localhost:8000'
+        'http://localhost:8000',
+        'http://192.168.11.101'
     ],
 
     'allowed_origins_patterns' => [],

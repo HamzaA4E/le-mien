@@ -13,7 +13,6 @@ return new class extends Migration
             $table->dateTime('DateCreation');
             $table->unsignedSmallInteger('Id_Demandeur');
             $table->unsignedSmallInteger('Id_Utilisat');
-            $table->unsignedSmallInteger('Id_Executant')->nullable();
             $table->unsignedSmallInteger('Id_Societe');
             $table->unsignedSmallInteger('Id_Emplacement');
             $table->unsignedSmallInteger('Id_Priorite');
@@ -61,11 +60,6 @@ return new class extends Migration
             $table->foreign('Id_Utilisat', 'FK_T_TICKET_T_UTILISAT')
                   ->references('id')
                   ->on('T_UTILISAT')
-                  ->onDelete('no action');
-
-            $table->foreign('Id_Executant', 'FK_T_TICKET_T_EXECUTANT')
-                  ->references('id')
-                  ->on('T_EXECUTANT')
                   ->onDelete('no action');
         });
     }

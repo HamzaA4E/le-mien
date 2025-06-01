@@ -85,7 +85,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('services', ServiceController::class);
     Route::apiResource('priorites', PrioriteController::class);
     Route::apiResource('statuts', StatutController::class);
-    Route::apiResource('executants', ExecutantController::class);
 
     // Nouvelle route pour les tests de performance
     Route::get('/test-performance/{id}', [SocieteController::class, 'testPerformance']);

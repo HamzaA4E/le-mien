@@ -18,7 +18,6 @@ const EditTicket = () => {
     Id_Societe: '',
     Id_Emplacement: '',
     Id_Categorie: '',
-    Id_Executant: '',
     DateDebut: '',
     DateFinPrevue: '',
     attachment: null
@@ -29,8 +28,7 @@ const EditTicket = () => {
     demandeurs: [],
     societes: [],
     emplacements: [],
-    categories: [],
-    executants: []
+    categories: []
   });
   const [currentAttachment, setCurrentAttachment] = useState(null);
   const API_BASE_URL = 'http://localhost:8000';
@@ -68,7 +66,6 @@ const EditTicket = () => {
           Id_Societe: ticket.Id_Societe || '',
           Id_Emplacement: ticket.Id_Emplacement || '',
           Id_Categorie: ticket.Id_Categorie || '',
-          Id_Executant: ticket.Id_Executant || '',
           DateDebut: formatDate(ticket.DateDebut),
           DateFinPrevue: formatDate(ticket.DateFinPrevue),
           attachment: ticket.attachment ? new Blob([ticket.attachment]) : null
@@ -85,8 +82,7 @@ const EditTicket = () => {
           demandeurs: options.demandeurs || [],
           societes: options.societes || [],
           emplacements: options.emplacements || [],
-          categories: options.categories || [],
-          executants: options.executants || []
+          categories: options.categories || []
         });
 
         // Afficher le nom de la pièce jointe existante
@@ -166,7 +162,6 @@ const EditTicket = () => {
         Id_Societe: parseInt(formData.Id_Societe),
         Id_Emplacement: parseInt(formData.Id_Emplacement),
         Id_Categorie: parseInt(formData.Id_Categorie),
-        Id_Executant: parseInt(formData.Id_Executant),
         DateDebut: formatDateForBackend(formData.DateDebut),
         DateFinPrevue: formatDateForBackend(formData.DateFinPrevue)
       };
@@ -327,33 +322,13 @@ const EditTicket = () => {
                 required
                 value={formData.Id_Statut}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                disabled
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
               >
                 <option value="">Sélectionner un statut</option>
                 {options.statuts.map(statut => (
                   <option key={statut.id} value={statut.id}>
                     {statut.designation}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="Id_Executant" className="block text-sm font-medium text-gray-700">
-                Exécutant
-              </label>
-              <select
-                name="Id_Executant"
-                id="Id_Executant"
-                required
-                value={formData.Id_Executant}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                <option value="">Sélectionner un exécutant</option>
-                {options.executants.map(executant => (
-                  <option key={executant.id} value={executant.id}>
-                    {executant.designation}
                   </option>
                 ))}
               </select>
@@ -369,7 +344,8 @@ const EditTicket = () => {
                 required
                 value={formData.Id_Demandeur}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                disabled
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
               >
                 <option value="">Sélectionner un demandeur</option>
                 {options.demandeurs.map(demandeur => (
@@ -454,7 +430,8 @@ const EditTicket = () => {
                 required
                 value={formData.DateDebut}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                disabled
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
               />
             </div>
 
@@ -469,8 +446,8 @@ const EditTicket = () => {
                 required
                 value={formData.DateFinPrevue}
                 onChange={handleChange}
-                min={formData.DateDebut || undefined}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                disabled
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
               />
             </div>
           </div>

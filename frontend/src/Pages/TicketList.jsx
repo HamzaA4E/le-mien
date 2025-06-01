@@ -64,14 +64,12 @@ const TicketList = () => {
     emplacement: searchParams.get('emplacement') || '',
     statut: searchParams.get('statut') ? parseInt(searchParams.get('statut'), 10) : '',
     priorite: searchParams.get('priorite') || '',
-    executant: searchParams.get('executant') || '',
     dateDebut: searchParams.get('dateDebut') || '',
     dateDebutFin: searchParams.get('dateDebutFin') || '',
     dateFinPrevueDebut: searchParams.get('dateFinPrevueDebut') || '',
     dateFinPrevueFin: searchParams.get('dateFinPrevueFin') || '',
     dateFinReelleDebut: searchParams.get('dateFinReelleDebut') || '',
     dateFinReelleFin: searchParams.get('dateFinReelleFin') || '',
-    type_demande: searchParams.get('type_demande') || '',
     titre: searchParams.get('titre') || '',
     showRejectedByDemandeur: false
   }));
@@ -88,7 +86,6 @@ const TicketList = () => {
   const [societes, setSocietes] = useState([]);
   const [emplacements, setEmplacements] = useState([]);
   const [priorites, setPriorites] = useState([]);
-  const [executants, setExecutants] = useState([]);
   const [statuts, setStatuts] = useState([]);
 
   // Récupérer le user depuis le localStorage
@@ -235,7 +232,6 @@ const TicketList = () => {
           setSocietes(optionsData.societes || []);
           setEmplacements(optionsData.emplacements || []);
           setPriorites(optionsData.priorites || []);
-          setExecutants(optionsData.executants || []);
         }
       } catch (error) {
         console.error('Erreur lors du chargement des options:', error);
@@ -254,14 +250,12 @@ const TicketList = () => {
     filters.emplacement,
     filters.statut,
     filters.priorite,
-    filters.executant,
     filters.dateDebut,
     filters.dateDebutFin,
     filters.dateFinPrevueDebut,
     filters.dateFinPrevueFin,
     filters.dateFinReelleDebut,
     filters.dateFinReelleFin,
-    filters.type_demande,
     debouncedTitleFilter, // Seulement quand le titre debounce change
     showUnreadReportsOnly
   ]);
@@ -398,14 +392,12 @@ const TicketList = () => {
       emplacement: '',
       statut: '',
       priorite: '',
-      executant: '',
       dateDebut: '',
       dateDebutFin: '',
       dateFinPrevueDebut: '',
       dateFinPrevueFin: '',
       dateFinReelleDebut: '',
       dateFinReelleFin: '',
-      type_demande: '',
       titre: '',
       showRejectedByDemandeur: false
     });
@@ -521,45 +513,6 @@ const TicketList = () => {
               </button>
             )}
           </div>
-          {/* Groupe Type de demande à droite + bouton Rapports non lus */}
-          <div className="flex gap-2 items-center">
-            <button
-              onClick={() => setFilters(prev => ({ ...prev, type_demande: prev.type_demande === 'Tâche' ? '' : 'Tâche' }))}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                filters.type_demande === 'Tâche'
-                  ? 'bg-fuchsia-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Tâche
-            </button>
-            <button
-              onClick={() => setFilters(prev => ({ ...prev, type_demande: prev.type_demande === 'Projet' ? '' : 'Projet' }))}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                filters.type_demande === 'Projet'
-                  ? 'bg-stone-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Projet
-            </button>
-            {/* Bouton Rapports non lus */}
-            {(niveau === '1' || niveau === 1) && (
-              <button
-                onClick={() => setShowUnreadReportsOnly(v => !v)}
-                className={`flex items-center px-4 py-2 rounded-full text-sm font-semibold transition-colors border border-red-200 ${
-                  showUnreadReportsOnly ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                } ${totalUnreadReports === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                disabled={totalUnreadReports === 0}
-                title="Afficher uniquement les tickets avec des rapports non lus"
-              >
-                <span className="mr-2">🔴 Rapports non lus</span>
-                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                  {totalUnreadReports}
-                </span>
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Section des filtres */}
@@ -653,20 +606,6 @@ const TicketList = () => {
                   <option value="">Toutes</option>
                   {priorites.map(p => (
                     <option key={p.id} value={p.id}>{p.designation}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Exécutant */}
-              <div className="flex flex-col w-full gap-2">
-                <label className="text-sm font-medium text-gray-700">Exécutant</label>
-                <select
-                  value={filters.executant}
-                  onChange={(e) => handleFilterChange('executant', e.target.value)}
-                  className="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Tous</option>
-                  {executants.map(exec => (
-                    <option key={exec.id} value={exec.id}>{exec.nom}</option>
                   ))}
                 </select>
               </div>
@@ -817,10 +756,6 @@ const TicketList = () => {
                       <div>
                         <span className="text-gray-500">Demandeur :</span>
                         <span className="font-semibold text-gray-900 ml-1">{ticket.demandeur?.designation || 'Non spécifié'}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Exécutant :</span>
-                        <span className="font-semibold text-gray-900 ml-1">{ticket.executant?.designation || 'Non assigné'}</span>
                       </div>
                       <div>
                         <span className="text-gray-500">Date début :</span>

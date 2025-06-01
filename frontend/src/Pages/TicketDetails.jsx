@@ -30,6 +30,7 @@ const TicketDetails = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingCommentIndex, setEditingCommentIndex] = useState(null);
   const [editCommentContent, setEditCommentContent] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -450,7 +451,7 @@ const TicketDetails = () => {
             {user && ticket && Number(user.id) === Number(ticket.Id_Utilisat) && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => setShowEditModal(true)}
+                  onClick={() => navigate(`/tickets/${id}/edit`)}
                   className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                 >
                   Modifier
@@ -557,33 +558,21 @@ const TicketDetails = () => {
                 </dd>
               </div>
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Exécutant</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {ticket.executant?.designation || 'Non assigné'}
-                </dd>
-              </div>
-              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Société</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   {ticket.societe?.designation || 'Non spécifiée'}
                 </dd>
               </div>
-              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Emplacement</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   {ticket.emplacement?.designation || 'Non spécifié'}
                 </dd>
               </div>
-              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Catégorie</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   {ticket.categorie?.designation || 'Non spécifiée'}
-                </dd>
-              </div>
-              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Type de demande</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {ticket.type_demande?.designation || 'Non spécifié'}
                 </dd>
               </div>
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -939,6 +928,47 @@ const TicketDetails = () => {
                     onClick={() => setShowDeleteModal(false)}
                   >
                     Annuler
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal d'édition */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Modifier le ticket</h3>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="text-gray-400 hover:text-gray-500"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">
+                    Vous allez être redirigé vers la page de modification du ticket.
+                  </p>
+                </div>
+                <div className="mt-4 flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false);
+                      navigate(`/tickets/${id}/edit`);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Continuer
                   </button>
                 </div>
               </div>

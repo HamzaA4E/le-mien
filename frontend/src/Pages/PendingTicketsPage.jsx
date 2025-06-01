@@ -239,7 +239,6 @@ const PendingTicketsPage = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Demandeur</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date de création</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priorité</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commentaire</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
@@ -265,11 +264,6 @@ const PendingTicketsPage = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">{ticket.priorite?.designation}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">
-                                                {ticket.formatted_comments && ticket.formatted_comments.length > 0 ? ticket.formatted_comments[ticket.formatted_comments.length-1].content.slice(0, 60) + (ticket.formatted_comments[ticket.formatted_comments.length-1].content.length > 60 ? '...' : '') : 'Aucun'}
-                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <button
@@ -339,6 +333,14 @@ const PendingTicketsPage = () => {
                                                 <span className="font-semibold text-gray-600">Service :</span>
                                                 <span className="ml-2 text-gray-900">{selectedTicket.demandeur?.service?.designation}</span>
                                             </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Commentaire :</span>
+                                                <span className="ml-2 text-gray-900">
+                                                    {selectedTicket.formatted_comments && selectedTicket.formatted_comments.length > 0
+                                                        ? selectedTicket.formatted_comments[selectedTicket.formatted_comments.length-1].content
+                                                        : 'Aucun'}
+                                                </span>
+                                            </div>
                                         </div>
                                         <div>
                                             <div className="mb-2">
@@ -351,24 +353,12 @@ const PendingTicketsPage = () => {
                                             </div>
                                             <div className="mb-2">
                                                 <span className="font-semibold text-gray-600">Priorité :</span>
-                                                <span className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${
+                                                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
                                                     selectedTicket.priorite?.designation === 'Urgent'
                                                         ? 'bg-red-50 text-red-600 border border-red-200'
                                                         : 'bg-green-50 text-green-700 border border-green-200'
                                                 }`}>
                                                     {selectedTicket.priorite?.designation}
-                                                </span>
-                                            </div>
-                                            <div className="mb-2">
-                                                <span className="font-semibold text-gray-600">Statut :</span>
-                                                <span className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${
-                                                    selectedTicket.statut?.designation === 'Nouveau'
-                                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                                        : selectedTicket.statut?.designation === 'Refusé'
-                                                        ? 'bg-red-50 text-red-700 border border-red-200'
-                                                        : 'bg-gray-50 text-gray-700 border border-gray-200'
-                                                }`}>
-                                                    {selectedTicket.statut?.designation}
                                                 </span>
                                             </div>
                                             <div className="mb-2">

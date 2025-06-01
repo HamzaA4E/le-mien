@@ -122,6 +122,34 @@ class TicketController extends Controller
             $perPage = $request->input('per_page', 10);
             $tickets = $query->paginate($perPage, ['*'], 'page', $page);
 
+            // Ajout du formatage des commentaires pour chaque ticket de la pagination
+            foreach ($tickets as $ticket) {
+                if ($ticket->Commentaire) {
+                    $comments = explode("\n\n", $ticket->Commentaire);
+                    $formattedComments = [];
+                    foreach ($comments as $comment) {
+                        if (empty(trim($comment))) continue;
+                        if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
+                            $userId = $matches[1];
+                            $date = $matches[2];
+                            $content = trim($matches[3]);
+                            $user = \App\Models\Utilisateur::find($userId);
+                            $formattedComments[] = [
+                                'user' => $user ? [
+                                    'id' => $user->id,
+                                    'designation' => $user->designation
+                                ] : null,
+                                'date' => $date,
+                                'content' => $content
+                            ];
+                        }
+                    }
+                    $ticket->formatted_comments = $formattedComments;
+                } else {
+                    $ticket->formatted_comments = [];
+                }
+            }
+
             return response()->json($tickets);
         } catch (\Exception $e) {
             Log::error('Error fetching tickets', [
@@ -844,6 +872,34 @@ class TicketController extends Controller
 
             $tickets = $tickets->orderBy('DateCreation', 'desc')
                              ->get();
+
+            // Ajout du formatage des commentaires pour chaque ticket
+            // foreach ($tickets as $ticket) {
+            //     if ($ticket->Commentaire) {
+            //         $comments = explode("\n\n", $ticket->Commentaire);
+            //         $formattedComments = [];
+            //         foreach ($comments as $comment) {
+            //             if (empty(trim($comment))) continue;
+            //             if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
+            //                 $userId = $matches[1];
+            //                 $date = $matches[2];
+            //                 $content = trim($matches[3]);
+            //                 $user = \App\Models\Utilisateur::find($userId);
+            //                 $formattedComments[] = [
+            //                     'user' => $user ? [
+            //                         'id' => $user->id,
+            //                         'designation' => $user->designation
+            //                     ] : null,
+            //                     'date' => $date,
+            //                     'content' => $content
+            //                 ];
+            //             }
+            //         }
+            //         $ticket->formatted_comments = $formattedComments;
+            //     } else {
+            //         $ticket->formatted_comments = [];
+            //     }
+            // }
 
             return response()->json($tickets);
         } catch (\Exception $e) {

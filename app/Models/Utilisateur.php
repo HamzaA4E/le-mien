@@ -113,4 +113,12 @@ class Utilisateur extends Authenticatable
     {
         return 'id';
     }
+
+    /**
+     * Get the service associated with the user.
+     */
+    public function service()
+    {
+        return $this->belongsTo(\App\Models\Service::class, 'id_service');
+    }
 } 

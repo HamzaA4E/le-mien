@@ -10,9 +10,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = Utilisateur::select('id', 'designation', 'email', 'niveau', 'statut')
-            ->get();
-        
+        $users = \App\Models\Utilisateur::with('service')->get();
         return response()->json($users);
     }
 

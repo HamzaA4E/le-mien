@@ -225,6 +225,9 @@ const ListUsers = () => {
                     Niveau d'accès
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Service
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Statut
                   </th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -252,6 +255,11 @@ const ListUsers = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{getNiveauText(user.niveau)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {user.niveau === '2' ? 'Pas de service' : (user.service?.designation || 'Non spécifié')}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {user.statut === 1 ? (

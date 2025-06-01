@@ -142,14 +142,7 @@ OPTIONS DISPONIBLES :
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-6. COLLECTE DES DATES
-   - Demander la date de début prévue
-   - ATTENDRE sa réponse
-   - Demander la date de fin prévue
-   - ATTENDRE sa réponse
-   - Passer à l'étape suivante
-
-7. RÉSUMÉ ET DEMANDE DE CRÉATION
+6. RÉSUMÉ ET DEMANDE DE CRÉATION
    - Présenter le résumé dans le format suivant :
      📋 RÉSUMÉ DU TICKET
      ──────────────────────────────
@@ -158,8 +151,6 @@ OPTIONS DISPONIBLES :
      🏷️ Catégorie : [catégorie]
      📍 Emplacement : [emplacement]
      ⚡ Priorité : [priorité]
-     📅 Date de début : [date début]
-     📅 Date de fin : [date fin]
      ──────────────────────────────
    - Demander si l'utilisateur souhaite procéder à la création du ticket
    - Si l'utilisateur répond "oui" :
@@ -172,9 +163,7 @@ EXEMPLES DE RÉPONSES PROFESSIONNELLES :
 - "Merci pour le titre. Maintenant, pourriez-vous me donner une description détaillée du problème ?"
 - "Voici les catégories disponibles : ${formatOptions(userInfo.ticketOptions.categories)}. Quelle catégorie correspond le mieux à votre demande ?"
 - "Voici les emplacements disponibles : ${formatOptions(userInfo.ticketOptions.emplacements)}. Quel est l'emplacement concerné ?"
-- "Voici les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}. Quelle priorité souhaitez-vous attribuer à ce ticket ?"
-- "Quelle est la date de début prévue pour ce ticket ?"
-- "Quelle est la date de fin prévue pour ce ticket ?"
+- "Voici les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}."
 - "Je vais vérifier que toutes les informations sont présentes avant de procéder à la création du ticket."
 - "Il manque certaines informations. Pourriez-vous me préciser [information manquante] ?"
 - "Toutes les informations sont présentes. Je vais transmettre ces informations pour la création du ticket."`;
@@ -456,13 +445,11 @@ export const createTicketFromChat = async (ticketData) => {
         const token = localStorage.getItem('token');
         
         // Vérifier que toutes les données requises sont présentes
-        if (!ticketData.title || !ticketData.description || !ticketData.startDate || !ticketData.endDate ||
+        if (!ticketData.title || !ticketData.description ||
             !ticketData.id_categorie || !ticketData.id_emplacement || !ticketData.id_priorite) {
             console.error('Données manquantes:', {
                 title: ticketData.title,
                 description: ticketData.description,
-                startDate: ticketData.startDate,
-                endDate: ticketData.endDate,
                 id_categorie: ticketData.id_categorie,
                 id_emplacement: ticketData.id_emplacement,
                 id_priorite: ticketData.id_priorite
@@ -483,9 +470,6 @@ export const createTicketFromChat = async (ticketData) => {
         const transformedData = {
             titre: ticketData.title,
             description: ticketData.description,
-            date_debut: ticketData.startDate,
-            date_fin_prevue: ticketData.endDate,
-            date_fin_reelle: '',
             id_demandeur: ticketData.id_demandeur,
             id_utilisateur: ticketData.id_utilisateur,
             id_societe: ticketData.id_societe,
@@ -495,6 +479,12 @@ export const createTicketFromChat = async (ticketData) => {
             id_statut: ticketData.id_statut,
             id_executant: ticketData.id_executant
         };
+        if (ticketData.startDate) {
+            transformedData.date_debut = ticketData.startDate;
+        }
+        if (ticketData.endDate) {
+            transformedData.date_fin_prevue = ticketData.endDate;
+        }
 
         console.log('Données envoyées à l\'API:', transformedData);
 

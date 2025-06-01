@@ -149,12 +149,12 @@ class TicketController extends Controller
                 'description' => 'required|string',
                 'commentaire' => 'nullable|string',
                 'attachment' => 'nullable|file|max:10240', // max 10MB
-                'date_debut' => 'required|date',
+                'date_debut' => 'nullable|date',
                 'date_fin_prevue' => [
-                    'required',
+                    'nullable',
                     'date',
                     function ($attribute, $value, $fail) use ($request) {
-                        if (strtotime($value) < strtotime($request->date_debut)) {
+                        if ($value && $request->date_debut && strtotime($value) < strtotime($request->date_debut)) {
                             $fail('La date de fin prévue ne peut pas être antérieure à la date de début.');
                         }
                     },
@@ -199,14 +199,14 @@ class TicketController extends Controller
                 $validated['id_demandeur'] = $demandeur->id;
 
                 Log::info('Valeurs brutes des dates:', [
-                    'date_debut' => $validated['date_debut'],
-                    'date_fin_prevue' => $validated['date_fin_prevue'],
-                    'date_fin_reelle' => $validated['date_fin_reelle']
+                    'date_debut' => $validated['date_debut'] ?? null,
+                    'date_fin_prevue' => $validated['date_fin_prevue'] ?? null,
+                    'date_fin_reelle' => $validated['date_fin_reelle'] ?? null
                 ]);
                 // Convertir les dates en format SQL Server
-                $dateDebut = date('d/m/Y H:i:s', strtotime($validated['date_debut']));
-                $dateFinPrevue = date('d/m/Y H:i:s', strtotime($validated['date_fin_prevue']));
-                $dateFinReelle = $validated['date_fin_reelle'] ? date('d/m/Y H:i:s', strtotime($validated['date_fin_reelle'])) : null;
+                $dateDebut = !empty($validated['date_debut']) ? date('d/m/Y H:i:s', strtotime($validated['date_debut'])) : null;
+                $dateFinPrevue = !empty($validated['date_fin_prevue']) ? date('d/m/Y H:i:s', strtotime($validated['date_fin_prevue'])) : null;
+                $dateFinReelle = !empty($validated['date_fin_reelle']) ? date('d/m/Y H:i:s', strtotime($validated['date_fin_reelle'])) : null;
                 $dateCreation = date('d/m/Y H:i:s');
 
                 Log::info('Valeurs converties des dates:', [
@@ -948,6 +948,15 @@ class TicketController extends Controller
         try {
             $ticket = Ticket::findOrFail($id);
             $ticket->Id_Statut = 2; // Statut "En instance"
+            
+            // Save the dates if they are provided in the request
+            if (request()->has('DateDebut')) {
+                $ticket->DateDebut = date('d/m/Y H:i:s', strtotime(request()->DateDebut));
+            }
+            if (request()->has('DateFinPrevue')) {
+                $ticket->DateFinPrevue = date('d/m/Y H:i:s', strtotime(request()->DateFinPrevue));
+            }
+            
             $ticket->save();
 
             return response()->json([

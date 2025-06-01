@@ -129,17 +129,6 @@ const ChatBot = () => {
                 setShowLocations(lowerResponse.includes('emplacement'));
                 setShowPriorities(lowerResponse.includes('priorité'));
                 
-                // Gestion des dates
-                if (lowerResponse.includes('date de début')) {
-                    setShowDatePicker(true);
-                    setDateType('start');
-                } else if (lowerResponse.includes('date de fin')) {
-                    setShowDatePicker(true);
-                    setDateType('end');
-                } else {
-                    setShowDatePicker(false);
-                }
-
                 // Vérifier si la réponse contient plusieurs questions
                 const questions = response.split('?').filter(q => q.trim().length > 0);
                 
@@ -172,7 +161,6 @@ const ChatBot = () => {
                     setShowCategories(false);
                     setShowLocations(false);
                     setShowPriorities(false);
-                    setShowDatePicker(false);
                     // Ajouter le résumé du ticket dans les messages
                     setMessages(prev => [...prev, { 
                         role: 'assistant', 
@@ -243,78 +231,6 @@ const ChatBot = () => {
     const renderPriorities = () => {
         if (!showPriorities || !ticketOptions?.priorites) return null;
         return renderOptionTable(ticketOptions.priorites, 'priority', 'Sélectionnez une priorité :');
-    };
-
-    const renderDatePicker = () => {
-        if (!showDatePicker) return null;
-
-        const today = new Date();
-        const title = dateType === 'start' ? 'Sélectionnez la date de début :' : 'Sélectionnez la date de fin :';
-        
-        // Calculer la date minimale pour la date de fin
-        const minEndDate = dateType === 'end' && ticketData?.startDate 
-            ? new Date(ticketData.startDate)
-            : today;
-
-        // Calculer la date maximale (1 an à partir d'aujourd'hui)
-        const maxDate = new Date();
-        maxDate.setFullYear(maxDate.getFullYear() + 1);
-
-        return (
-            <div className="mt-4 p-4 bg-white rounded-lg shadow-lg border border-gray-200">
-                <h3 className="text-lg font-semibold mb-4 text-gray-700">{title}</h3>
-                <div className="flex flex-col items-center space-y-4">
-                    <div className="relative w-full max-w-xs">
-                        <DatePicker
-                            selected={dateType === 'start' ? (ticketData?.startDate ? new Date(ticketData.startDate) : null) : 
-                                           (ticketData?.endDate ? new Date(ticketData.endDate) : null)}
-                            onChange={(date) => {
-                                if (date) {
-                                    handleDateSelect(date);
-                                }
-                            }}
-                            minDate={minEndDate}
-                            maxDate={maxDate}
-                            dateFormat="dd/MM/yyyy"
-                            locale={fr}
-                            placeholderText="Sélectionnez une date"
-                            className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            showPopperArrow={false}
-                            popperClassName="react-datepicker-popper"
-                            popperPlacement="bottom"
-                            popperModifiers={[
-                                {
-                                    name: "offset",
-                                    options: {
-                                        offset: [0, 8]
-                                    }
-                                }
-                            ]}
-                            customInput={
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Sélectionnez une date"
-                                    />
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                            }
-                        />
-                    </div>
-                    <div className="text-sm text-gray-500 space-y-1">
-                        {dateType === 'end' && ticketData?.startDate && (
-                            <p>La date doit être postérieure au {new Date(ticketData.startDate).toLocaleDateString('fr-FR')}</p>
-                        )}
-                        <p>Vous pouvez sélectionner une date jusqu'à un an à partir d'aujourd'hui</p>
-                    </div>
-                </div>
-            </div>
-        );
     };
 
     const renderTicketSummary = (ticketData) => {
@@ -392,126 +308,6 @@ const ChatBot = () => {
         );
     };
 
-    const handleDateSelect = (date) => {
-        setShowDatePicker(false);
-        
-        // Formater la date au format YYYY-MM-DD
-        const formattedDate = date.toISOString().split('T')[0];
-        
-        // Mettre à jour le ticketData avec la nouvelle date
-        if (dateType === 'start') {
-            setTicketData(prev => ({
-                ...prev,
-                startDate: formattedDate
-            }));
-        } else {
-            setTicketData(prev => ({
-                ...prev,
-                endDate: formattedDate
-            }));
-        }
-
-        // Envoyer le message avec la date sélectionnée
-        const userMessage = formattedDate;
-        setInput('');
-        setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-        setIsLoading(true);
-        setError(null);
-
-        // Préparer le contexte avec les options disponibles
-        const contextWithOptions = {
-            ...userInfo,
-            ticketOptions: {
-                categories: ticketOptions.categories || [],
-                emplacements: ticketOptions.emplacements || [],
-                priorites: ticketOptions.priorites || []
-            }
-        };
-
-        // Déterminer le service en fonction du niveau d'utilisateur
-        let service = 'Support';
-        if (userInfo.niveau === 1) {
-            service = 'Administration';
-        } else if (userInfo.niveau === 2) {
-            service = 'Demandeur';
-        }
-
-        contextWithOptions.service = service;
-
-        // Envoyer le message directement
-        chatWithGemini(userMessage, messages, contextWithOptions)
-            .then(response => {
-                // Vérifier le type de demande dans la réponse
-                const lowerResponse = response.toLowerCase();
-                setShowCategories(lowerResponse.includes('catégorie'));
-                setShowLocations(lowerResponse.includes('emplacement'));
-                setShowPriorities(lowerResponse.includes('priorité'));
-                
-                // Gestion des dates
-                if (lowerResponse.includes('date de début')) {
-                    setShowDatePicker(true);
-                    setDateType('start');
-                } else if (lowerResponse.includes('date de fin')) {
-                    setShowDatePicker(true);
-                    setDateType('end');
-                } else {
-                    setShowDatePicker(false);
-                }
-
-                // Vérifier si la réponse contient plusieurs questions
-                const questions = response.split('?').filter(q => q.trim().length > 0);
-                
-                // Vérifier si la dernière question est similaire à la précédente
-                const lastMessage = messages[messages.length - 1];
-                const isRepeatedQuestion = lastMessage && 
-                    lastMessage.role === 'assistant' && 
-                    lastMessage.content.toLowerCase() === response.toLowerCase();
-
-                if (!isRepeatedQuestion) {
-                    if (questions.length > 1) {
-                        // Si plusieurs questions, ne garder que la première
-                        const firstQuestion = questions[0] + '?';
-                        setMessages(prev => [...prev, { role: 'assistant', content: firstQuestion }]);
-                    } else {
-                        setMessages(prev => [...prev, { role: 'assistant', content: response }]);
-                    }
-                }
-
-                // Vérifier si la réponse contient un résumé de ticket
-                if (response.includes('📋 RÉSUMÉ DU TICKET')) {
-                    const extractedInfo = extractTicketInfo(
-                        [...messages, { role: 'user', content: userMessage }, { role: 'assistant', content: response }], 
-                        ticketOptions, 
-                        userInfo
-                    );
-                    console.log('Informations extraites du résumé:', extractedInfo);
-                    setTicketData(extractedInfo);
-                    // Fermer tous les sélecteurs après le résumé
-                    setShowCategories(false);
-                    setShowLocations(false);
-                    setShowPriorities(false);
-                    setShowDatePicker(false);
-                    // Ajouter le résumé du ticket dans les messages
-                    setMessages(prev => [...prev, { 
-                        role: 'assistant', 
-                        content: 'Voici le résumé de votre ticket :',
-                        component: renderTicketSummary(extractedInfo)
-                    }]);
-                }
-            })
-            .catch(error => {
-                const errorMessage = error.message || "Une erreur est survenue. Veuillez réessayer.";
-                setError(errorMessage);
-                setMessages(prev => [...prev, {
-                    role: 'assistant',
-                    content: errorMessage
-                }]);
-            })
-            .finally(() => {
-                setIsLoading(false);
-            });
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!input.trim() || !userInfo || !ticketOptions) {
@@ -565,17 +361,6 @@ const ChatBot = () => {
             setShowLocations(lowerResponse.includes('emplacement'));
             setShowPriorities(lowerResponse.includes('priorité'));
             
-            // Gestion des dates
-            if (lowerResponse.includes('date de début')) {
-                setShowDatePicker(true);
-                setDateType('start');
-            } else if (lowerResponse.includes('date de fin')) {
-                setShowDatePicker(true);
-                setDateType('end');
-            } else {
-                setShowDatePicker(false);
-            }
-
             // Vérifier si la réponse contient plusieurs questions
             const questions = response.split('?').filter(q => q.trim().length > 0);
             
@@ -604,11 +389,6 @@ const ChatBot = () => {
                 );
                 console.log('Informations extraites du résumé:', extractedInfo);
                 setTicketData(extractedInfo);
-                // Fermer tous les sélecteurs après le résumé
-                setShowCategories(false);
-                setShowLocations(false);
-                setShowPriorities(false);
-                setShowDatePicker(false);
                 // Ajouter le résumé du ticket dans les messages
                 setMessages(prev => [...prev, { 
                     role: 'assistant', 
@@ -813,7 +593,6 @@ const ChatBot = () => {
                         {renderCategories()}
                         {renderLocations()}
                         {renderPriorities()}
-                        {renderDatePicker()}
                         <div ref={messagesEndRef} />
                     </div>
                     <form onSubmit={handleSubmit} className="border-t p-4">

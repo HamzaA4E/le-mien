@@ -1075,7 +1075,7 @@ class TicketController extends Controller
     public function countPending()
     {
         try {
-            $count = Ticket::where('statut', 'pending')->count();
+            $count = Ticket::where('Id_Statut', 1)->count();
             return response()->json(['count' => $count]);
         } catch (\Exception $e) {
             Log::error('Erreur lors du comptage des tickets en attente', [

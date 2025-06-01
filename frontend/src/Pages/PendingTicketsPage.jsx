@@ -1,7 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
-import { FaSyncAlt, FaEye } from 'react-icons/fa';
+import { FaSyncAlt, FaEye, FaTicketAlt, FaTimesCircle } from 'react-icons/fa';
+
+// Fonction utilitaire pour formater les dates Laravel ou string
+function formatDate(dateValue) {
+    if (!dateValue) return '-';
+    let dateString = dateValue;
+    if (typeof dateValue === 'object' && dateValue.date) {
+        dateString = dateValue.date;
+    }
+    if (typeof dateString === 'string' && dateString.includes('.')) {
+        dateString = dateString.split('.')[0];
+    }
+    const isoString = dateString.replace(' ', 'T');
+    const date = new Date(isoString);
+    return isNaN(date) ? '-' : date.toLocaleString('fr-FR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+}
 
 const PendingTicketsPage = () => {
     const [tickets, setTickets] = useState([]);
@@ -16,6 +35,9 @@ const PendingTicketsPage = () => {
     const [approveStartDate, setApproveStartDate] = useState('');
     const [approveEndDate, setApproveEndDate] = useState('');
     const [approveError, setApproveError] = useState('');
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
     useEffect(() => {
         fetchTickets();
@@ -86,6 +108,23 @@ const PendingTicketsPage = () => {
             setErrorMessage("Une erreur est survenue lors du refus du ticket.");
             setSuccessMessage('');
         }
+    };
+
+    const openDetailModal = async (ticketId) => {
+        setLoadingDetail(true);
+        setShowDetailModal(true);
+        try {
+            const res = await axios.get(`/api/tickets/${ticketId}`);
+            setSelectedTicket(res.data);
+        } catch (e) {
+            setSelectedTicket(null);
+        }
+        setLoadingDetail(false);
+    };
+
+    const closeDetailModal = () => {
+        setShowDetailModal(false);
+        setSelectedTicket(null);
     };
 
     if (loading) return <div>Chargement...</div>;
@@ -198,7 +237,7 @@ const PendingTicketsPage = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <button
-                                                onClick={() => window.location.href = `/tickets/${ticket.id}`}
+                                                onClick={() => openDetailModal(ticket.id)}
                                                 className="text-blue-600 hover:text-blue-900 mr-2"
                                                 title="Voir le détail"
                                             >
@@ -227,6 +266,102 @@ const PendingTicketsPage = () => {
                         </table>
                     </div>
                 </div>
+                {showDetailModal && (
+                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+                        <div className="relative bg-white p-8 rounded-xl shadow-xl w-full max-w-2xl">
+                            <button
+                                onClick={closeDetailModal}
+                                className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition"
+                                title="Fermer"
+                            >
+                                ×
+                            </button>
+                            <h2 className="text-xl font-bold text-blue-700 mb-6">Résumé du ticket</h2>
+                            {loadingDetail ? (
+                                <div className="text-center text-blue-600 font-semibold">Chargement...</div>
+                            ) : selectedTicket ? (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 mb-6">
+                                        <div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Titre :</span>
+                                                <span className="ml-2 text-gray-900">{selectedTicket.Titre}</span>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Description :</span>
+                                                <span className="ml-2 text-gray-900">{selectedTicket.Description}</span>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Catégorie :</span>
+                                                <span className="ml-2 text-gray-900">{selectedTicket.categorie?.designation}</span>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Emplacement :</span>
+                                                <span className="ml-2 text-gray-900">{selectedTicket.emplacement?.designation}</span>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Service :</span>
+                                                <span className="ml-2 text-gray-900">{selectedTicket.demandeur?.service?.designation}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Date de début :</span>
+                                                <span className="ml-2 text-gray-900">{formatDate(selectedTicket.DateDebut)}</span>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Date de fin :</span>
+                                                <span className="ml-2 text-gray-900">{formatDate(selectedTicket.DateFinPrevue)}</span>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Priorité :</span>
+                                                <span className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${
+                                                    selectedTicket.priorite?.designation === 'Urgent'
+                                                        ? 'bg-red-50 text-red-600 border border-red-200'
+                                                        : 'bg-green-50 text-green-700 border border-green-200'
+                                                }`}>
+                                                    {selectedTicket.priorite?.designation}
+                                                </span>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Statut :</span>
+                                                <span className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${
+                                                    selectedTicket.statut?.designation === 'Nouveau'
+                                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                                        : selectedTicket.statut?.designation === 'Refusé'
+                                                        ? 'bg-red-50 text-red-700 border border-red-200'
+                                                        : 'bg-gray-50 text-gray-700 border border-gray-200'
+                                                }`}>
+                                                    {selectedTicket.statut?.designation}
+                                                </span>
+                                            </div>
+                                            <div className="mb-2">
+                                                <span className="font-semibold text-gray-600">Demandeur :</span>
+                                                <span className="ml-2 text-gray-900">{selectedTicket.demandeur?.designation}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-3 mt-2">
+                                        <button
+                                            onClick={() => { closeDetailModal(); openApproveModal(selectedTicket.id); }}
+                                            className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm transition"
+                                        >
+                                            Approuver
+                                        </button>
+                                        <button
+                                            onClick={() => { closeDetailModal(); handleReject(selectedTicket.id); }}
+                                            className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-semibold shadow-sm transition"
+                                        >
+                                            Refuser
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center text-red-600">Erreur lors du chargement du ticket.</div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </Layout>
     );

@@ -172,6 +172,57 @@ const TicketList = () => {
     }));
   }, [debouncedTitleFilter]);
 
+  // Effet pour le chargement initial des options
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        setLoading(true);
+        const optionsResponse = await axios.get('/api/tickets/options');
+        if (optionsResponse.data && optionsResponse.data.options) {
+          const { options: optionsData } = optionsResponse.data;
+          setStatuts(optionsData.statuts || []);
+          setCategories(optionsData.categories || []);
+          setDemandeurs(optionsData.demandeurs || []);
+          setEmplacements(optionsData.emplacements || []);
+          setPriorites(optionsData.priorites || []);
+        }
+        // Une fois les options chargées, on charge les tickets
+        await fetchTickets(1);
+      } catch (error) {
+        console.error('Erreur lors du chargement des options:', error);
+        setError('Erreur lors du chargement des données');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadOptions();
+  }, []); // Dépendances vides pour ne s'exécuter qu'une fois au montage
+
+  // Effet pour le chargement des tickets quand les filtres changent
+  useEffect(() => {
+    // On ne recharge les tickets que si ce n'est pas le chargement initial
+    if (!loading && allTickets.length > 0) {
+      const timer = setTimeout(() => {
+        fetchTickets(1);
+      }, 300); // Petit délai pour éviter les appels multiples rapides
+      return () => clearTimeout(timer);
+    }
+  }, [
+    filters.categorie,
+    filters.demandeur,
+    filters.emplacement,
+    filters.statut,
+    filters.priorite,
+    filters.dateDebut,
+    filters.dateDebutFin,
+    filters.dateFinPrevueDebut,
+    filters.dateFinPrevueFin,
+    filters.dateFinReelleDebut,
+    filters.dateFinReelleFin,
+    debouncedTitleFilter,
+    showUnreadReportsOnly
+  ]);
+
   // Fonction unique de chargement des tickets
   const fetchTickets = async (pageNum = 1) => {
     try {
@@ -216,45 +267,6 @@ const TicketList = () => {
       setSpin(false);
     }
   };
-
-  // Effet pour le chargement initial des options
-  useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        const optionsResponse = await axios.get('/api/tickets/options');
-        if (optionsResponse.data && optionsResponse.data.options) {
-          const { options: optionsData } = optionsResponse.data;
-          setStatuts(optionsData.statuts || []);
-          setCategories(optionsData.categories || []);
-          setDemandeurs(optionsData.demandeurs || []);
-          setEmplacements(optionsData.emplacements || []);
-          setPriorites(optionsData.priorites || []);
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des options:', error);
-      }
-    };
-    loadOptions();
-  }, []);
-
-  // Effet pour le chargement des tickets quand les filtres changent (sauf titre)
-  useEffect(() => {
-    fetchTickets(1);
-  }, [
-    filters.categorie,
-    filters.demandeur,
-    filters.emplacement,
-    filters.statut,
-    filters.priorite,
-    filters.dateDebut,
-    filters.dateDebutFin,
-    filters.dateFinPrevueDebut,
-    filters.dateFinPrevueFin,
-    filters.dateFinReelleDebut,
-    filters.dateFinReelleFin,
-    debouncedTitleFilter, // Seulement quand le titre debounce change
-    showUnreadReportsOnly
-  ]);
 
   // Effet pour l'intersection observer
   useEffect(() => {
@@ -662,7 +674,7 @@ const TicketList = () => {
         )}
 
         <div className="space-y-4">
-          {filteredTickets.map((ticket) => {
+          {filteredTickets.map((ticket, index) => {
             // Affichage temporaire pour debug
             console.log('TICKET DEBUG:', ticket.id, ticket.Titre, ticket.reports, ticket.Id_Demandeur);
             // Vérifier si le ticket est refusé par le demandeur
@@ -689,7 +701,7 @@ const TicketList = () => {
 
             return (
               <div
-                key={ticket.id}
+                key={`ticket-${ticket.id}-${index}`}
                 className={`rounded-2xl shadow-lg border flex flex-col md:flex-row items-center justify-between min-h-[140px] px-6 py-5 mb-6 transition-transform hover:scale-[1.015] hover:shadow-2xl group ${ticketStyle}`}
                 style={{ transition: 'box-shadow 0.2s, transform 0.2s' }}
               >

@@ -43,7 +43,7 @@ class DashboardController extends Controller
 
             // Statistiques par statut
             $ticketsByStatut = Statut::select('T_STATUT.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
-                ->leftJoinSub($baseTicketQuery, 'filtered_tickets', function($join) {
+                ->leftJoinSub($baseTicketQuery->select('T_TICKET.id', 'T_TICKET.Id_Statut'), 'filtered_tickets', function($join) {
                     $join->on('T_STATUT.id', '=', 'filtered_tickets.Id_Statut');
                 })
                 ->groupBy('T_STATUT.designation')
@@ -51,7 +51,7 @@ class DashboardController extends Controller
 
             // Statistiques par priorité
             $ticketsByPriorite = Priorite::select('T_PRIORITE.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
-                ->leftJoinSub($baseTicketQuery, 'filtered_tickets', function($join) {
+                ->leftJoinSub($baseTicketQuery->select('T_TICKET.id', 'T_TICKET.Id_Priorite'), 'filtered_tickets', function($join) {
                     $join->on('T_PRIORITE.id', '=', 'filtered_tickets.Id_Priorite');
                 })
                 ->groupBy('T_PRIORITE.designation')
@@ -59,7 +59,7 @@ class DashboardController extends Controller
 
             // Statistiques par catégorie
             $ticketsByCategorie = Categorie::select('T_CATEGORIE.designation', DB::raw('COUNT(filtered_tickets.id) as count'))
-                ->leftJoinSub($baseTicketQuery, 'filtered_tickets', function($join) {
+                ->leftJoinSub($baseTicketQuery->select('T_TICKET.id', 'T_TICKET.Id_Categorie'), 'filtered_tickets', function($join) {
                     $join->on('T_CATEGORIE.id', '=', 'filtered_tickets.Id_Categorie');
                 })
                 ->groupBy('T_CATEGORIE.designation')

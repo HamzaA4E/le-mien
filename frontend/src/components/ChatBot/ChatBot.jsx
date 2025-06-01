@@ -279,6 +279,10 @@ const ChatBot = () => {
                                 <td className="px-4 py-2 text-sm font-medium text-gray-600">Service</td>
                                 <td className="px-4 py-2 text-sm text-gray-800">{ticketData.service || '-'}</td>
                             </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Commentaire</td>
+                                <td className="px-4 py-2 text-sm text-gray-800">{ticketData.commentaire || '-'}</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>

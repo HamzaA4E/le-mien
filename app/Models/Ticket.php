@@ -47,6 +47,15 @@ class Ticket extends Model
             if (empty($ticket->DateCreation)) {
                 $ticket->DateCreation = now();
             }
+            // Si un commentaire est fourni, on le formate comme un commentaire normal avec l'ID du demandeur
+            if (!empty($ticket->Commentaire) && !empty($ticket->Id_Demandeur)) {
+                $ticket->Commentaire = sprintf(
+                    "[%d|%s]%s",
+                    $ticket->Id_Demandeur,
+                    now()->format('d/m/Y H:i'),
+                    $ticket->Commentaire
+                );
+            }
         });
     }
 

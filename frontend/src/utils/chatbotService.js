@@ -124,30 +124,37 @@ OPTIONS DISPONIBLES :
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-3. DÉTERMINATION DE LA CATÉGORIE
+3. COLLECTE DU COMMENTAIRE INITIAL
+   - Demander un commentaire initial qui servira de suivi pour le ticket
+   - Ce commentaire peut inclure des informations supplémentaires, des précisions ou des instructions spécifiques
+   - ATTENDRE sa réponse
+   - Passer à l'étape suivante
+
+4. DÉTERMINATION DE LA CATÉGORIE
    - Afficher les catégories disponibles : ${formatOptions(userInfo.ticketOptions.categories)}
    - Demander à l'utilisateur de choisir une catégorie parmi celles listées
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-4. COLLECTE DE L'EMPLACEMENT
+5. COLLECTE DE L'EMPLACEMENT
    - Afficher les emplacements disponibles : ${formatOptions(userInfo.ticketOptions.emplacements)}
    - Demander à l'utilisateur de choisir un emplacement parmi ceux listés
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-5. DÉTERMINATION DE LA PRIORITÉ
+6. DÉTERMINATION DE LA PRIORITÉ
    - Afficher les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}
    - Demander à l'utilisateur de choisir une priorité parmi celles listées
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-6. RÉSUMÉ ET DEMANDE DE CRÉATION
+7. RÉSUMÉ ET DEMANDE DE CRÉATION
    - Présenter le résumé dans le format suivant :
      📋 RÉSUMÉ DU TICKET
      ──────────────────────────────
      📌 Titre : [titre]
      📝 Description : [description]
+     💬 Commentaire initial : [commentaire]
      🏷️ Catégorie : [catégorie]
      📍 Emplacement : [emplacement]
      ⚡ Priorité : [priorité]
@@ -161,12 +168,15 @@ OPTIONS DISPONIBLES :
 EXEMPLES DE RÉPONSES PROFESSIONNELLES :
 - "Pour commencer, pourriez-vous me donner un titre concis qui décrit votre problème ?"
 - "Merci pour le titre. Maintenant, pourriez-vous me donner une description détaillée du problème ?"
+- "Merci pour la description. Pourriez-vous ajouter un commentaire initial qui servira de suivi pour ce ticket ? Ce commentaire peut inclure des informations supplémentaires ou des instructions spécifiques."
 - "Voici les catégories disponibles : ${formatOptions(userInfo.ticketOptions.categories)}. Quelle catégorie correspond le mieux à votre demande ?"
 - "Voici les emplacements disponibles : ${formatOptions(userInfo.ticketOptions.emplacements)}. Quel est l'emplacement concerné ?"
 - "Voici les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}."
 - "Je vais vérifier que toutes les informations sont présentes avant de procéder à la création du ticket."
 - "Il manque certaines informations. Pourriez-vous me préciser [information manquante] ?"
-- "Toutes les informations sont présentes. Je vais transmettre ces informations pour la création du ticket."`;
+- "Toutes les informations sont présentes. Je vais transmettre ces informations pour la création du ticket."
+
+IMPORTANT : Tu DOIS TOUJOURS demander un commentaire initial après la description et avant de demander la catégorie. Ne saute JAMAIS cette étape.`;
 
             console.warn('Construction du contexte de conversation');
             // Construire le contexte de la conversation
@@ -248,6 +258,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
     const ticketInfo = {
         title: '',
         description: '',
+        commentaire: '',
         category: '',
         service: userInfo?.service?.designation || '',
         location: '',
@@ -367,7 +378,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
     // Fonction pour extraire une valeur après un émoji
     const extractValue = (text, emoji) => {
         // Regex pour extraire la valeur après l'émoji jusqu'à la fin de la ligne ou le prochain émoji
-        const regex = new RegExp(`${emoji}\\s*([^\\n📌📝🏷️📍⚡📅]+)`, 'i');
+        const regex = new RegExp(`${emoji}\\s*([^\\n📌📝💬🏷️📍⚡📅]+)`, 'i');
         const match = text.match(regex);
         if (!match) return null;
         
@@ -375,7 +386,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         let value = match[1].trim();
         
         // Supprimer les labels communs et les deux-points
-        value = value.replace(/^(Titre|Description|Catégorie|Emplacement|Priorité|Date de début|Date de fin)\s*:\s*/i, '');
+        value = value.replace(/^(Titre|Description|Commentaire initial|Catégorie|Emplacement|Priorité|Date de début|Date de fin)\s*:\s*/i, '');
         value = value.replace(/^:\s*/, ''); // Supprimer les deux-points au début
         
         return value;
@@ -398,6 +409,10 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
                 // Extraire la description
                 ticketInfo.description = extractValue(content, '📝');
                 console.log('Description extraite:', ticketInfo.description);
+
+                // Extraire le commentaire
+                ticketInfo.commentaire = extractValue(content, '💬');
+                console.log('Commentaire extrait:', ticketInfo.commentaire);
 
                 // Extraire la catégorie
                 ticketInfo.category = extractValue(content, '🏷️');
@@ -468,6 +483,7 @@ export const createTicketFromChat = async (ticketData) => {
         const transformedData = {
             titre: ticketData.title,
             description: ticketData.description,
+            commentaire: ticketData.commentaire || ticketData.description,
             id_demandeur: ticketData.id_demandeur,
             id_utilisateur: ticketData.id_utilisateur,
             id_societe: ticketData.id_societe,

@@ -754,6 +754,10 @@ const TicketList = () => {
                         <span className="text-gray-500">Catégorie :</span>
                         <span className="font-semibold text-gray-900 ml-1">{ticket.categorie?.designation || 'Non spécifiée'}</span>
                       </div>
+                      <div>
+                        <span className="text-gray-500">Commentaire :</span>
+                        <span className="font-semibold text-gray-900 ml-1">{ticket.formatted_comments && ticket.formatted_comments.length > 0 ? ticket.formatted_comments[ticket.formatted_comments.length-1].content.slice(0, 60) + (ticket.formatted_comments[ticket.formatted_comments.length-1].content.length > 60 ? '...' : '') : 'Aucun'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

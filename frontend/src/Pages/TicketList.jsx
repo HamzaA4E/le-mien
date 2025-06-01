@@ -508,13 +508,13 @@ const TicketList = () => {
                 }))}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
                   filters.showRejectedByDemandeur
-                    ? 'bg-red-600 text-white'
+                    ? 'bg-purple-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 <span>Tickets refusés par le demandeur</span>
                 {rejectedTicketsCount > 0 && (
-                  <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                  <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-purple-600 text-white rounded-full">
                     {rejectedTicketsCount}
                   </span>
                 )}
@@ -755,7 +755,7 @@ const TicketList = () => {
                 return 'border-red-600 bg-red-50 hover:bg-red-100';
               }
               if (isRejectedByDemandeur) {
-                return 'border-orange-600 bg-orange-50 hover:bg-orange-100';
+                return 'border-purple-600 bg-purple-50 hover:bg-purple-100';
               }
               return '';
             };
@@ -778,7 +778,7 @@ const TicketList = () => {
                     <div className="flex flex-wrap items-center gap-3 mb-2">
                       <h3 className={`text-2xl font-bold uppercase tracking-wide group-hover:text-blue-700 transition-colors ${
                         ticket.statut?.designation === 'Refusé' ? 'text-red-700' : 
-                        isRejectedByDemandeur ? 'text-orange-700' : 
+                        isRejectedByDemandeur ? 'text-purple-700' : 
                         'text-gray-900'
                       }`}>
                         {ticket.Titre}
@@ -786,7 +786,7 @@ const TicketList = () => {
                       <div className="flex gap-2">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${
                           ticket.statut?.designation === 'Refusé' ? 'bg-red-100 text-red-700 border-red-200' :
-                          isRejectedByDemandeur ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                          isRejectedByDemandeur ? 'bg-purple-100 text-purple-700 border-purple-200' :
                           'bg-blue-100 text-blue-700 border-blue-200'
                         }`}>
                           {ticket.statut?.designation || 'Sans statut'}
@@ -808,7 +808,7 @@ const TicketList = () => {
                     </div>
                     <p className={`text-base mb-4 line-clamp-2 ${
                       ticket.statut?.designation === 'Refusé' ? 'text-red-700' : 
-                      isRejectedByDemandeur ? 'text-orange-700' : 
+                      isRejectedByDemandeur ? 'text-purple-700' : 
                       'text-gray-700'
                     }`}>
                       {ticket.Description || 'Aucune description'}
@@ -854,7 +854,7 @@ const TicketList = () => {
                           onChange={e => handleStatutChange(ticket.id, e.target.value)}
                           className={`mb-2 px-2 py-1 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                             ticket.statut?.designation === 'Refusé' ? 'border-red-300 bg-red-50' :
-                            isRejectedByDemandeur ? 'border-orange-300 bg-orange-50' :
+                            isRejectedByDemandeur ? 'border-purple-300 bg-purple-50' :
                             'border-gray-300'
                           }`}
                         >
@@ -871,7 +871,7 @@ const TicketList = () => {
                       ) : (
                         <div className={`mb-2 px-2 py-1 text-sm ${
                           ticket.statut?.designation === 'Refusé' ? 'text-red-700' :
-                          isRejectedByDemandeur ? 'text-orange-700' :
+                          isRejectedByDemandeur ? 'text-purple-700' :
                           'text-gray-700'
                         }`}>
                           Statut : {ticket.statut?.designation || 'Non défini'}
@@ -882,7 +882,7 @@ const TicketList = () => {
                   {!(niveau === '1' || niveau === 1) && (
                     <div className={`mb-2 px-2 py-1 text-sm ${
                       ticket.statut?.designation === 'Refusé' ? 'text-red-700' :
-                      isRejectedByDemandeur ? 'text-orange-700' :
+                      isRejectedByDemandeur ? 'text-purple-700' :
                       'text-gray-700'
                     }`}>
                       Statut : {ticket.statut?.designation || 'Non défini'}
@@ -892,7 +892,7 @@ const TicketList = () => {
                     to={`/tickets/${ticket.id}`}
                     className={`inline-flex items-center gap-2 text-white font-semibold px-5 py-2 rounded-lg shadow transition-colors text-base ${
                       ticket.statut?.designation === 'Refusé' ? 'bg-red-600 hover:bg-red-700' :
-                      isRejectedByDemandeur ? 'bg-orange-600 hover:bg-orange-700' :
+                      isRejectedByDemandeur ? 'bg-purple-600 hover:bg-purple-700' :
                       'bg-blue-600 hover:bg-blue-700'
                     }`}
                   >

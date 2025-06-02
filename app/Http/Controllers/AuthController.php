@@ -101,4 +101,39 @@ class AuthController extends Controller
             return response()->json(['message' => 'Erreur lors de la récupération des données utilisateur'], 500);
         }
     }
+
+    public function changePassword(Request $request)
+    {
+        try {
+            if (!$request->user()) {
+                return response()->json(['message' => 'Non authentifié'], 401);
+            }
+
+            $request->validate([
+                'current_password' => 'required|string',
+                'new_password' => 'required|string|min:6|confirmed',
+            ]);
+
+            $user = $request->user();
+
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json([
+                    'message' => 'Le mot de passe actuel est incorrect'
+                ], 422);
+            }
+
+            $user->password = Hash::make($request->new_password);
+            $user->save();
+
+            return response()->json([
+                'message' => 'Mot de passe modifié avec succès'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur changement de mot de passe: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors du changement de mot de passe',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 

@@ -138,4 +138,30 @@ class UtilisateurController extends Controller
         $user->save();
         return response()->json(['success' => true, 'statut' => $user->statut]);
     }
+
+    public function resetPassword($id, Request $request)
+    {
+        try {
+            // Vérifier le mot de passe de l'administrateur
+            if (!Hash::check($request->input('admin_password'), auth()->user()->password)) {
+                return response()->json([
+                    'message' => 'Mot de passe administrateur incorrect'
+                ], 422);
+            }
+
+            $user = Utilisateur::findOrFail($id);
+            $user->password = Hash::make('password');
+            $user->save();
+
+            return response()->json([
+                'message' => 'Mot de passe réinitialisé avec succès'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur réinitialisation mot de passe: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de la réinitialisation du mot de passe',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 

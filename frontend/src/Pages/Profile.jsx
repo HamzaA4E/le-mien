@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
-import { FaUser, FaEnvelope, FaUserShield, FaClock, FaBuilding } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaUserShield, FaClock, FaBuilding, FaKey } from 'react-icons/fa';
 
 const Profile = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    new_password_confirmation: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const getNiveauText = (niveau) => {
     if (!niveau) return 'Non spécifié';
@@ -39,6 +48,38 @@ const Profile = () => {
 
     fetchUserProfile();
   }, []);
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+    setPasswordLoading(true);
+
+    try {
+      const response = await axios.post('/api/change-password', passwordForm);
+      setPasswordSuccess(response.data.message);
+      setPasswordForm({
+        current_password: '',
+        new_password: '',
+        new_password_confirmation: ''
+      });
+      setTimeout(() => {
+        setShowPasswordModal(false);
+      }, 2000);
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || 'Une erreur est survenue lors du changement de mot de passe');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   const renderSkeleton = () => (
     <div className="animate-pulse">
@@ -79,7 +120,16 @@ const Profile = () => {
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold mb-8">Mon Profil</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold">Mon Profil</h1>
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center space-x-2"
+          >
+            <FaKey />
+            <span>Changer le mot de passe</span>
+          </button>
+        </div>
 
         {success && (
           <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
@@ -143,6 +193,93 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de changement de mot de passe */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-6">Changer le mot de passe</h2>
+            
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                {passwordError}
+              </div>
+            )}
+            
+            {passwordSuccess && (
+              <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
+                {passwordSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordSubmit}>
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="current_password">
+                  Mot de passe actuel
+                </label>
+                <input
+                  type="password"
+                  id="current_password"
+                  name="current_password"
+                  value={passwordForm.current_password}
+                  onChange={handlePasswordChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="new_password">
+                  Nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  id="new_password"
+                  name="new_password"
+                  value={passwordForm.new_password}
+                  onChange={handlePasswordChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                  minLength="6"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="new_password_confirmation">
+                  Confirmer le nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  id="new_password_confirmation"
+                  name="new_password_confirmation"
+                  value={passwordForm.new_password_confirmation}
+                  onChange={handlePasswordChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                  minLength="6"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
+                >
+                  {passwordLoading ? 'Changement en cours...' : 'Changer le mot de passe'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

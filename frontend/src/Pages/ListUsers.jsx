@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
-import { FaUser, FaEnvelope, FaUserShield, FaClock, FaEdit, FaTrash, FaSyncAlt, FaExclamationTriangle } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaUserShield, FaClock, FaEdit, FaTrash, FaSyncAlt, FaExclamationTriangle, FaKey } from 'react-icons/fa';
 import { useLocation } from 'react-router-dom';
 
 // Cache pour les utilisateurs
@@ -20,6 +20,14 @@ const ListUsers = () => {
   const [spin, setSpin] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [userToReset, setUserToReset] = useState(null);
+  const [resetPasswordError, setResetPasswordError] = useState('');
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState('');
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [resetPasswordForm, setResetPasswordForm] = useState({
+    admin_password: ''
+  });
 
   // Récupérer le user courant
   let currentUser = null;
@@ -114,6 +122,49 @@ const ListUsers = () => {
       console.error('Erreur:', err);
     } finally {
       setTimeout(() => setSpin(false), 600);
+    }
+  };
+
+  const handleResetPassword = async (userId) => {
+    setUserToReset(userId);
+    setShowResetPasswordModal(true);
+  };
+
+  const handleResetPasswordChange = (e) => {
+    const { name, value } = e.target;
+    setResetPasswordForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && resetPasswordForm.admin_password) {
+      e.preventDefault();
+      confirmResetPassword();
+    }
+  };
+
+  const confirmResetPassword = async () => {
+    try {
+      setResetPasswordLoading(true);
+      setResetPasswordError('');
+      setResetPasswordSuccess('');
+
+      await axios.post(`/api/utilisateurs/${userToReset}/reset-password`, {
+        admin_password: resetPasswordForm.admin_password
+      });
+
+      setResetPasswordSuccess('Mot de passe réinitialisé avec succès');
+      setResetPasswordForm({ admin_password: '' });
+      setTimeout(() => {
+        setShowResetPasswordModal(false);
+        setUserToReset(null);
+      }, 2000);
+    } catch (err) {
+      setResetPasswordError(err.response?.data?.message || 'Erreur lors de la réinitialisation du mot de passe');
+    } finally {
+      setResetPasswordLoading(false);
     }
   };
 
@@ -212,6 +263,64 @@ const ListUsers = () => {
           </div>
         )}
 
+        {/* Modal de réinitialisation de mot de passe */}
+        {showResetPasswordModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full">
+              <h2 className="text-2xl font-bold mb-6">Réinitialiser le mot de passe</h2>
+              
+              {resetPasswordError && (
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                  {resetPasswordError}
+                </div>
+              )}
+              
+              {resetPasswordSuccess && (
+                <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
+                  {resetPasswordSuccess}
+                </div>
+              )}
+
+              <p className="mb-6">Le mot de passe sera réinitialisé à "password". L'utilisateur devra le changer lors de sa prochaine connexion.</p>
+
+              <div className="mb-6">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="admin_password">
+                  Votre mot de passe administrateur
+                </label>
+                <input
+                  type="password"
+                  id="admin_password"
+                  name="admin_password"
+                  value={resetPasswordForm.admin_password}
+                  onChange={handleResetPasswordChange}
+                  onKeyPress={handleKeyPress}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => {
+                    setShowResetPasswordModal(false);
+                    setResetPasswordForm({ admin_password: '' });
+                  }}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmResetPassword}
+                  disabled={resetPasswordLoading || !resetPasswordForm.admin_password}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+                >
+                  {resetPasswordLoading ? 'Réinitialisation...' : 'Réinitialiser'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="overflow-x-auto">
             <table className="w-full divide-y divide-gray-200">
@@ -277,12 +386,21 @@ const ListUsers = () => {
                     <td className="px-3 py-3 text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2 gap-2">
                         {currentUser?.niveau === 1 && user.id !== currentUser?.id && (
-                          <button
-                            onClick={() => handleSetStatut(user.id, user.statut === 1 ? 0 : 1)}
-                            className={user.statut === 1 ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}
-                          >
-                            {user.statut === 1 ? 'Désactiver' : 'Activer'}
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleSetStatut(user.id, user.statut === 1 ? 0 : 1)}
+                              className={user.statut === 1 ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}
+                            >
+                              {user.statut === 1 ? 'Désactiver' : 'Activer'}
+                            </button>
+                            <button
+                              onClick={() => handleResetPassword(user.id)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Réinitialiser le mot de passe"
+                            >
+                              <FaKey />
+                            </button>
+                          </>
                         )}
                         {user.id !== currentUser?.id && (
                           <button

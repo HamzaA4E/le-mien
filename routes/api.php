@@ -28,6 +28,7 @@ Route::post('/public/register-request', [RegisterRequestController::class, 'stor
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
     
     // Routes pour les reports de tickets
     Route::get('/tickets/{ticket}/reports', [TicketReportController::class, 'index']);
@@ -57,6 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les utilisateurs
     Route::apiResource('utilisateurs', UtilisateurController::class);
     Route::patch('utilisateurs/{id}/statut', [UtilisateurController::class, 'setStatut']);
+    Route::post('utilisateurs/{id}/reset-password', [UtilisateurController::class, 'resetPassword']);
 
     // Routes pour les listes déroulantes
     Route::get('/demandeurs', [DemandeurController::class, 'index']);

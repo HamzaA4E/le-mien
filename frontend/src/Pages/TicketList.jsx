@@ -112,9 +112,14 @@ const TicketList = () => {
     return allTickets.filter(ticket => 
       ticket.reports && 
       ticket.reports.some(report => 
-        report.type === 'rejet' && 
-        report.Id_Demandeur === ticket.Id_Demandeur
-      )
+        report.type === 'rejet' && (
+          // report.Id_Demandeur === ticket.Id_Demandeur ||
+          // report.id_demandeur === ticket.Id_Demandeur ||
+          report.Id_Demandeur === ticket.id_demandeur 
+          // report.id_demandeur === ticket.id_demandeur
+        )
+      ) &&
+      (ticket.statut?.designation === 'En cours')
     ).length;
   }, [allTickets, niveau]);
 

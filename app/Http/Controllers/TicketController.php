@@ -20,7 +20,7 @@ class TicketController extends Controller
     protected $relations = [
         'statut',
         'priorite',
-        'demandeur',
+        'demandeur.service',
         'emplacement',
         'categorie'
     ];
@@ -213,10 +213,18 @@ class TicketController extends Controller
                     $demandeur = Demandeur::create([
                         'designation' => $utilisateur->designation,
                         'id_service' => $utilisateur->id_service ?? 1,
-                        'statut' => 1,
+                        'statut' => 1, // Actif par défaut
                         'is_active' => true
                     ]);
                     Log::info('Nouveau demandeur créé:', ['id' => $demandeur->id, 'designation' => $demandeur->designation]);
+                } else {
+                    // Si le demandeur existe, s'assurer que id_service est à jour
+                    if ($demandeur->id_service !== $utilisateur->id_service) {
+                         $demandeur->update([
+                            'id_service' => $utilisateur->id_service
+                         ]);
+                         Log::info('Demandeur existant mis à jour avec le service de l\'utilisateur:', ['demandeur_id' => $demandeur->id, 'id_service' => $utilisateur->id_service]);
+                    }
                 }
 
                 // Mettre à jour l'id_demandeur avec l'ID du demandeur

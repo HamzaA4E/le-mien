@@ -244,8 +244,10 @@ const PendingTicketsPage = () => {
         setShowDetailModal(true);
         try {
             const res = await axios.get(`/api/tickets/${ticketId}`);
+            console.log('Ticket details API response:', res.data);
             setSelectedTicket(res.data);
         } catch (e) {
+            console.error('Error fetching ticket details:', e);
             setSelectedTicket(null);
         }
         setLoadingDetail(false);

@@ -64,6 +64,19 @@ const Dashboard = () => {
   const [selectedEmplacements, setSelectedEmplacements] = useState([]);
   const [chartsLoaded, setChartsLoaded] = useState(false);
 
+  // Récupérer le user courant
+  let currentUser = null;
+  try {
+    currentUser = JSON.parse(localStorage.getItem('user'));
+    console.log('Current user:', currentUser); // Debug log
+  } catch (e) {
+    console.error('Error parsing user:', e); // Debug log
+    currentUser = null;
+  }
+
+  const canViewDemandeurStats = currentUser?.niveau === 1 || currentUser?.niveau === 2 || currentUser?.niveau === 3;
+  console.log('Can view demandeur stats:', canViewDemandeurStats); // Debug log
+
   // Mémorisation des données des graphiques
   const priorityData = useMemo(() => ({
     labels: stats.ticketsByPriorite.map(item => item.designation),
@@ -75,15 +88,28 @@ const Dashboard = () => {
     }],
   }), [stats.ticketsByPriorite]);
 
-  const demandeurData = useMemo(() => ({
-    labels: (stats.ticketsByDemandeur || []).map(item => item.designation),
-    datasets: [{
-      data: (stats.ticketsByDemandeur || []).map(item => item.count),
-      backgroundColor: PIE_COLORS,
-      borderWidth: 1,
-      hoverOffset: 45,
-    }],
-  }), [stats.ticketsByDemandeur]);
+  const demandeurData = useMemo(() => {
+    console.log('Stats ticketsByDemandeur:', stats.ticketsByDemandeur); // Debug log
+    let filteredDemandeurs = stats.ticketsByDemandeur || [];
+    
+    // Si l'utilisateur est un directeur de département, filtrer par son service
+    if (currentUser?.niveau === 3 && currentUser?.service?.id) {
+      filteredDemandeurs = filteredDemandeurs.filter(item => 
+        item.service_id === currentUser.service.id
+      );
+    }
+
+    console.log('Filtered demandeurs:', filteredDemandeurs); // Debug log
+    return {
+      labels: filteredDemandeurs.map(item => item.designation),
+      datasets: [{
+        data: filteredDemandeurs.map(item => item.count),
+        backgroundColor: PIE_COLORS,
+        borderWidth: 1,
+        hoverOffset: 45,
+      }],
+    };
+  }, [stats.ticketsByDemandeur, currentUser]);
 
   const categoryData = useMemo(() => ({
     labels: stats.ticketsByCategorie.map(item => item.designation),
@@ -184,18 +210,21 @@ const Dashboard = () => {
       });
       
       if (response.data && !response.data.error) {
+        console.log('API Response:', response.data); // Debug log
         // Transformer les données par_demandeur en ticketsByDemandeur
         const transformedData = {
           ...response.data,
           ticketsByDemandeur: response.data.par_demandeur?.map(item => ({
             designation: item.demandeur,
-            count: item.total
+            count: item.total,
+            service_id: item.service_id // Assurez-vous que cette donnée est présente dans la réponse API
           })) || [],
           ticketsByEmplacement: response.data.par_emplacement?.map(item => ({
             designation: item.emplacement,
             count: item.total
           })) || []
         };
+        console.log('Transformed data:', transformedData); // Debug log
         setStats(transformedData);
         dashboardCache.stats = transformedData;
         dashboardCache.lastFetch = now;
@@ -352,47 +381,6 @@ const Dashboard = () => {
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-xl">
-            <h3 className="text-xl font-bold mb-4 text-purple-900 flex items-center gap-2">
-              <svg className="w-6 h-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              Répartition par demandeur
-            </h3>
-            <div className="flex justify-center items-center h-[20rem]">
-              <Suspense fallback={<ChartLoading />}>
-                {chartsLoaded && (
-                  <div className="w-full h-full">
-                    <Pie data={demandeurData} options={getPieOptions('Répartition par demandeur', selectedDemandeurs, setSelectedDemandeurs)} />
-                  </div>
-                )}
-              </Suspense>
-            </div>
-            {selectedDemandeurs.length > 0 && (
-              <div className="mt-2 mx-auto max-w-md p-2 bg-white rounded-xl border border-purple-100 shadow flex flex-col gap-1">
-                <h4 className="text-xs font-semibold text-purple-700 mb-1 text-center flex items-center gap-1 justify-center">
-                  <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Détails des demandeurs
-                </h4>
-                <div className="space-y-0.5">
-                  {[...new Map(selectedDemandeurs.map(item => [item.label, item])).values()].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between px-3 py-1 bg-purple-50 rounded border border-purple-100">
-                      <span className="text-purple-900 font-medium text-sm truncate flex items-center gap-2">
-                        <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
-                        {item.label}
-                      </span>
-                      <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
-                        {item.value} tickets
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow-xl">
             <h3 className="text-xl font-bold mb-4 text-green-900 flex items-center gap-2">
               <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 10c-4.41 0-8-1.79-8-4V6c0-2.21 3.59-4 8-4s8 1.79 8 4v8c0 2.21-3.59 4-8 4z" />
@@ -432,6 +420,53 @@ const Dashboard = () => {
               </div>
             )}
           </div>
+
+          {canViewDemandeurStats && (
+            <div className="bg-white p-6 rounded-2xl shadow-xl">
+              <h3 className="text-xl font-bold mb-4 text-purple-900 flex items-center gap-2">
+                <svg className="w-6 h-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                {currentUser?.niveau === '3' ? 'Répartition par demandeur de mon département' : 'Répartition par demandeur'}
+              </h3>
+              <div className="flex justify-center items-center h-[20rem]">
+                <Suspense fallback={<ChartLoading />}>
+                  {chartsLoaded && (
+                    <div className="w-full h-full">
+                      <Pie data={demandeurData} options={getPieOptions(
+                        currentUser?.niveau === '3' ? 'Répartition par demandeur de mon département' : 'Répartition par demandeur',
+                        selectedDemandeurs,
+                        setSelectedDemandeurs
+                      )} />
+                    </div>
+                  )}
+                </Suspense>
+              </div>
+              {selectedDemandeurs.length > 0 && (
+                <div className="mt-2 mx-auto max-w-md p-2 bg-white rounded-xl border border-purple-100 shadow flex flex-col gap-1">
+                  <h4 className="text-xs font-semibold text-purple-700 mb-1 text-center flex items-center gap-1 justify-center">
+                    <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    {currentUser?.niveau === '3' ? 'Détails des demandeurs de mon département' : 'Détails des demandeurs'}
+                  </h4>
+                  <div className="space-y-0.5">
+                    {[...new Map(selectedDemandeurs.map(item => [item.label, item])).values()].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between px-3 py-1 bg-purple-50 rounded border border-purple-100">
+                        <span className="text-purple-900 font-medium text-sm truncate flex items-center gap-2">
+                          <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
+                          {item.label}
+                        </span>
+                        <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                          {item.value} tickets
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="bg-white p-6 rounded-2xl shadow-xl">
             <h3 className="text-xl font-bold mb-4 text-orange-900 flex items-center gap-2">

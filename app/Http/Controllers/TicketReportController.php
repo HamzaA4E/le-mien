@@ -186,12 +186,12 @@ class TicketReportController extends Controller
         try {
             $userId = Auth::id();
             
-            // Vérifier si l'utilisateur est le créateur du ticket
-            if ($ticket->Id_Demandeur !== $userId) {
-                return response()->json([
-                    'message' => 'Seul le créateur du ticket peut marquer les rapports comme vus'
-                ], 403);
-            }
+            // Désactivation temporaire de la restriction : tout utilisateur peut marquer les rapports comme vus
+            // if ($ticket->Id_Demandeur !== $userId) {
+            //     return response()->json([
+            //         'message' => 'Seul le créateur du ticket peut marquer les rapports comme vus'
+            //     ], 403);
+            // }
 
             // Mettre à jour uniquement les rapports non vus
             $updated = DB::table('T_TICKET_REPORT')

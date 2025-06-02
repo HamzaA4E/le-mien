@@ -62,9 +62,57 @@ const ApproveModal = ({ isOpen, onClose, onApprove, ticketId }) => {
     );
 };
 
+// Composant Modal de refus
+const RejectModal = ({ isOpen, onClose, onReject, ticketId }) => {
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [error, setError] = useState('');
+
+    const handleSubmit = useCallback(() => {
+        if (!rejectionReason.trim()) {
+            setError('Veuillez indiquer la raison du refus.');
+            return;
+        }
+        onReject(ticketId, rejectionReason);
+    }, [rejectionReason, ticketId, onReject]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">Raison du refus</h2>
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Motif du refus</label>
+                    <textarea
+                        className="w-full border rounded px-3 py-2"
+                        value={rejectionReason}
+                        onChange={e => setRejectionReason(e.target.value)}
+                        rows="4"
+                        placeholder="Veuillez indiquer la raison du refus..."
+                    />
+                </div>
+                {error && <div className="mb-2 text-red-600 text-sm">{error}</div>}
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                    >Annuler</button>
+                    <button
+                        onClick={handleSubmit}
+                        className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+                    >Confirmer le refus</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Composant Modal de détails
 const DetailModal = ({ isOpen, onClose, ticket, onApprove, onReject, loading }) => {
     if (!isOpen) return null;
+
+    // Trouver le dernier report de type 'rejet'
+    const lastRejectionReport = ticket?.reports?.findLast(report => report.type === 'rejet');
 
     return (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
@@ -103,24 +151,37 @@ const DetailModal = ({ isOpen, onClose, ticket, onApprove, onReject, loading }) 
                                     <span className="font-semibold text-gray-600">Service :</span>
                                     <span className="ml-2 text-gray-900">{ticket.demandeur?.service?.designation}</span>
                                 </div>
-                                <div className="mb-2">
-                                    <span className="font-semibold text-gray-600">Commentaire :</span>
-                                    <span className="ml-2 text-gray-900">
-                                        {ticket.formatted_comments && ticket.formatted_comments.length > 0
-                                            ? ticket.formatted_comments[ticket.formatted_comments.length-1].content
-                                            : 'Aucun'}
-                                    </span>
-                                </div>
+                                {/* Afficher la raison du refus si le ticket est refusé, sinon le dernier commentaire */}
+                                {ticket.statut?.designation === 'Refusé' && lastRejectionReport ? (
+                                     <div className="mb-2">
+                                        <span className="font-semibold text-gray-600">Raison du refus :</span>
+                                        <span className="ml-2 text-gray-900">{lastRejectionReport.Raison || 'Non spécifiée'}</span>
+                                    </div>
+                                ) : (
+                                    <div className="mb-2">
+                                        <span className="font-semibold text-gray-600">Commentaire :</span>
+                                        <span className="ml-2 text-gray-900">
+                                            {ticket.formatted_comments && ticket.formatted_comments.length > 0
+                                                ? ticket.formatted_comments[ticket.formatted_comments.length-1].content
+                                                : 'Aucun'}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             <div>
-                                <div className="mb-2">
-                                    <span className="font-semibold text-gray-600">Date de début :</span>
-                                    <span className="ml-2 text-gray-900">{formatDate(ticket.DateDebut)}</span>
-                                </div>
-                                <div className="mb-2">
-                                    <span className="font-semibold text-gray-600">Date de fin :</span>
-                                    <span className="ml-2 text-gray-900">{formatDate(ticket.DateFinPrevue)}</span>
-                                </div>
+                                {/* Afficher les dates si le ticket n'est pas refusé */}
+                                {ticket.statut?.designation !== 'Refusé' && (
+                                    <>
+                                        <div className="mb-2">
+                                            <span className="font-semibold text-gray-600">Date de début :</span>
+                                            <span className="ml-2 text-gray-900">{formatDate(ticket.DateDebut)}</span>
+                                        </div>
+                                        <div className="mb-2">
+                                            <span className="font-semibold text-gray-600">Date de fin :</span>
+                                            <span className="ml-2 text-gray-900">{formatDate(ticket.DateFinPrevue)}</span>
+                                        </div>
+                                    </>
+                                )}
                                 <div className="mb-2">
                                     <span className="font-semibold text-gray-600">Priorité :</span>
                                     <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
@@ -138,18 +199,23 @@ const DetailModal = ({ isOpen, onClose, ticket, onApprove, onReject, loading }) 
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 mt-2">
-                            <button
-                                onClick={() => { onClose(); onApprove(ticket.id); }}
-                                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm transition"
-                            >
-                                Approuver
-                            </button>
-                            <button
-                                onClick={() => { onClose(); onReject(ticket.id); }}
-                                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-semibold shadow-sm transition"
-                            >
-                                Refuser
-                            </button>
+                            {/* Les boutons Approuver/Refuser ne devraient être visibles que pour les tickets non refusés en attente */}
+                            {ticket.statut?.designation !== 'Refusé' && (
+                                <>
+                                    <button
+                                        onClick={() => { onClose(); onApprove(ticket.id); }}
+                                        className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm transition"
+                                    >
+                                        Approuver
+                                    </button>
+                                    <button
+                                        onClick={() => { onClose(); onReject(ticket.id); }}
+                                        className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-semibold shadow-sm transition"
+                                    >
+                                        Refuser
+                                    </button>
+                                </>
+                             )}
                         </div>
                     </>
                 ) : (
@@ -192,6 +258,8 @@ const PendingTicketsPage = () => {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
+    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [rejectTicketId, setRejectTicketId] = useState(null);
 
     const fetchTickets = useCallback(async () => {
         setSpin(true);
@@ -228,11 +296,14 @@ const PendingTicketsPage = () => {
         }
     }, [fetchTickets]);
 
-    const handleReject = useCallback(async (id) => {
+    const handleReject = useCallback(async (id, reason) => {
         try {
-            await axios.post(`/api/tickets/${id}/reject`);
+            await axios.post(`/api/tickets/${id}/reject`, {
+                raison: reason
+            });
             setSuccessMessage('Le ticket a été refusé avec succès.');
             setErrorMessage('');
+            setShowRejectModal(false);
             fetchTickets();
         } catch (err) {
             setErrorMessage("Une erreur est survenue lors du refus du ticket.");
@@ -266,6 +337,16 @@ const PendingTicketsPage = () => {
     const closeApproveModal = useCallback(() => {
         setShowApproveModal(false);
         setApproveTicketId(null);
+    }, []);
+
+    const openRejectModal = useCallback((id) => {
+        setRejectTicketId(id);
+        setShowRejectModal(true);
+    }, []);
+
+    const closeRejectModal = useCallback(() => {
+        setShowRejectModal(false);
+        setRejectTicketId(null);
     }, []);
 
     const clearMessages = useCallback(() => {
@@ -396,7 +477,7 @@ const PendingTicketsPage = () => {
                                                         Approuver
                                                     </button>
                                                     <button
-                                                        onClick={() => handleReject(ticket.id)}
+                                                        onClick={() => openRejectModal(ticket.id)}
                                                         className="text-red-600 hover:text-red-900"
                                                     >
                                                         Refuser
@@ -418,12 +499,19 @@ const PendingTicketsPage = () => {
                     ticketId={approveTicketId}
                 />
 
+                <RejectModal
+                    isOpen={showRejectModal}
+                    onClose={closeRejectModal}
+                    onReject={handleReject}
+                    ticketId={rejectTicketId}
+                />
+
                 <DetailModal
                     isOpen={showDetailModal}
                     onClose={closeDetailModal}
                     ticket={selectedTicket}
                     onApprove={openApproveModal}
-                    onReject={handleReject}
+                    onReject={openRejectModal}
                     loading={loadingDetail}
                 />
             </div>

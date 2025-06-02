@@ -54,7 +54,8 @@ const TicketDetails = () => {
         const response = await axios.get(`/api/tickets/${id}`);
         setTicket(response.data);
         console.log('Ticket complet reçu:', response.data);
-        console.log('Ticket Demandeur ID:', response.data?.Id_Demandeur, typeof response.data?.Id_Demandeur);
+        console.log('Reports du ticket:', response.data.reports);
+        console.log('Reports de type rejet:', response.data.reports?.filter(report => report.type === 'rejet'));
         setError('');
       } catch (err) {
         setError('Erreur lors du chargement du ticket');
@@ -591,6 +592,19 @@ const TicketDetails = () => {
                 <dt className="text-sm font-medium text-gray-500">Date de fin prévue</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   {formatDate(ticket.DateFinPrevue)}
+                </dd>
+              </div>
+              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt className="text-sm font-medium text-gray-500">Raison du refus </dt>
+                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                  {ticket.reports && ticket.reports.some(report => report.type === 'rejet') && (
+                    <div>
+                     
+                      <span className="ml-2 text-sm text-gray-900">
+                        {ticket.reports.findLast(report => report.type === 'rejet')?.Raison || 'Non spécifiée'}
+                      </span>
+                    </div>
+                  )}
                 </dd>
               </div>
               {ticket.DateFinReelle && (

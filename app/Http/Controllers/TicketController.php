@@ -340,7 +340,8 @@ class TicketController extends Controller
                 'categorie',
                 'demandeur.service',
                 'emplacement',
-                'utilisateur'
+                'utilisateur',
+                'reports'
             ])->findOrFail($id);
 
             // Si le ticket a des commentaires, récupérer les informations des utilisateurs
@@ -1053,13 +1054,26 @@ class TicketController extends Controller
         }
     }
 
-    public function reject($id)
+    public function reject(Request $request, $id)
     {
         try {
+            $request->validate([
+                'raison' => 'required|string'
+            ]);
+
             $ticket = Ticket::findOrFail($id);
             $refuseId = \App\Models\Statut::where('designation', 'Refusé')->value('id');
             $ticket->Id_Statut = $refuseId; // Statut "Refusé"
             $ticket->save();
+
+            // Créer un report pour le refus
+            TicketReport::create([
+                'Id_Ticket' => $ticket->id,
+                'Id_Responsable' => auth()->id(),
+                'Raison' => $request->raison,
+                'type' => 'rejet',
+                'is_viewed' => false
+            ]);
 
             return response()->json([
                 'message' => 'Ticket refusé avec succès',
@@ -1164,6 +1178,11 @@ class TicketController extends Controller
         try {
             Log::info('Début du rejet du ticket par le demandeur', ['ticket_id' => $id]);
             
+            $request = request();
+            $request->validate([
+                'raison' => 'required|string'
+            ]);
+            
             $ticket = Ticket::with(['statut'])->findOrFail($id);
             Log::info('Ticket trouvé', ['ticket' => $ticket->toArray()]);
             
@@ -1214,7 +1233,7 @@ class TicketController extends Controller
             \App\Models\TicketReport::create([
                 'Id_Ticket' => $ticket->id,
                 'Id_Responsable' => $user->id,
-                'Raison' => 'Refusé par le demandeur',
+                'Raison' => $request->raison,
                 'type' => 'rejet',
                 'is_viewed' => false
             ]);

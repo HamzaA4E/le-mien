@@ -4,12 +4,61 @@ import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
 import { FaSyncAlt } from 'react-icons/fa';
 
+// Composant Modal de refus
+const RejectModal = ({ isOpen, onClose, onReject, ticketId }) => {
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [error, setError] = useState('');
+
+    const handleSubmit = () => {
+        if (!rejectionReason.trim()) {
+            setError('Veuillez indiquer la raison du refus.');
+            return;
+        }
+        onReject(ticketId, rejectionReason);
+        setRejectionReason('');
+        setError('');
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">Raison du refus</h2>
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Motif du refus</label>
+                    <textarea
+                        className="w-full border rounded px-3 py-2"
+                        value={rejectionReason}
+                        onChange={e => setRejectionReason(e.target.value)}
+                        rows="4"
+                        placeholder="Veuillez indiquer la raison du refus..."
+                    />
+                </div>
+                {error && <div className="mb-2 text-red-600 text-sm">{error}</div>}
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                    >Annuler</button>
+                    <button
+                        onClick={handleSubmit}
+                        className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+                    >Confirmer le refus</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const CompletedTicketsPage = () => {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [spin, setSpin] = useState(false);
+    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [selectedTicketId, setSelectedTicketId] = useState(null);
 
     useEffect(() => {
         fetchTickets();
@@ -39,14 +88,20 @@ const CompletedTicketsPage = () => {
         }
     };
 
-    const handleReject = async (ticketId) => {
+    const handleReject = async (ticketId, reason) => {
         try {
-            await axios.post(`/api/tickets/${ticketId}/demandeur-reject`);
+            await axios.post(`/api/tickets/${ticketId}/demandeur-reject`, { raison: reason });
             setSuccessMessage('Ticket refusé et remis en cours');
+            setShowRejectModal(false);
             fetchTickets(); // Rafraîchir la liste
         } catch (err) {
             setError('Erreur lors du refus du ticket');
         }
+    };
+
+    const openRejectModal = (ticketId) => {
+        setSelectedTicketId(ticketId);
+        setShowRejectModal(true);
     };
 
     if (loading) return <div>Chargement...</div>;
@@ -142,7 +197,7 @@ const CompletedTicketsPage = () => {
                                                             Approuver
                                                         </button>
                                                         <button
-                                                            onClick={() => handleReject(ticket.id)}
+                                                            onClick={() => openRejectModal(ticket.id)}
                                                             className="text-red-600 hover:text-red-900"
                                                         >
                                                             Refuser
@@ -158,6 +213,12 @@ const CompletedTicketsPage = () => {
                     </div>
                 </div>
             </div>
+            <RejectModal
+                isOpen={showRejectModal}
+                onClose={() => setShowRejectModal(false)}
+                onReject={handleReject}
+                ticketId={selectedTicketId}
+            />
         </Layout>
     );
 };

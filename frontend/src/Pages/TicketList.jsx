@@ -757,28 +757,40 @@ const TicketList = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm">
                       <div>
                         <span className="text-gray-500">Demandeur :</span>
-                        <span className="font-semibold text-gray-900 ml-1">{ticket.demandeur?.designation || 'Non spécifié'}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Date début :</span>
-                        <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateDebut)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Date fin prévue :</span>
-                        <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateFinPrevue)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Emplacement :</span>
-                        <span className="font-semibold text-gray-900 ml-1">{ticket.emplacement?.designation || 'Non spécifié'}</span>
+                        <span className="font-semibold text-gray-900 ml-1">{ticket.demandeur?.designation}</span>
                       </div>
                       <div>
                         <span className="text-gray-500">Catégorie :</span>
                         <span className="font-semibold text-gray-900 ml-1">{ticket.categorie?.designation || 'Non spécifiée'}</span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">Commentaire :</span>
-                        <span className="font-semibold text-gray-900 ml-1">{ticket.formatted_comments && ticket.formatted_comments.length > 0 ? ticket.formatted_comments[ticket.formatted_comments.length-1].content.slice(0, 60) + (ticket.formatted_comments[ticket.formatted_comments.length-1].content.length > 60 ? '...' : '') : 'Aucun'}</span>
-                      </div>
+                      {ticket.DateDebut && (
+                        <div>
+                          <span className="text-gray-500">Date début :</span>
+                          <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateDebut)}</span>
+                        </div>
+                      )}
+                      {ticket.DateFinPrevue && (
+                        <div>
+                          <span className="text-gray-500">Date fin prévue :</span>
+                          <span className="font-semibold text-gray-900 ml-1">{formatDate(ticket.DateFinPrevue)}</span>
+                        </div>
+                      )}
+                      {ticket.statut?.designation === 'Refusé' && (
+                        <div className="md:col-span-2">
+                          <span className="text-gray-500">Raison du refus :</span>
+                          <span className="font-semibold text-gray-900 ml-1">
+                            {ticket.reports?.findLast(report => report.type === 'rejet')?.Raison || 'Non spécifiée'}
+                          </span>
+                        </div>
+                      )}
+                      {isRejectedByDemandeur && (
+                        <div className="md:col-span-2">
+                          <span className="text-gray-500">Raison du refus par le demandeur :</span>
+                          <span className="font-semibold text-gray-900 ml-1">
+                            {ticket.reports?.findLast(report => report.type === 'rejet')?.Raison || 'Non spécifiée'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

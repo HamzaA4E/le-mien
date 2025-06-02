@@ -19,6 +19,8 @@ const EntityManagement = ({ entity, label }) => {
   const [error, setError] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
   const [spin, setSpin] = useState(false);
+  const [validationError, setValidationError] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   const getCacheKey = (entity) => `entity_cache_${entity}`;
 
@@ -85,7 +87,7 @@ const EntityManagement = ({ entity, label }) => {
 
   const handleAdd = async () => {
     if (!designation.trim()) {
-      toast.error(`Le nom du/de la ${label.toLowerCase()} est requis`);
+      setValidationError(`Le nom du/de la ${label.toLowerCase()} est requis`);
       return;
     }
     try {
@@ -101,17 +103,22 @@ const EntityManagement = ({ entity, label }) => {
       await axios.post(`/api/${entity}`, data);
       setDesignation('');
       setIdService('');
+      setValidationError(null);
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
-      toast.success(`${label} ajouté(e) avec succès`);
+      setNotification({ show: true, message: `${label} ajouté(e) avec succès`, type: 'success' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } catch (err) {
       console.error(`Erreur lors de l'ajout:`, err);
       if (err.response?.data?.message) {
-        toast.error(err.response.data.message);
+        setValidationError(err.response.data.message);
+        setNotification({ show: true, message: err.response.data.message, type: 'error' });
       } else {
-        toast.error(`Erreur lors de l'ajout du/de la ${label.toLowerCase()}`);
+        setValidationError(`Erreur lors de l'ajout du/de la ${label.toLowerCase()}`);
+        setNotification({ show: true, message: `Erreur lors de l'ajout du/de la ${label.toLowerCase()}`, type: 'error' });
       }
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     }
   };
 
@@ -126,7 +133,7 @@ const EntityManagement = ({ entity, label }) => {
 
   const handleUpdate = async () => {
     if (!editDesignation.trim()) {
-      toast.error(`Le nom du/de la ${label.toLowerCase()} est requis`);
+      setValidationError(`Le nom du/de la ${label.toLowerCase()} est requis`);
       return;
     }
     try {
@@ -144,17 +151,22 @@ const EntityManagement = ({ entity, label }) => {
       setEditDesignation('');
       setEditIsActive(true);
       setEditIdService('');
+      setValidationError(null);
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
-      toast.success(`${label} modifié(e) avec succès`);
+      setNotification({ show: true, message: `${label} modifié(e) avec succès`, type: 'success' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } catch (err) {
       console.error(`Erreur lors de la mise à jour:`, err);
       if (err.response?.data?.message) {
-        toast.error(err.response.data.message);
+        setValidationError(err.response.data.message);
+        setNotification({ show: true, message: err.response.data.message, type: 'error' });
       } else {
-        toast.error(`Erreur lors de la mise à jour du/de la ${label.toLowerCase()}`);
+        setValidationError(`Erreur lors de la mise à jour du/de la ${label.toLowerCase()}`);
+        setNotification({ show: true, message: `Erreur lors de la mise à jour du/de la ${label.toLowerCase()}`, type: 'error' });
       }
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     }
   };
 
@@ -177,10 +189,12 @@ const EntityManagement = ({ entity, label }) => {
 
       invalidateCache();
       invalidateCreateTicketCache();
-      toast.success(`Statut ${!currentStatus ? 'activé' : 'désactivé'} avec succès`);
+      setNotification({ show: true, message: `Statut ${!currentStatus ? 'activé' : 'désactivé'} avec succès`, type: 'success' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } catch (err) {
       console.error('Erreur lors de la mise à jour du statut:', err);
-      toast.error('Erreur lors de la mise à jour du statut');
+      setNotification({ show: true, message: 'Erreur lors de la mise à jour du statut', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } finally {
       setLoadingId(null);
     }
@@ -193,10 +207,12 @@ const EntityManagement = ({ entity, label }) => {
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
-      toast.success(`${label} supprimé(e) avec succès`);
+      setNotification({ show: true, message: `${label} supprimé(e) avec succès`, type: 'success' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } catch (err) {
       console.error(`Erreur lors de la suppression:`, err);
-      toast.error(`Erreur lors de la suppression du/de la ${label.toLowerCase()}`);
+      setNotification({ show: true, message: `Erreur lors de la suppression du/de la ${label.toLowerCase()}`, type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     }
   };
 
@@ -228,6 +244,13 @@ const EntityManagement = ({ entity, label }) => {
         pauseOnHover
         theme="light"
       />
+      {notification.show && (
+        <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white`}>
+          {notification.message}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Gestion des {label}s</h2>
         <button
@@ -242,34 +265,47 @@ const EntityManagement = ({ entity, label }) => {
           <FaSyncAlt className={spin ? 'animate-spin-once' : ''} />
         </button>
       </div>
-      <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={designation}
-          onChange={e => setDesignation(e.target.value)}
-          placeholder={`Nouveau/Nouvelle ${label.toLowerCase()}`}
-          className="border rounded px-2 py-1 flex-1"
-        />
-        {entity === 'demandeurs' && (
-          <select
-            value={idService}
-            onChange={e => setIdService(e.target.value)}
-            className="border rounded px-2 py-1"
+      <div className="flex flex-col gap-2 mb-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={designation}
+            onChange={e => {
+              setDesignation(e.target.value);
+              setValidationError(null);
+            }}
+            placeholder={`Nouveau/Nouvelle ${label.toLowerCase()}`}
+            className={`border rounded px-2 py-1 flex-1 ${validationError ? 'border-red-500' : ''}`}
+          />
+          {entity === 'demandeurs' && (
+            <select
+              value={idService}
+              onChange={e => {
+                setIdService(e.target.value);
+                setValidationError(null);
+              }}
+              className={`border rounded px-2 py-1 ${validationError ? 'border-red-500' : ''}`}
+            >
+              <option value="">Sélectionner un service</option>
+              {services.map(service => (
+                <option key={service.id} value={service.id}>
+                  {service.designation}
+                </option>
+              ))}
+            </select>
+          )}
+          <button 
+            onClick={handleAdd} 
+            className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 transition-colors"
           >
-            <option value="">Sélectionner un service</option>
-            {services.map(service => (
-              <option key={service.id} value={service.id}>
-                {service.designation}
-              </option>
-            ))}
-          </select>
+            Ajouter
+          </button>
+        </div>
+        {validationError && (
+          <div className="text-red-500 text-sm mt-1">
+            {validationError}
+          </div>
         )}
-        <button 
-          onClick={handleAdd} 
-          className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 transition-colors"
-        >
-          Ajouter
-        </button>
       </div>
       <table className="w-full border">
         <thead>

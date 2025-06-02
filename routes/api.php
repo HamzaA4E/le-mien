@@ -77,12 +77,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
     // Routes pour les entités modifiables
-    Route::apiResource('categories', CategorieController::class);
-    Route::apiResource('emplacements', EmplacementController::class);
-    Route::apiResource('demandeurs', DemandeurController::class);
-    Route::apiResource('services', ServiceController::class);
-    Route::apiResource('priorites', PrioriteController::class);
-    Route::apiResource('statuts', StatutController::class);
+    Route::apiResource('categories', CategorieController::class)->except(['show']);
+    Route::apiResource('emplacements', EmplacementController::class)->except(['show']);
+    Route::apiResource('demandeurs', DemandeurController::class)->except(['show']);
+    Route::apiResource('services', ServiceController::class)->except(['show']);
+    Route::apiResource('priorites', PrioriteController::class)->except(['show']);
+    Route::apiResource('statuts', StatutController::class)->except(['show']);
 
     // Nouvelle route pour les tests de performance
     Route::get('/test-performance/{id}', [SocieteController::class, 'testPerformance']);
@@ -101,4 +101,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/register-requests/count', [RegisterRequestController::class, 'count']);
     Route::post('/admin/register-requests/{id}/approve', [RegisterRequestController::class, 'approve']);
     Route::post('/admin/register-requests/{id}/reject', [RegisterRequestController::class, 'reject']);
+
+    // Nouvelles routes pour les items utilisés
+    Route::get('/demandeurs/used-items', [DemandeurController::class, 'usedItems']);
+    Route::get('/categories/used-items', [CategorieController::class, 'usedItems']);
+    Route::get('/emplacements/used-items', [EmplacementController::class, 'usedItems']);
+    Route::get('/services/used-items', [ServiceController::class, 'usedItems']);
+    Route::get('/priorites/used-items', [PrioriteController::class, 'usedItems']);
+    Route::get('/statuts/used-items', [StatutController::class, 'usedItems']);
 }); 

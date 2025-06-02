@@ -173,4 +173,39 @@ trait ReferentialControllerTrait
      * Retourne le modèle associé au contrôleur
      */
     abstract protected function getModel();
+
+    /**
+     * Retourne les IDs des entités référentielles utilisées dans les tickets
+     */
+    public function usedItems()
+    {
+        $model = $this->getModel();
+        $column = null;
+
+        if ($model === \App\Models\Demandeur::class) {
+            $column = 'Id_Demandeur';
+        } elseif ($model === \App\Models\Categorie::class) {
+            $column = 'Id_Categorie';
+        } elseif ($model === \App\Models\Emplacement::class) {
+            $column = 'Id_Emplacement';
+        } elseif ($model === \App\Models\Service::class) {
+            // Pour Service, il faut passer par Demandeur
+            $ids = \App\Models\Demandeur::whereIn('id', \App\Models\Ticket::distinct()->pluck('Id_Demandeur'))
+                ->pluck('id_service')
+                ->unique()
+                ->values();
+            return response()->json($ids);
+        } elseif ($model === \App\Models\Priorite::class) {
+            $column = 'Id_Priorite';
+        } elseif ($model === \App\Models\Statut::class) {
+            $column = 'Id_Statut';
+        }
+
+        if ($column) {
+            $ids = \App\Models\Ticket::distinct()->pluck($column)->filter()->values();
+            return response()->json($ids);
+        }
+
+        return response()->json([]);
+    }
 } 

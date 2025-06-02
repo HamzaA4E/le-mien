@@ -689,7 +689,7 @@ const TicketList = () => {
             // Déterminer la classe de style en fonction du statut
             const getTicketStyle = () => {
               if (ticket.statut?.designation === 'Refusé') {
-                return 'border-red-600 bg-red-50 hover:bg-red-100';
+                return 'border-red-600 bg-red-100 hover:bg-red-200';
               }
               if (isRejectedByDemandeur) {
                 return 'border-purple-600 bg-purple-200 hover:bg-purple-300';

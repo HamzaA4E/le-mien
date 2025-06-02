@@ -37,10 +37,13 @@ class TicketController extends Controller
                 'reports'
             ]);
 
-            // Restriction pour les administrateurs : ils ne voient pas les tickets "Nouveau"
+            // Restriction pour les administrateurs : ils ne voient pas les tickets "Nouveau" et "Refusé"
             $user = auth()->user();
             if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
-                $query->where('Id_Statut', '!=', 1); // Exclure les tickets avec statut "Nouveau"
+                $query->where('Id_Statut', '!=', 1) // Exclure les tickets avec statut "Nouveau"
+                      ->whereHas('statut', function($q) {
+                          $q->where('designation', '!=', 'Refusé'); // Exclure les tickets refusés
+                      });
             }
 
             // Restriction pour les demandeurs : ils ne voient que leurs tickets

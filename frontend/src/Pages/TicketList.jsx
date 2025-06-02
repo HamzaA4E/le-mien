@@ -135,13 +135,15 @@ const TicketList = () => {
     // Pour les administrateurs, gérer l'affichage des tickets refusés par le demandeur
     if (niveau === '1' || niveau === 1) {
       if (filters.showRejectedByDemandeur) {
-        // Si le filtre est activé, ne montrer que les tickets refusés par le demandeur
+        // Si le filtre est activé, ne montrer que les tickets refusés par le demandeur (même logique que le compteur)
         filtered = filtered.filter(ticket => 
-          ticket.reports && 
-          ticket.reports.some(report => 
-            report.type === 'rejet' && 
-            report.Id_Demandeur === ticket.Id_Demandeur
-          )
+          ticket.reports &&
+          ticket.reports.some(report =>
+            report.type === 'rejet' && (
+              report.Id_Demandeur === ticket.id_demandeur
+            )
+          ) &&
+          (ticket.statut?.designation || '').toLowerCase().replace(/\s/g, '') === 'encours'
         );
       }
       // Sinon, on n'exclut rien, on affiche tout

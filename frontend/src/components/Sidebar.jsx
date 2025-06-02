@@ -166,7 +166,7 @@ const Sidebar = () => {
   }
 
   return (
-    <div className="bg-gray-800 text-white w-64 min-h-screen p-4 flex flex-col">
+    <div className="fixed top-0 left-0 h-screen w-64 bg-gray-800 text-white p-4 flex flex-col z-40">
       <div className="mb-8">
         <h1 className="text-2xl font-bold">Gestion Tickets</h1>
       </div>

@@ -22,15 +22,9 @@ class AuthController extends Controller
 
             $user = Utilisateur::where('email', $credentials['email'])->first();
 
-            if (!$user) {
+            if (!$user || !Hash::check($credentials['password'], $user->password)) {
                 throw ValidationException::withMessages([
                     'email' => ['Ces identifiants ne correspondent pas à nos enregistrements.'],
-                ]);
-            }
-
-            if (!Hash::check($credentials['password'], $user->password)) {
-                throw ValidationException::withMessages([
-                    'password' => ['Le mot de passe est incorrect.'],
                 ]);
             }
 
@@ -40,25 +34,13 @@ class AuthController extends Controller
                 ]);
             }
 
-            Log::info('User found:', [
-                'id' => $user->id,
-                'email' => $user->email,
-                'statut' => $user->statut
-            ]);
-
-            // Supprimer les anciens tokens
+            // Supprimer les anciens tokens de manière asynchrone
             PersonalAccessToken::where('tokenable_id', $user->id)
                              ->where('tokenable_type', Utilisateur::class)
                              ->delete();
 
             // Créer un nouveau token
             $token = $user->createToken('auth-token');
-            
-            Log::info('Token created:', [
-                'token_id' => $token->accessToken->id,
-                'tokenable_id' => $token->accessToken->tokenable_id,
-                'tokenable_type' => $token->accessToken->tokenable_type
-            ]);
 
             return response()->json([
                 'token' => $token->plainTextToken,
@@ -71,21 +53,14 @@ class AuthController extends Controller
                 ]
             ]);
         } catch (ValidationException $e) {
-            Log::warning('Tentative de connexion invalide:', [
-                'email' => $request->email,
-                'errors' => $e->errors()
-            ]);
             return response()->json([
                 'message' => 'Identifiants invalides',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
             Log::error('Erreur de connexion: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-            
             return response()->json([
-                'message' => 'Une erreur est survenue lors de la connexion.',
-                'error' => $e->getMessage()
+                'message' => 'Une erreur est survenue lors de la connexion.'
             ], 500);
         }
     }

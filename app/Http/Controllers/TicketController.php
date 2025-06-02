@@ -521,9 +521,16 @@ class TicketController extends Controller
     {
         try {
             // Vérifier si l'utilisateur est le créateur du ticket
-            if (auth()->id() !== $ticket->Id_Demandeur) {
+            if (auth()->id() !== $ticket->Id_Utilisat) {
                 return response()->json([
                     'message' => 'Vous n\'êtes pas autorisé à supprimer ce ticket'
+                ], 403);
+            }
+
+            // Vérifier le statut (Nouveau ou En instance)
+            if (!in_array($ticket->Id_Statut, [1, 2])) {
+                return response()->json([
+                    'message' => 'Vous ne pouvez supprimer que les tickets nouveaux ou en instance'
                 ], 403);
             }
 

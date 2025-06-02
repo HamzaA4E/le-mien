@@ -699,7 +699,7 @@ const TicketList = () => {
                 return 'border-red-600 bg-red-100 hover:bg-red-200';
               }
               if (isRejectedByDemandeur) {
-                return 'border-purple-600 bg-purple-200 hover:bg-purple-300';
+                return 'border-purple-600 bg-purple-100 hover:bg-purple-200';
               }
               return '';
             };

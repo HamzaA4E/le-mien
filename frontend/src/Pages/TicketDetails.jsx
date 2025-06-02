@@ -449,7 +449,7 @@ const TicketDetails = () => {
             >
               Retour à la liste
             </Link>
-            {user && ticket && Number(user.id) === Number(ticket.Id_Utilisat) && (
+            {user && ticket && Number(user.id) === Number(ticket.Id_Utilisat) && (ticket.Id_Statut === 1 || ticket.Id_Statut === 2) && (
               <div className="flex gap-2">
                 <button
                   onClick={() => navigate(`/tickets/${id}/edit`)}
@@ -582,18 +582,29 @@ const TicketDetails = () => {
                   {formatDate(ticket.DateCreation)}
                 </dd>
               </div>
-              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Date de début</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {formatDate(ticket.DateDebut)}
-                </dd>
-              </div>
-              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Date de fin prévue</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {formatDate(ticket.DateFinPrevue)}
-                </dd>
-              </div>
+              {ticket.Id_Statut === 6 ? (
+                <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                  <dt className="text-sm font-medium text-gray-500">Date de refus</dt>
+                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    {formatDate(ticket.reports?.findLast(report => report.type === 'rejet')?.DateReport)}
+                  </dd>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-500">Date de début</dt>
+                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                      {formatDate(ticket.DateDebut)}
+                    </dd>
+                  </div>
+                  <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-500">Date de fin prévue</dt>
+                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                      {formatDate(ticket.DateFinPrevue)}
+                    </dd>
+                  </div>
+                </>
+              )}
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Raison du refus </dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import { FaUser, FaLock } from 'react-icons/fa';
@@ -9,18 +9,6 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  // Récupérer le token CSRF au chargement de la page
-  useEffect(() => {
-    const getCsrfToken = async () => {
-      try {
-        await axios.get('/sanctum/csrf-cookie');
-      } catch (err) {
-        console.error('Erreur lors de la récupération du token CSRF:', err);
-      }
-    };
-    getCsrfToken();
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

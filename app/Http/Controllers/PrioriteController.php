@@ -29,11 +29,11 @@ class PrioriteController extends Controller
         return $query->where('is_active', true)->get();
     }
 
-    public function destroy($id)
-    {
-        $priorite = Priorite::findOrFail($id);
-        // Au lieu de supprimer, on désactive l'entité
-        $priorite->update(['is_active' => false]);
-        return response()->json(['success' => true]);
-    }
+    // public function destroy($id)
+    // {
+    //     $priorite = Priorite::findOrFail($id);
+    //     // Au lieu de supprimer, on désactive l'entité
+    //     $priorite->update(['is_active' => false]);
+    //     return response()->json(['success' => true]);
+    // }
 } 

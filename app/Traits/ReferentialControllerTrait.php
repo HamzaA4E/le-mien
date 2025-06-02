@@ -107,7 +107,91 @@ trait ReferentialControllerTrait
      */
     public function destroy($id)
     {
-        return $this->updateStatut(new Request(['is_active' => false]), $id);
+        \Log::info('Tentative de suppression d\'une entité référentielle', ['model' => $this->getModel(), 'id' => $id]);
+        $model = $this->getModel();
+        $item = $model::findOrFail($id);
+        \Log::info('Entité trouvée', ['item' => $item->toArray()]);
+
+        // Déterminer la colonne à vérifier dans T_TICKET selon l'entité
+        $column = null;
+        if ($model === \App\Models\Demandeur::class) {
+            $column = 'Id_Demandeur';
+        } elseif ($model === \App\Models\Categorie::class) {
+            $column = 'Id_Categorie';
+        } elseif ($model === \App\Models\Emplacement::class) {
+            $column = 'Id_Emplacement';
+        } elseif ($model === \App\Models\Service::class) {
+            $demandeurIds = \App\Models\Demandeur::where('id_service', $id)->pluck('id');
+            $used = \App\Models\Ticket::whereIn('Id_Demandeur', $demandeurIds)->exists();
+            \Log::info('Vérification utilisation Service', ['demandeurIds' => $demandeurIds, 'used' => $used]);
+            if ($used) {
+                if (!$item->is_active) {
+                    try {
+                        $item->delete();
+                        \Log::info('Suppression réelle effectuée (service inactif et utilisé)');
+                        return response()->json(['success' => true, 'message' => 'Entité supprimée']);
+                    } catch (\Exception $e) {
+                        \Log::error('Erreur lors de la suppression réelle (service)', ['error' => $e->getMessage()]);
+                        return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression', 'error' => $e->getMessage()], 500);
+                    }
+                }
+                $item->update(['is_active' => false]);
+                \Log::info('Entité désactivée (service utilisé dans un ticket)');
+                return response()->json(['success' => true, 'message' => 'Entité désactivée (utilisée dans un ticket)']);
+            } else {
+                try {
+                    $item->delete();
+                    \Log::info('Suppression réelle effectuée (service non utilisé)');
+                    return response()->json(['success' => true, 'message' => 'Entité supprimée']);
+                } catch (\Exception $e) {
+                    \Log::error('Erreur lors de la suppression réelle (service)', ['error' => $e->getMessage()]);
+                    return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression', 'error' => $e->getMessage()], 500);
+                }
+            }
+        } elseif ($model === \App\Models\Priorite::class) {
+            $column = 'Id_Priorite';
+        } elseif ($model === \App\Models\Statut::class) {
+            $column = 'Id_Statut';
+        }
+
+        if ($column) {
+            $used = \App\Models\Ticket::where($column, $id)->exists();
+            \Log::info('Vérification utilisation', ['column' => $column, 'id' => $id, 'used' => $used]);
+            if ($used) {
+                if (!$item->is_active) {
+                    try {
+                        $item->delete();
+                        \Log::info('Suppression réelle effectuée (inactif et utilisé)');
+                        return response()->json(['success' => true, 'message' => 'Entité supprimée']);
+                    } catch (\Exception $e) {
+                        \Log::error('Erreur lors de la suppression réelle', ['error' => $e->getMessage()]);
+                        return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression', 'error' => $e->getMessage()], 500);
+                    }
+                }
+                $item->update(['is_active' => false]);
+                \Log::info('Entité désactivée (utilisée dans un ticket)');
+                return response()->json(['success' => true, 'message' => 'Entité désactivée (utilisée dans un ticket)']);
+            } else {
+                try {
+                    $item->delete();
+                    \Log::info('Suppression réelle effectuée (non utilisé)');
+                    return response()->json(['success' => true, 'message' => 'Entité supprimée']);
+                } catch (\Exception $e) {
+                    \Log::error('Erreur lors de la suppression réelle', ['error' => $e->getMessage()]);
+                    return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression', 'error' => $e->getMessage()], 500);
+                }
+            }
+        }
+
+        // Par défaut, suppression réelle
+        try {
+            $item->delete();
+            \Log::info('Suppression réelle effectuée (cas par défaut)');
+            return response()->json(['success' => true, 'message' => 'Entité supprimée']);
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la suppression réelle (cas par défaut)', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**

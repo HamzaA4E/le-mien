@@ -29,14 +29,6 @@ class ServiceController extends Controller
         return $query->where('is_active', true)->get();
     }
 
-    public function destroy($id)
-    {
-        $service = Service::findOrFail($id);
-        // Au lieu de supprimer, on désactive l'entité
-        $service->update(['is_active' => false]);
-        return response()->json(['success' => true]);
-    }
-
     public function publicIndex()
     {
         try {

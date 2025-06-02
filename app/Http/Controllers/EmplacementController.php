@@ -29,11 +29,11 @@ class EmplacementController extends Controller
         return $query->where('is_active', true)->get();
     }
 
-    public function destroy($id)
-    {
-        $emplacement = Emplacement::findOrFail($id);
-        // Au lieu de supprimer, on désactive l'entité
-        $emplacement->update(['is_active' => false]);
-        return response()->json(['success' => true]);
-    }
+    // public function destroy($id)
+    // {
+    //     $emplacement = Emplacement::findOrFail($id);
+    //     // Au lieu de supprimer, on désactive l'entité
+    //     $emplacement->update(['is_active' => false]);
+    //     return response()->json(['success' => true]);
+    // }
 } 

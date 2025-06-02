@@ -30,11 +30,11 @@ class CategorieController extends Controller
         return $query->where('is_active', true)->get();
     }
 
-    public function destroy($id)
-    {
-        $categorie = Categorie::findOrFail($id);
-        // Au lieu de supprimer, on désactive l'entité
-        $categorie->update(['is_active' => false]);
-        return response()->json(['success' => true]);
-    }
+    // public function destroy($id)
+    // {
+    //     $categorie = Categorie::findOrFail($id);
+    //     // Au lieu de supprimer, on désactive l'entité
+    //     $categorie->update(['is_active' => false]);
+    //     return response()->json(['success' => true]);
+    // }
 } 

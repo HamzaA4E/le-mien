@@ -8,6 +8,7 @@ use App\Models\Priorite;
 use App\Models\Categorie;
 use App\Models\Utilisateur;
 use App\Models\Demandeur;
+use App\Models\Emplacement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -78,7 +79,32 @@ class DashboardController extends Controller
                     'total' => $tickets->count(),
                     'ticketsByStatut' => $this->groupByDesignation($tickets, 'statut_designation'),
                     'ticketsByPriorite' => $this->groupByDesignation($tickets, 'priorite_designation'),
-                    'ticketsByCategorie' => $this->groupByDesignation($tickets, 'categorie_designation')
+                    'ticketsByCategorie' => $this->groupByDesignation($tickets, 'categorie_designation'),
+                    'par_demandeur' => Demandeur::where('is_active', true)
+                        ->when($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement(), function($query) use ($user) {
+                            return $query->where('id_service', $user->id_service);
+                        })
+                        ->get()
+                        ->map(function($demandeur) {
+                            return [
+                                'demandeur' => $demandeur->designation,
+                                'total' => $demandeur->tickets()->count()
+                            ];
+                        }),
+                    'par_emplacement' => Emplacement::where('is_active', true)
+                        ->get()
+                        ->map(function($emplacement) use ($user) {
+                            $query = $emplacement->tickets();
+                            if ($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement()) {
+                                $query->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+                                      ->where('T_DEMDEUR.id_service', $user->id_service)
+                                      ->select('T_TICKET.*');
+                            }
+                            return [
+                                'emplacement' => $emplacement->designation,
+                                'total' => $query->count()
+                            ];
+                        }),
                 ];
 
                 // Mettre en cache la réponse
@@ -143,7 +169,9 @@ class DashboardController extends Controller
             'total' => 0,
             'ticketsByStatut' => [],
             'ticketsByPriorite' => [],
-            'ticketsByCategorie' => []
+            'ticketsByCategorie' => [],
+            'par_demandeur' => [],
+            'par_emplacement' => []
         ];
         Cache::put($cacheKey, $emptyResponse, $this->cacheDuration);
         return response()->json($emptyResponse);
@@ -151,10 +179,19 @@ class DashboardController extends Controller
 
     private function groupByDesignation($tickets, $designationField)
     {
+        $idFieldMap = [
+            'statut_designation' => 'Id_Statut',
+            'priorite_designation' => 'Id_Priorite',
+            'categorie_designation' => 'Id_Categorie'
+        ];
+
         return $tickets->groupBy($designationField)
-            ->map(function ($group) use ($designationField) {
+            ->map(function ($group) use ($designationField, $idFieldMap) {
+                $firstTicket = $group->first();
+                $idField = $idFieldMap[$designationField] ?? null;
                 return [
-                    'designation' => $group->first()->$designationField,
+                    'id' => $idField ? $firstTicket->$idField : null,
+                    'designation' => $firstTicket->$designationField,
                     'count' => $group->count()
                 ];
             })

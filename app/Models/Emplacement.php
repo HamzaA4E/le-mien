@@ -17,4 +17,9 @@ class Emplacement extends Model
         'designation',
         'is_active'
     ];
+
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class, 'Id_Emplacement');
+    }
 } 

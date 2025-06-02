@@ -138,17 +138,8 @@ const TicketList = () => {
             report.Id_Demandeur === ticket.Id_Demandeur
           )
         );
-      } else {
-        // Par défaut, exclure les tickets refusés par le demandeur
-        filtered = filtered.filter(ticket => 
-          !(ticket.reports && 
-            ticket.reports.some(report => 
-              report.type === 'rejet' && 
-              report.Id_Demandeur === ticket.Id_Demandeur
-            )
-          )
-        );
       }
+      // Sinon, on n'exclut rien, on affiche tout
     }
 
     return filtered;
@@ -688,7 +679,14 @@ const TicketList = () => {
             console.log('TICKET DEBUG:', ticket.id, ticket.Titre, ticket.reports, ticket.Id_Demandeur);
             // Vérifier si le ticket est refusé par le demandeur
             const isRejectedByDemandeur = ticket.reports && 
-              ticket.reports.some(report => report.type === 'rejet');
+              ticket.reports.some(report => 
+                report.type === 'rejet' && 
+                (
+                 
+                  (report.Id_Demandeur === ticket.id_demandeur) 
+                  
+                )
+              );
             
             // Déterminer la classe de style en fonction du statut
             const getTicketStyle = () => {
@@ -787,7 +785,15 @@ const TicketList = () => {
                         <div className="md:col-span-2">
                           <span className="text-gray-500">Raison du refus par le demandeur :</span>
                           <span className="font-semibold text-gray-900 ml-1">
-                            {ticket.reports?.findLast(report => report.type === 'rejet')?.Raison || 'Non spécifiée'}
+                            {ticket.reports?.findLast(report => 
+                              report.type === 'rejet' && 
+                              (
+                                (report.Id_Demandeur === ticket.Id_Demandeur) ||
+                                (report.id_demandeur === ticket.Id_Demandeur) ||
+                                (report.Id_Demandeur === ticket.id_demandeur) ||
+                                (report.id_demandeur === ticket.id_demandeur)
+                              )
+                            )?.Raison || 'Non spécifiée'}
                           </span>
                         </div>
                       )}

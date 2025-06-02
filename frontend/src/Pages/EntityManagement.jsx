@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from '../utils/axios';
 import { FaSyncAlt } from 'react-icons/fa';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -82,7 +84,10 @@ const EntityManagement = ({ entity, label }) => {
   };
 
   const handleAdd = async () => {
-    if (!designation.trim()) return;
+    if (!designation.trim()) {
+      toast.error(`Le nom du/de la ${label.toLowerCase()} est requis`);
+      return;
+    }
     try {
       const data = { 
         designation,
@@ -99,9 +104,14 @@ const EntityManagement = ({ entity, label }) => {
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
+      toast.success(`${label} ajouté(e) avec succès`);
     } catch (err) {
       console.error(`Erreur lors de l'ajout:`, err);
-      alert(`Erreur lors de l'ajout du/de la ${label.toLowerCase()}`);
+      if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } else {
+        toast.error(`Erreur lors de l'ajout du/de la ${label.toLowerCase()}`);
+      }
     }
   };
 
@@ -115,7 +125,10 @@ const EntityManagement = ({ entity, label }) => {
   };
 
   const handleUpdate = async () => {
-    if (!editDesignation.trim()) return;
+    if (!editDesignation.trim()) {
+      toast.error(`Le nom du/de la ${label.toLowerCase()} est requis`);
+      return;
+    }
     try {
       const data = { 
         designation: editDesignation,
@@ -134,9 +147,14 @@ const EntityManagement = ({ entity, label }) => {
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
+      toast.success(`${label} modifié(e) avec succès`);
     } catch (err) {
       console.error(`Erreur lors de la mise à jour:`, err);
-      alert(`Erreur lors de la mise à jour du/de la ${label.toLowerCase()}`);
+      if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } else {
+        toast.error(`Erreur lors de la mise à jour du/de la ${label.toLowerCase()}`);
+      }
     }
   };
 
@@ -151,7 +169,6 @@ const EntityManagement = ({ entity, label }) => {
         is_active: !currentStatus
       });
 
-      // Mettre à jour l'état local seulement après la réussite de la requête
       setItems(prev =>
         prev.map(i =>
           i.id === id ? { ...i, is_active: !currentStatus } : i
@@ -160,8 +177,10 @@ const EntityManagement = ({ entity, label }) => {
 
       invalidateCache();
       invalidateCreateTicketCache();
+      toast.success(`Statut ${!currentStatus ? 'activé' : 'désactivé'} avec succès`);
     } catch (err) {
-      alert('Erreur lors de la mise à jour du statut');
+      console.error('Erreur lors de la mise à jour du statut:', err);
+      toast.error('Erreur lors de la mise à jour du statut');
     } finally {
       setLoadingId(null);
     }
@@ -174,9 +193,10 @@ const EntityManagement = ({ entity, label }) => {
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
+      toast.success(`${label} supprimé(e) avec succès`);
     } catch (err) {
       console.error(`Erreur lors de la suppression:`, err);
-      alert(`Erreur lors de la suppression du/de la ${label.toLowerCase()}`);
+      toast.error(`Erreur lors de la suppression du/de la ${label.toLowerCase()}`);
     }
   };
 
@@ -196,6 +216,18 @@ const EntityManagement = ({ entity, label }) => {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded shadow">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Gestion des {label}s</h2>
         <button

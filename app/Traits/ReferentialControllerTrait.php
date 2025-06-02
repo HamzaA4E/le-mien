@@ -83,6 +83,13 @@ trait ReferentialControllerTrait
             'is_active' => 'boolean'
         ]);
         
+        // Vérifier l'unicité de la désignation en excluant l'élément en cours de modification
+        if ($this->designationExists($request->designation, $id)) {
+            return response()->json([
+                'message' => 'Cette désignation existe déjà'
+            ], 422);
+        }
+        
         $model = $this->getModel();
         $item = $model::findOrFail($id);
         $item->update($request->all());
@@ -121,6 +128,21 @@ trait ReferentialControllerTrait
     }
 
     /**
+     * Vérifie si une désignation existe déjà (insensible à la casse)
+     */
+    protected function designationExists($designation, $excludeId = null)
+    {
+        $model = $this->getModel();
+        $query = $model::whereRaw('LOWER(designation) = ?', [strtolower(trim($designation))]);
+        
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+        
+        return $query->exists();
+    }
+
+    /**
      * Création d'un nouvel élément
      */
     public function store(Request $request)
@@ -129,6 +151,13 @@ trait ReferentialControllerTrait
             'designation' => 'required|string|max:255',
             'is_active' => 'boolean'
         ]);
+        
+        // Vérifier l'unicité de la désignation
+        if ($this->designationExists($request->designation)) {
+            return response()->json([
+                'message' => 'Cette désignation existe déjà'
+            ], 422);
+        }
         
         $data = $request->all();
         // Par défaut, les nouvelles entités sont actives

@@ -31,35 +31,6 @@ class DemandeurController extends Controller
         return $query->where('is_active', true)->get();
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'designation' => 'required|string|max:255',
-            'is_active' => 'boolean'
-        ]);
-        
-        $data = $request->all();
-        // Par défaut, les nouvelles entités sont actives
-        if (!isset($data['is_active'])) {
-            $data['is_active'] = true;
-        }
-        
-        return Demandeur::create($data);
-    }
-
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'designation' => 'required|string|max:255',
-            'is_active' => 'boolean'
-        ]);
-        
-        //Trouver le demandeur par son id et le modifier
-        $demandeur = Demandeur::findOrFail($id);
-        $demandeur->update($request->all());
-        return $demandeur;
-    }
-
     public function destroy($id)
     {
         $demandeur = Demandeur::findOrFail($id);

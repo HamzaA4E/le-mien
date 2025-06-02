@@ -200,8 +200,13 @@ const TicketList = () => {
 
   // Effet pour le chargement des tickets quand les filtres changent
   useEffect(() => {
+    // Réinitialiser la page à 1 et les tickets quand les filtres changent
+    setPage(1);
+    setAllTickets([]);
+    setHasMore(true);
+    
     // On ne recharge les tickets que si ce n'est pas le chargement initial
-    if (!loading && allTickets.length > 0) {
+    if (!loading) {
       const timer = setTimeout(() => {
         fetchTickets(1);
       }, 300); // Petit délai pour éviter les appels multiples rapides
@@ -228,6 +233,7 @@ const TicketList = () => {
     try {
       if (pageNum === 1) {
         setLoading(true);
+        setAllTickets([]); // Réinitialiser les tickets au début du chargement
       }
       setSpin(true);
 
@@ -261,6 +267,9 @@ const TicketList = () => {
     } catch (err) {
       setError('Erreur lors du chargement des tickets');
       console.error('Erreur:', err);
+      // En cas d'erreur, réinitialiser l'état
+      setAllTickets([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
       setIsLoadingMore(false);

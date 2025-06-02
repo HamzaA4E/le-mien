@@ -35,10 +35,15 @@ class TicketController extends Controller
                 'emplacement',
                 'categorie',
                 'reports'
-            ])->where('Id_Statut', '!=', 1); // Exclure les tickets avec statut "Nouveau"
+            ]);
+
+            // Restriction pour les administrateurs : ils ne voient pas les tickets "Nouveau"
+            $user = auth()->user();
+            if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
+                $query->where('Id_Statut', '!=', 1); // Exclure les tickets avec statut "Nouveau"
+            }
 
             // Restriction pour les demandeurs : ils ne voient que leurs tickets
-            $user = auth()->user();
             if ($user && method_exists($user, 'isDemandeur') && $user->isDemandeur()) {
                 $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
                 if ($demandeur) {
@@ -85,9 +90,8 @@ class TicketController extends Controller
             if ($request->boolean('filter_unread_reports') && auth()->check()) {
                 $userId = auth()->id();
                 $query->whereHas('reports', function ($q) use ($userId) {
-                    $q->where('is_viewed', false) // Rapports non vus
-                      ->where('Id_Ticket', DB::raw('T_TICKET.id')) // Assurez-vous que c'est pour le ticket parent
-                      // Optionnel: Si seul le demandeur peut voir ses rapports non lus
+                    $q->where('is_viewed', false)
+                      ->where('Id_Ticket', DB::raw('T_TICKET.id'))
                       ->whereHas('ticket', function ($t) use ($userId) {
                             $t->where('Id_Demandeur', $userId);
                        });
@@ -130,15 +134,13 @@ class TicketController extends Controller
                     foreach ($comments as $comment) {
                         if (empty(trim($comment))) continue;
                         if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
-                            $userId = $matches[1];
+                            $userName = $matches[1];
                             $date = $matches[2];
                             $content = trim($matches[3]);
-                            $user = \App\Models\Utilisateur::find($userId);
                             $formattedComments[] = [
-                                'user' => $user ? [
-                                    'id' => $user->id,
-                                    'designation' => $user->designation
-                                ] : null,
+                                'user' => [
+                                    'designation' => $userName
+                                ],
                                 'date' => $date,
                                 'content' => $content
                             ];
@@ -351,18 +353,15 @@ class TicketController extends Controller
                     
                     // Utiliser une regex qui préserve les sauts de ligne dans le contenu
                     if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
-                        $userId = $matches[1];
+                        $userName = $matches[1];
                         $date = $matches[2];
                         $content = trim($matches[3]);
                         
-                        // Récupérer l'utilisateur
-                        $user = Utilisateur::find($userId);
-                        
+                        // Au lieu de chercher par ID, on utilise directement le nom d'utilisateur
                         $formattedComments[] = [
-                            'user' => $user ? [
-                                'id' => $user->id,
-                                'designation' => $user->designation
-                            ] : null,
+                            'user' => [
+                                'designation' => $userName
+                            ],
                             'date' => $date,
                             'content' => $content
                         ];
@@ -792,34 +791,91 @@ class TicketController extends Controller
     public function addComment(Request $request, $id)
     {
         try {
+            // Vérifier si l'utilisateur est authentifié
+            if (!auth()->check()) {
+                Log::error('Tentative d\'ajout de commentaire sans authentification');
+                return response()->json(['error' => 'Vous devez être connecté pour ajouter un commentaire'], 401);
+            }
+
             $ticket = Ticket::findOrFail($id);
             $user = auth()->user();
+            
+            Log::info('Tentative d\'ajout de commentaire', [
+                'user_id' => $user->id,
+                'user_designation' => $user->designation,
+                'ticket_id' => $id
+            ]);
+
+            $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
+            
+            if (!$demandeur) {
+                Log::warning('Demandeur non trouvé pour l\'utilisateur', [
+                    'user_id' => $user->id,
+                    'user_designation' => $user->designation
+                ]);
+            }
 
             $validated = $request->validate([
                 'content' => 'required|string'
             ]);
 
             $currentComment = $ticket->Commentaire ? $ticket->Commentaire . "\n\n" : "";
-            $newComment = $currentComment . "[" . $user->id . "|" . now()->format('d/m/Y H:i') . "]" . $validated['content'];
+            $newComment = $currentComment . "[" . ($demandeur ? $demandeur->designation : $user->designation) . "|" . now()->format('d/m/Y H:i') . "]" . $validated['content'];
 
             $ticket->Commentaire = $newComment;
             $ticket->save();
+
+            Log::info('Commentaire ajouté avec succès', [
+                'ticket_id' => $id,
+                'user_id' => $user->id
+            ]);
 
             return response()->json([
                 'message' => 'Commentaire ajouté avec succès',
                 'ticket' => $ticket
             ]);
         } catch (\Exception $e) {
-            Log::error('Erreur lors de l\'ajout du commentaire: ' . $e->getMessage());
-            return response()->json(['error' => 'Erreur lors de l\'ajout du commentaire'], 500);
+            Log::error('Erreur lors de l\'ajout du commentaire', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id,
+                'user_id' => auth()->id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Erreur lors de l\'ajout du commentaire',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
     public function updateComment(Request $request, $ticketId, $commentId)
     {
         try {
-            $ticket = Ticket::findOrFail($ticketId);
+            // Vérifier si l'utilisateur est authentifié
+            if (!auth()->check()) {
+                Log::error('Tentative de modification de commentaire sans authentification');
+                return response()->json(['error' => 'Vous devez être connecté pour modifier un commentaire'], 401);
+            }
+
+            $ticket = Ticket::with([
+                'statut',
+                'priorite',
+                'categorie',
+                'demandeur.service',
+                'emplacement',
+                'utilisateur'
+            ])->findOrFail($ticketId);
+            
             $user = auth()->user();
+            $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
+            $userDesignation = $demandeur ? $demandeur->designation : $user->designation;
+
+            Log::info('Tentative de modification de commentaire', [
+                'user_id' => $user->id,
+                'user_designation' => $userDesignation,
+                'ticket_id' => $ticketId,
+                'comment_id' => $commentId
+            ]);
 
             $validated = $request->validate([
                 'content' => 'required|string'
@@ -832,15 +888,19 @@ class TicketController extends Controller
             foreach ($comments as $comment) {
                 if (empty(trim($comment))) continue;
 
-                // Extraire l'ID utilisateur, la date et le contenu
+                // Extraire le nom d'utilisateur, la date et le contenu
                 if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
-                    $userId = $matches[1];
+                    $userName = $matches[1];
                     $date = $matches[2];
                     $content = trim($matches[3]);
 
                     // Si c'est le commentaire à modifier et que l'utilisateur est l'auteur
-                    if ($userId == $user->id && $commentId == md5($userId . $date . $content)) {
-                        $updatedComments[] = "[$userId|$date]" . $validated['content'];
+                    if ($userName === $userDesignation && $commentId == md5($userName . $date . $content)) {
+                        $updatedComments[] = "[$userDesignation|$date]" . $validated['content'];
+                        Log::info('Commentaire modifié', [
+                            'user' => $userDesignation,
+                            'date' => $date
+                        ]);
                     } else {
                         $updatedComments[] = $comment;
                     }
@@ -851,13 +911,52 @@ class TicketController extends Controller
             $ticket->Commentaire = implode("\n\n", $updatedComments);
             $ticket->save();
 
+            // Formater les commentaires pour la réponse
+            if ($ticket->Commentaire) {
+                $comments = explode("\n\n", $ticket->Commentaire);
+                $formattedComments = [];
+                
+                foreach ($comments as $comment) {
+                    if (empty(trim($comment))) continue;
+                    
+                    if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
+                        $userName = $matches[1];
+                        $date = $matches[2];
+                        $content = trim($matches[3]);
+                        
+                        $formattedComments[] = [
+                            'user' => [
+                                'designation' => $userName
+                            ],
+                            'date' => $date,
+                            'content' => $content
+                        ];
+                    }
+                }
+                
+                $ticket->formatted_comments = $formattedComments;
+            }
+
+            Log::info('Commentaire modifié avec succès', [
+                'ticket_id' => $ticketId,
+                'user_id' => $user->id
+            ]);
+
             return response()->json([
                 'message' => 'Commentaire modifié avec succès',
                 'ticket' => $ticket
             ]);
         } catch (\Exception $e) {
-            \Log::error('Erreur lors de la modification du commentaire: ' . $e->getMessage());
-            return response()->json(['error' => 'Erreur lors de la modification du commentaire'], 500);
+            Log::error('Erreur lors de la modification du commentaire', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $ticketId,
+                'user_id' => auth()->id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Erreur lors de la modification du commentaire',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 

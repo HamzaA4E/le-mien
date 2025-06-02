@@ -767,7 +767,7 @@ const TicketDetails = () => {
                             <p className="text-sm text-gray-500">
                               {comment.date}
                             </p>
-                            {user && comment.user?.id === user.id && (
+                            {user && comment.user?.designation === user.designation && (
                               <button
                                 onClick={() => handleEditComment(comment, index)}
                                 className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
@@ -785,15 +785,26 @@ const TicketDetails = () => {
                             onSubmit={async e => {
                               e.preventDefault();
                               const commentObj = ticket.formatted_comments[index];
-                              const commentId = md5((commentObj.user?.id || commentObj.userId) + commentObj.date + commentObj.content);
+                              const commentId = md5(commentObj.user.designation + commentObj.date + commentObj.content);
                               try {
-                                await axios.put(`/api/tickets/${ticket.id}/comment/${commentId}`, { content: editCommentContent });
-                                // Rafraîchir les données du ticket
-                                const updatedTicket = await axios.get(`/api/tickets/${id}`);
-                                setTicket(updatedTicket.data);
+                                const response = await axios.put(`/api/tickets/${ticket.id}/comment/${commentId}`, { content: editCommentContent });
+                                
+                                // Mettre à jour l'état local immédiatement
+                                const updatedComments = [...ticket.formatted_comments];
+                                updatedComments[index] = {
+                                  ...updatedComments[index],
+                                  content: editCommentContent
+                                };
+                                
+                                setTicket(prevTicket => ({
+                                  ...prevTicket,
+                                  formatted_comments: updatedComments
+                                }));
+                                
                                 setEditingCommentIndex(null);
                                 setEditCommentContent('');
                               } catch (err) {
+                                console.error('Erreur lors de la modification du commentaire:', err);
                                 alert('Erreur lors de la modification du commentaire');
                               }
                             }}

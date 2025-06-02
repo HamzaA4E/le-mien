@@ -6,9 +6,10 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-const EntityManagement = ({ entity, label }) => {
+const EntityManagement = ({ entity, label, isUsed = false }) => {
   const [items, setItems] = useState([]);
   const [services, setServices] = useState([]);
+  const [usedItems, setUsedItems] = useState(new Set());
   const [designation, setDesignation] = useState('');
   const [idService, setIdService] = useState('');
   const [editId, setEditId] = useState(null);
@@ -69,8 +70,18 @@ const EntityManagement = ({ entity, label }) => {
     }
   };
 
+  const checkUsedItems = async () => {
+    try {
+      const res = await axios.get(`/api/${entity}/used-items`);
+      setUsedItems(new Set(res.data));
+    } catch (err) {
+      console.error(`Erreur lors de la vérification des ${label}s utilisés:`, err);
+    }
+  };
+
   useEffect(() => {
     fetchItems();
+    checkUsedItems();
     if (entity === 'demandeurs') {
       fetchServices();
     }
@@ -425,32 +436,35 @@ const EntityManagement = ({ entity, label }) => {
                     </>
                   ) : (
                     <>
-                      <button
-                        onClick={() => handleToggleActive(item.id, item.is_active)}
-                        disabled={loadingId === item.id}
-                        className={
-                          (item.is_active
-                            ? 'bg-red-500 hover:bg-red-600'
-                            : 'bg-green-500 hover:bg-green-600') +
-                          ' text-white px-3 py-1 rounded transition-colors font-semibold mr-2' +
-                          (loadingId === item.id ? ' opacity-60 cursor-not-allowed' : '')
-                        }
-                      >
-                        {loadingId === item.id
-                          ? 'Changement...'
-                          : item.is_active ? 'Désactiver' : 'Activer'}
-                      </button>
+                      {usedItems.has(item.id) ? (
+                        <button
+                          onClick={() => handleToggleActive(item.id, item.is_active)}
+                          disabled={loadingId === item.id}
+                          className={
+                            (item.is_active
+                              ? 'bg-red-500 hover:bg-red-600'
+                              : 'bg-green-500 hover:bg-green-600') +
+                            ' text-white px-3 py-1 rounded transition-colors font-semibold mr-2' +
+                            (loadingId === item.id ? ' opacity-60 cursor-not-allowed' : '')
+                          }
+                        >
+                          {loadingId === item.id
+                            ? 'Changement...'
+                            : item.is_active ? 'Désactiver' : 'Activer'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors font-semibold mr-2"
+                        >
+                          Supprimer
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEdit(item)}
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors font-semibold mr-2"
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors font-semibold"
                       >
                         Modifier
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors font-semibold"
-                      >
-                        Supprimer
                       </button>
                     </>
                   )}

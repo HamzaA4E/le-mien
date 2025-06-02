@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
-import { FaUser, FaEnvelope, FaUserShield, FaClock } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaUserShield, FaClock, FaBuilding } from 'react-icons/fa';
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -119,7 +119,17 @@ const Profile = () => {
                   {getNiveauText(user?.niveau)}
                 </dd>
               </div>
-              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              {(user?.niveau === 3 || user?.niveau === 4) && (
+                <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                  <dt className="text-sm font-medium text-gray-500 flex items-center">
+                    <FaBuilding className="mr-2" /> Service
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    {user?.service?.designation || 'Non spécifié'}
+                  </dd>
+                </div>
+              )}
+              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500 flex items-center">
                   <FaClock className="mr-2" /> Statut
                 </dt>

@@ -21,6 +21,7 @@ const EntityManagement = ({ entity, label }) => {
   const [spin, setSpin] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [flashCount, setFlashCount] = useState(0);
 
   const getCacheKey = (entity) => `entity_cache_${entity}`;
 
@@ -85,9 +86,16 @@ const EntityManagement = ({ entity, label }) => {
     localStorage.removeItem('create_ticket_options_cache');
   };
 
+  const showErrorNotification = (message) => {
+    setNotification({ show: true, message, type: 'error' });
+    setFlashCount(prev => prev + 1);
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
+  };
+
   const handleAdd = async () => {
     if (!designation.trim()) {
       setValidationError(`Le nom du/de la ${label.toLowerCase()} est requis`);
+      showErrorNotification(`Le nom du/de la ${label.toLowerCase()} est requis`);
       return;
     }
     try {
@@ -113,12 +121,11 @@ const EntityManagement = ({ entity, label }) => {
       console.error(`Erreur lors de l'ajout:`, err);
       if (err.response?.data?.message) {
         setValidationError(err.response.data.message);
-        setNotification({ show: true, message: err.response.data.message, type: 'error' });
+        showErrorNotification(err.response.data.message);
       } else {
         setValidationError(`Erreur lors de l'ajout du/de la ${label.toLowerCase()}`);
-        setNotification({ show: true, message: `Erreur lors de l'ajout du/de la ${label.toLowerCase()}`, type: 'error' });
+        showErrorNotification(`Erreur lors de l'ajout du/de la ${label.toLowerCase()}`);
       }
-      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     }
   };
 
@@ -134,6 +141,7 @@ const EntityManagement = ({ entity, label }) => {
   const handleUpdate = async () => {
     if (!editDesignation.trim()) {
       setValidationError(`Le nom du/de la ${label.toLowerCase()} est requis`);
+      showErrorNotification(`Le nom du/de la ${label.toLowerCase()} est requis`);
       return;
     }
     try {
@@ -161,12 +169,11 @@ const EntityManagement = ({ entity, label }) => {
       console.error(`Erreur lors de la mise à jour:`, err);
       if (err.response?.data?.message) {
         setValidationError(err.response.data.message);
-        setNotification({ show: true, message: err.response.data.message, type: 'error' });
+        showErrorNotification(err.response.data.message);
       } else {
         setValidationError(`Erreur lors de la mise à jour du/de la ${label.toLowerCase()}`);
-        setNotification({ show: true, message: `Erreur lors de la mise à jour du/de la ${label.toLowerCase()}`, type: 'error' });
+        showErrorNotification(`Erreur lors de la mise à jour du/de la ${label.toLowerCase()}`);
       }
-      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     }
   };
 
@@ -193,8 +200,7 @@ const EntityManagement = ({ entity, label }) => {
       setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } catch (err) {
       console.error('Erreur lors de la mise à jour du statut:', err);
-      setNotification({ show: true, message: 'Erreur lors de la mise à jour du statut', type: 'error' });
-      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
+      showErrorNotification('Erreur lors de la mise à jour du statut');
     } finally {
       setLoadingId(null);
     }
@@ -211,8 +217,7 @@ const EntityManagement = ({ entity, label }) => {
       setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } catch (err) {
       console.error(`Erreur lors de la suppression:`, err);
-      setNotification({ show: true, message: `Erreur lors de la suppression du/de la ${label.toLowerCase()}`, type: 'error' });
-      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
+      showErrorNotification(`Erreur lors de la suppression du/de la ${label.toLowerCase()}`);
     }
   };
 
@@ -245,12 +250,25 @@ const EntityManagement = ({ entity, label }) => {
         theme="light"
       />
       {notification.show && (
-        <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white`}>
+        <div 
+          key={flashCount}
+          className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          } text-white animate-flash`}
+        >
           {notification.message}
         </div>
       )}
+      <style jsx>{`
+        @keyframes flash {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+        .animate-flash {
+          animation: flash 0.5s ease-in-out 3;
+        }
+      `}</style>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Gestion des {label}s</h2>
         <button
@@ -273,6 +291,12 @@ const EntityManagement = ({ entity, label }) => {
             onChange={e => {
               setDesignation(e.target.value);
               setValidationError(null);
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAdd();
+              }
             }}
             placeholder={`Nouveau/Nouvelle ${label.toLowerCase()}`}
             className={`border rounded px-2 py-1 flex-1 ${validationError ? 'border-red-500' : ''}`}

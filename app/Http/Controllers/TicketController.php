@@ -973,7 +973,10 @@ class TicketController extends Controller
             ]);
 
             if ($request->boolean('show_rejected')) {
-                $tickets->where('Id_Statut', 4); // Statut "Refusé"
+                // Filtrer par la désignation du statut "Refusé"
+                $tickets->whereHas('statut', function($q) {
+                    $q->where('designation', 'Refusé');
+                });
             } else {
                 $tickets->where('Id_Statut', 1); // Statut "Nouveau"
             }
@@ -981,42 +984,76 @@ class TicketController extends Controller
             $tickets = $tickets->orderBy('DateCreation', 'desc')
                              ->get();
 
-            // Ajout du formatage des commentaires pour chaque ticket
-            // foreach ($tickets as $ticket) {
-            //     if ($ticket->Commentaire) {
-            //         $comments = explode("\n\n", $ticket->Commentaire);
-            //         $formattedComments = [];
-            //         foreach ($comments as $comment) {
-            //             if (empty(trim($comment))) continue;
-            //             if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
-            //                 $userId = $matches[1];
-            //                 $date = $matches[2];
-            //                 $content = trim($matches[3]);
-            //                 $user = \App\Models\Utilisateur::find($userId);
-            //                 $formattedComments[] = [
-            //                     'user' => $user ? [
-            //                         'id' => $user->id,
-            //                         'designation' => $user->designation
-            //                     ] : null,
-            //                     'date' => $date,
-            //                     'content' => $content
-            //                 ];
-            //             }
-            //         }
-            //         $ticket->formatted_comments = $formattedComments;
-            //     } else {
-            //         $ticket->formatted_comments = [];
-            //     }
-            // }
-
             return response()->json($tickets);
         } catch (\Exception $e) {
-            Log::error('Error fetching pending tickets', [
+            \Log::error('Error fetching pending tickets', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'message' => 'Erreur lors de la récupération des tickets en attente',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getNextRejectedTicket(Request $request)
+    {
+        try {
+            $lastTicketId = $request->input('last_ticket_id');
+            
+            $query = Ticket::with([
+                'statut',
+                'priorite',
+                'demandeur',
+                'emplacement',
+                'categorie',
+                'reports'
+            ])->whereHas('statut', function($q) {
+                $q->where('designation', 'Refusé');
+            });
+
+            if ($lastTicketId) {
+                $query->where('id', '<', $lastTicketId);
+            }
+
+            $ticket = $query->orderBy('id', 'desc')
+                          ->first();
+
+            if (!$ticket) {
+                return response()->json(['message' => 'Aucun ticket refusé trouvé'], 404);
+            }
+
+            // Formater les commentaires
+            if ($ticket->Commentaire) {
+                $comments = explode("\n\n", $ticket->Commentaire);
+                $formattedComments = [];
+                foreach ($comments as $comment) {
+                    if (empty(trim($comment))) continue;
+                    if (preg_match('/\[(.*?)\|(.*?)\](.*)/s', $comment, $matches)) {
+                        $userName = $matches[1];
+                        $date = $matches[2];
+                        $content = trim($matches[3]);
+                        $formattedComments[] = [
+                            'user' => [
+                                'designation' => $userName
+                            ],
+                            'date' => $date,
+                            'content' => $content
+                        ];
+                    }
+                }
+                $ticket->formatted_comments = $formattedComments;
+            }
+
+            return response()->json($ticket);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching next rejected ticket', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de la récupération du ticket refusé',
                 'error' => $e->getMessage()
             ], 500);
         }

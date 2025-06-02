@@ -260,26 +260,92 @@ const PendingTicketsPage = () => {
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectTicketId, setRejectTicketId] = useState(null);
+    const [lastRejectedTicketId, setLastRejectedTicketId] = useState(null);
+    const [hasMoreRejected, setHasMoreRejected] = useState(true);
 
     const fetchTickets = useCallback(async () => {
         setSpin(true);
         try {
-            const response = await axios.get('/api/tickets/pending', {
-                params: { show_rejected: showRejected }
-            });
-            setTickets(response.data);
+            if (showRejected) {
+                // Réinitialiser l'état pour les tickets refusés
+                setTickets([]);
+                setLastRejectedTicketId(null);
+                setHasMoreRejected(true);
+                await fetchNextRejectedTicket();
+            } else {
+                const response = await axios.get('/api/tickets/pending', {
+                    params: { show_rejected: false }
+                });
+                setTickets(response.data);
+            }
             setError(null);
         } catch (err) {
             setError('Erreur lors du chargement des tickets');
+            console.error('Erreur:', err);
         } finally {
             setLoading(false);
             setTimeout(() => setSpin(false), 600);
         }
     }, [showRejected]);
 
+    const fetchNextRejectedTicket = useCallback(async () => {
+        if (!hasMoreRejected) return;
+
+        try {
+            const response = await axios.get('/api/tickets/next-rejected', {
+                params: { last_ticket_id: lastRejectedTicketId }
+            });
+            
+            if (response.data) {
+                // Vérifier si le ticket existe déjà dans la liste
+                const ticketExists = tickets.some(ticket => ticket.id === response.data.id);
+                if (!ticketExists) {
+                    setTickets(prevTickets => [...prevTickets, response.data]);
+                    setLastRejectedTicketId(response.data.id);
+                } else {
+                    // Si le ticket existe déjà, on marque qu'il n'y a plus de tickets à charger
+                    setHasMoreRejected(false);
+                }
+            } else {
+                setHasMoreRejected(false);
+            }
+        } catch (err) {
+            if (err.response?.status === 404) {
+                setHasMoreRejected(false);
+            } else {
+                console.error('Erreur lors du chargement du ticket refusé:', err);
+            }
+        }
+    }, [lastRejectedTicketId, hasMoreRejected, tickets]);
+
     useEffect(() => {
         fetchTickets();
     }, [fetchTickets]);
+
+    // Observer pour charger plus de tickets quand on atteint le bas de la page
+    useEffect(() => {
+        if (!showRejected || !hasMoreRejected) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    fetchNextRejectedTicket();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        const loadMoreTrigger = document.getElementById('load-more-trigger');
+        if (loadMoreTrigger) {
+            observer.observe(loadMoreTrigger);
+        }
+
+        return () => {
+            if (loadMoreTrigger) {
+                observer.unobserve(loadMoreTrigger);
+            }
+        };
+    }, [showRejected, hasMoreRejected, fetchNextRejectedTicket]);
 
     const handleApprove = useCallback(async (ticketId, startDate, endDate) => {
         try {
@@ -489,6 +555,11 @@ const PendingTicketsPage = () => {
                                 ))}
                             </tbody>
                         </table>
+                        {showRejected && hasMoreRejected && (
+                            <div id="load-more-trigger" className="h-10 flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

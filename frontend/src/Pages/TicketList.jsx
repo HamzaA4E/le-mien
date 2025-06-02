@@ -682,9 +682,7 @@ const TicketList = () => {
               ticket.reports.some(report => 
                 report.type === 'rejet' && 
                 (
-                 
                   (report.Id_Demandeur === ticket.id_demandeur) 
-                  
                 )
               );
             
@@ -694,7 +692,7 @@ const TicketList = () => {
                 return 'border-red-600 bg-red-50 hover:bg-red-100';
               }
               if (isRejectedByDemandeur) {
-                return 'border-purple-600 bg-purple-50 hover:bg-purple-100';
+                return 'border-purple-600 bg-purple-200 hover:bg-purple-300';
               }
               return '';
             };

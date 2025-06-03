@@ -151,9 +151,18 @@ const ListUsers = () => {
       setResetPasswordError('');
       setResetPasswordSuccess('');
 
-      await axios.post(`/api/utilisateurs/${userToReset}/reset-password`, {
+      const response = await axios.post(`/api/utilisateurs/${userToReset}/reset-password`, {
         admin_password: resetPasswordForm.admin_password
       });
+
+      // Mettre à jour les informations de l'utilisateur dans le localStorage si c'est l'utilisateur actuel
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      if (currentUser && currentUser.id === userToReset) {
+        localStorage.setItem('user', JSON.stringify({
+          ...currentUser,
+          is_default_password: true
+        }));
+      }
 
       setResetPasswordSuccess('Mot de passe réinitialisé avec succès');
       setResetPasswordForm({ admin_password: '' });

@@ -21,10 +21,17 @@ const LoginPage = () => {
         password,
       });
       
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        navigate('/dashboard', { replace: true });
+      if (response.data.access_token) {
+        const userData = {
+          ...response.data.user,
+          is_default_password: response.data.user.is_default_password
+        };
+        console.log('Storing user data:', userData);
+        localStorage.setItem('token', response.data.access_token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        navigate('/dashboard');
+      } else {
+        setError('Réponse invalide du serveur');
       }
     } catch (err) {
       console.error('Erreur de connexion:', err);

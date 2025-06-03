@@ -15,52 +15,57 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         try {
-            $credentials = $request->validate([
-                'email' => 'required|email|max:255',
-                'password' => 'required|min:6'
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required'
             ]);
 
-            $user = Utilisateur::where('email', $credentials['email'])->first();
+            $user = Utilisateur::where('email', $request->email)->first();
 
-            if (!$user || !Hash::check($credentials['password'], $user->password)) {
-                throw ValidationException::withMessages([
-                    'email' => ['Ces identifiants ne correspondent pas à nos enregistrements.'],
-                ]);
+            if (!$user) {
+                Log::info('Tentative de connexion échouée - Email non trouvé: ' . $request->email);
+                return response()->json([
+                    'message' => 'Email ou mot de passe incorrect'
+                ], 401);
+            }
+
+            if (!Hash::check($request->password, $user->password)) {
+                Log::info('Tentative de connexion échouée - Mot de passe incorrect pour: ' . $request->email);
+                return response()->json([
+                    'message' => 'Email ou mot de passe incorrect'
+                ], 401);
             }
 
             if ($user->statut !== 1) {
-                throw ValidationException::withMessages([
-                    'email' => ['Ce compte est désactivé. Veuillez contacter l\'administrateur.'],
-                ]);
+                Log::info('Tentative de connexion échouée - Compte inactif: ' . $request->email);
+                return response()->json([
+                    'message' => 'Votre compte est inactif. Veuillez contacter l\'administrateur.'
+                ], 403);
             }
 
-            // Supprimer les anciens tokens de manière asynchrone
-            PersonalAccessToken::where('tokenable_id', $user->id)
-                             ->where('tokenable_type', Utilisateur::class)
-                             ->delete();
+            // Vérifier si le mot de passe est "password"
+            $isDefaultPassword = Hash::check('password', $user->password);
+            Log::info('Connexion réussie pour: ' . $request->email . ' - Mot de passe par défaut: ' . ($isDefaultPassword ? 'Oui' : 'Non'));
 
-            // Créer un nouveau token
-            $token = $user->createToken('auth-token');
+            $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
-                'token' => $token->plainTextToken,
+                'access_token' => $token,
+                'token_type' => 'Bearer',
                 'user' => [
                     'id' => $user->id,
-                    'designation' => $user->designation,
                     'email' => $user->email,
+                    'designation' => $user->designation,
                     'niveau' => $user->niveau,
-                    'statut' => $user->statut
+                    'statut' => $user->statut,
+                    'is_default_password' => $isDefaultPassword
                 ]
             ]);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Identifiants invalides',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
-            Log::error('Erreur de connexion: ' . $e->getMessage());
+            Log::error('Erreur lors de la connexion: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
-                'message' => 'Une erreur est survenue lors de la connexion.'
+                'message' => 'Une erreur est survenue lors de la connexion'
             ], 500);
         }
     }
@@ -83,21 +88,16 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         try {
-            if (!$request->user()) {
+            $user = $request->user();
+            if (!$user) {
                 return response()->json(['message' => 'Non authentifié'], 401);
             }
 
-            $user = $request->user()->load('service');
             return response()->json([
-                'id' => $user->id,
-                'designation' => $user->designation,
-                'email' => $user->email,
-                'niveau' => $user->niveau,
-                'statut' => $user->statut,
-                'service' => $user->service
+                'user' => $user
             ]);
         } catch (\Exception $e) {
-            Log::error('Erreur récupération utilisateur: ' . $e->getMessage());
+            Log::error('Erreur lors de la récupération des données utilisateur: ' . $e->getMessage());
             return response()->json(['message' => 'Erreur lors de la récupération des données utilisateur'], 500);
         }
     }
@@ -105,31 +105,44 @@ class AuthController extends Controller
     public function changePassword(Request $request)
     {
         try {
-            if (!$request->user()) {
+            if (!auth()->check()) {
                 return response()->json(['message' => 'Non authentifié'], 401);
             }
 
-            $request->validate([
-                'current_password' => 'required|string',
-                'new_password' => 'required|string|min:6|confirmed',
+            $validated = $request->validate([
+                'current_password' => 'required',
+                'new_password' => [
+                    'required',
+                    'min:8',
+                    'confirmed',
+                    'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
+                ]
+            ], [
+                'new_password.regex' => 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.'
             ]);
 
-            $user = $request->user();
+            $user = auth()->user();
 
-            if (!Hash::check($request->current_password, $user->password)) {
+            if (!Hash::check($validated['current_password'], $user->password)) {
                 return response()->json([
-                    'message' => 'Le mot de passe actuel est incorrect'
+                    'message' => 'Mot de passe actuel incorrect'
                 ], 422);
             }
 
-            $user->password = Hash::make($request->new_password);
+            $user->password = Hash::make($validated['new_password']);
             $user->save();
 
             return response()->json([
                 'message' => 'Mot de passe modifié avec succès'
             ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
-            Log::error('Erreur changement de mot de passe: ' . $e->getMessage());
+            Log::error('Erreur changement mot de passe: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'message' => 'Erreur lors du changement de mot de passe',
                 'error' => $e->getMessage()

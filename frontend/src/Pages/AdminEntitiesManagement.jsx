@@ -10,6 +10,7 @@ const entities = [
   { entity: 'services', label: 'Service' },
   { entity: 'priorites', label: 'Priorité' },
   { entity: 'statuts', label: 'Statut' },
+  { entity: 'executants', label: 'Exécutant' },
 ];
 
 const AdminEntitiesManagement = () => {

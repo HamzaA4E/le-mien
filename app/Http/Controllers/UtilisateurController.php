@@ -154,7 +154,15 @@ class UtilisateurController extends Controller
             $user->save();
 
             return response()->json([
-                'message' => 'Mot de passe réinitialisé avec succès'
+                'message' => 'Mot de passe réinitialisé avec succès',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'designation' => $user->designation,
+                    'niveau' => $user->niveau,
+                    'statut' => $user->statut,
+                    'is_default_password' => true
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Erreur réinitialisation mot de passe: ' . $e->getMessage());

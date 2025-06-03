@@ -4,58 +4,103 @@ import Layout from '../components/Layout';
 import { FaSyncAlt, FaEye, FaTicketAlt, FaTimesCircle } from 'react-icons/fa';
 
 // Composant Modal d'approbation
-const ApproveModal = ({ isOpen, onClose, onApprove, ticketId }) => {
+const ApproveModal = ({ isOpen, onClose, onApprove, ticketId, executants, loadingExecutants }) => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [executantId, setExecutantId] = useState('');
     const [error, setError] = useState('');
 
+    useEffect(() => {
+        console.log('ApproveModal - executants reçus:', executants);
+    }, [executants]);
+
     const handleSubmit = useCallback(() => {
-        if (!startDate || !endDate) {
-            setError('Veuillez renseigner les deux dates.');
+        if (!startDate || !endDate || !executantId) {
+            setError('Veuillez renseigner tous les champs obligatoires.');
             return;
         }
-        if (endDate < startDate) {
+
+        // Formater les dates au format YYYY-MM-DD
+        const formattedStartDate = new Date(startDate).toISOString().split('T')[0];
+        const formattedEndDate = new Date(endDate).toISOString().split('T')[0];
+
+        if (new Date(formattedEndDate) <= new Date(formattedStartDate)) {
             setError('La date de fin prévue doit être postérieure à la date de début.');
             return;
         }
-        onApprove(ticketId, startDate, endDate);
-    }, [startDate, endDate, ticketId, onApprove]);
+
+        onApprove(ticketId, formattedStartDate, formattedEndDate, executantId);
+    }, [startDate, endDate, executantId, ticketId, onApprove]);
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-                <h2 className="text-xl font-bold mb-4">Définir les dates du ticket</h2>
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
-                    <input
-                        type="date"
-                        className="w-full border rounded px-3 py-2"
-                        value={startDate}
-                        onChange={e => setStartDate(e.target.value)}
-                    />
-                </div>
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin prévue</label>
-                    <input
-                        type="date"
-                        className="w-full border rounded px-3 py-2"
-                        value={endDate}
-                        onChange={e => setEndDate(e.target.value)}
-                        min={startDate}
-                    />
-                </div>
-                {error && <div className="mb-2 text-red-600 text-sm">{error}</div>}
-                <div className="flex justify-end gap-2">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
-                    >Annuler</button>
-                    <button
-                        onClick={handleSubmit}
-                        className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-                    >Valider</button>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+            <div className="relative p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div className="mt-3 text-center">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">Approuver le ticket</h3>
+                    <div className="mt-2 px-7 py-3">
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700">Date de début</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                min={new Date().toISOString().split('T')[0]}
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700">Date de fin prévue</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                min={startDate || new Date().toISOString().split('T')[0]}
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700">Exécutant</label>
+                            {loadingExecutants ? (
+                                <div className="mt-1 text-sm text-gray-500">Chargement des exécutants...</div>
+                            ) : executants && executants.length > 0 ? (
+                                <select
+                                    value={executantId}
+                                    onChange={(e) => setExecutantId(e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                >
+                                    <option value="">Sélectionnez un exécutant</option>
+                                    {executants.map((executant) => (
+                                        <option key={executant.id} value={executant.id}>
+                                            {executant.designation}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="mt-1 text-sm text-red-500">Aucun exécutant disponible</div>
+                            )}
+                        </div>
+                        {error && (
+                            <div className="text-red-600 text-sm mt-2">
+                                {error}
+                            </div>
+                        )}
+                    </div>
+                    <div className="items-center px-4 py-3">
+                        <button
+                            onClick={handleSubmit}
+                            className="px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300"
+                        >
+                            Confirmer
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="ml-3 px-4 py-2 bg-gray-100 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        >
+                            Annuler
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -196,6 +241,12 @@ const DetailModal = ({ isOpen, onClose, ticket, onApprove, onReject, loading }) 
                                     <span className="font-semibold text-gray-600">Demandeur :</span>
                                     <span className="ml-2 text-gray-900">{ticket.demandeur?.designation}</span>
                                 </div>
+                                {ticket.executant && (
+                                    <div className="mb-2">
+                                        <span className="font-semibold text-gray-600">Exécutant :</span>
+                                        <span className="ml-2 text-gray-900">{ticket.executant.designation}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 mt-2">
@@ -248,6 +299,8 @@ const formatDate = (dateValue) => {
 const PendingTicketsPage = () => {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [executants, setExecutants] = useState([]);
+    const [loadingExecutants, setLoadingExecutants] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -347,18 +400,38 @@ const PendingTicketsPage = () => {
         };
     }, [showRejected, hasMoreRejected, fetchNextRejectedTicket]);
 
-    const handleApprove = useCallback(async (ticketId, startDate, endDate) => {
+    const handleApprove = useCallback(async (ticketId, startDate, endDate, executantId) => {
         try {
-            await axios.post(`/api/tickets/${ticketId}/approve`, {
+            // Vérifier d'abord le statut du ticket
+            const ticketResponse = await axios.get(`/api/tickets/${ticketId}`);
+            const ticket = ticketResponse.data;
+
+            if (!['En attente', 'Nouveau'].includes(ticket.statut?.designation)) {
+                setErrorMessage('Seuls les tickets en attente ou nouveaux peuvent être approuvés.');
+                return;
+            }
+
+            console.log('Sending approval data:', {
                 DateDebut: startDate,
-                DateFinPrevue: endDate
+                DateFinPrevue: endDate,
+                executantId: executantId
             });
-            setSuccessMessage('Le ticket a été approuvé avec succès.');
-            setErrorMessage('');
-            setShowApproveModal(false);
-            fetchTickets();
+
+            const response = await axios.post(`/api/tickets/${ticketId}/approve`, {
+                DateDebut: startDate,
+                DateFinPrevue: endDate,
+                executantId: parseInt(executantId, 10)
+            });
+
+            if (response.data) {
+                setSuccessMessage('Le ticket a été approuvé avec succès.');
+                setErrorMessage('');
+                setShowApproveModal(false);
+                fetchTickets();
+            }
         } catch (err) {
-            setErrorMessage("Une erreur est survenue lors de l'approbation du ticket.");
+            console.error('Error approving ticket:', err.response?.data || err.message);
+            setErrorMessage(err.response?.data?.message || "Une erreur est survenue lors de l'approbation du ticket.");
         }
     }, [fetchTickets]);
 
@@ -396,9 +469,10 @@ const PendingTicketsPage = () => {
     }, []);
 
     const openApproveModal = useCallback((id) => {
+        console.log('Ouverture du modal avec les exécutants:', executants);
         setApproveTicketId(id);
         setShowApproveModal(true);
-    }, []);
+    }, [executants]);
 
     const closeApproveModal = useCallback(() => {
         setShowApproveModal(false);
@@ -427,6 +501,23 @@ const PendingTicketsPage = () => {
             return () => clearTimeout(timer);
         }
     }, [successMessage, errorMessage, clearMessages]);
+
+    // Charger les exécutants
+    useEffect(() => {
+        const fetchExecutants = async () => {
+            try {
+                console.log('Chargement des exécutants...');
+                const response = await axios.get('/api/executants');
+                console.log('Réponse des exécutants:', response.data);
+                setExecutants(response.data);
+            } catch (error) {
+                console.error('Erreur lors du chargement des exécutants:', error);
+            } finally {
+                setLoadingExecutants(false);
+            }
+        };
+        fetchExecutants();
+    }, []);
 
     if (loading) {
         return (
@@ -568,6 +659,8 @@ const PendingTicketsPage = () => {
                     onClose={closeApproveModal}
                     onApprove={handleApprove}
                     ticketId={approveTicketId}
+                    executants={executants}
+                    loadingExecutants={loadingExecutants}
                 />
 
                 <RejectModal

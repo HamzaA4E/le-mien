@@ -1072,26 +1072,93 @@ class TicketController extends Controller
     public function approve($id)
     {
         try {
-            $ticket = Ticket::findOrFail($id);
-            $ticket->Id_Statut = 2; // Statut "En instance"
+            $request = request();
+            Log::info('Approbation du ticket', [
+                'ticket_id' => $id,
+                'request_data' => $request->all()
+            ]);
+
+            $validated = $request->validate([
+                'DateDebut' => 'required|date_format:Y-m-d',
+                'DateFinPrevue' => [
+                    'required',
+                    'date_format:Y-m-d',
+                    'after:DateDebut'
+                ],
+                'executantId' => 'required|integer|exists:T_EXECUTANT,id'
+            ]);
+
+            $ticket = Ticket::with('statut')->findOrFail($id);
             
-            // Save the dates if they are provided in the request
-            if (request()->has('DateDebut')) {
-                $ticket->DateDebut = date('d/m/Y H:i:s', strtotime(request()->DateDebut));
-            }
-            if (request()->has('DateFinPrevue')) {
-                $ticket->DateFinPrevue = date('d/m/Y H:i:s', strtotime(request()->DateFinPrevue));
-            }
+            // Log détaillé du statut du ticket
+            Log::info('Statut du ticket', [
+                'ticket_id' => $id,
+                'statut_id' => $ticket->Id_Statut,
+                'statut_designation' => $ticket->statut->designation,
+                'statut_object' => $ticket->statut->toArray()
+            ]);
             
+            // Vérifier si le ticket est en attente ou nouveau
+            if (!in_array($ticket->statut->designation, ['En attente', 'Nouveau'])) {
+                Log::warning('Statut invalide pour l\'approbation', [
+                    'ticket_id' => $id,
+                    'statut_actuel' => $ticket->statut->designation,
+                    'statuts_acceptes' => ['En attente', 'Nouveau']
+                ]);
+                return response()->json([
+                    'message' => 'Seuls les tickets en attente ou nouveaux peuvent être approuvés.'
+                ], 400);
+            }
+
+            // Convertir les dates au format attendu par la base de données
+            $dateDebut = Carbon::createFromFormat('Y-m-d', $validated['DateDebut'])->format('d/m/Y H:i:s');
+            $dateFinPrevue = Carbon::createFromFormat('Y-m-d', $validated['DateFinPrevue'])->format('d/m/Y H:i:s');
+
+            // Log des données avant la mise à jour
+            Log::info('Données de mise à jour du ticket', [
+                'ticket_id' => $id,
+                'nouveau_statut' => 3,
+                'date_debut' => $dateDebut,
+                'date_fin_prevue' => $dateFinPrevue,
+                'executant_id' => $validated['executantId']
+            ]);
+
+            // Mettre à jour le ticket
+            $ticket->update([
+                'Id_Statut' => 3, // En instance
+                'DateDebut' => $dateDebut,
+                'DateFinPrevue' => $dateFinPrevue,
+                'Id_Executant' => $validated['executantId']
+            ]);
+
+            // Ajouter un commentaire automatique
+            $user = auth()->user();
+            $comment = "\n\n[{$user->designation}|" . date('d/m/Y H:i:s') . "]Ticket approuvé et assigné à l'exécutant.";
+            $ticket->Commentaire = ($ticket->Commentaire ?? '') . $comment;
             $ticket->save();
 
-            return response()->json([
-                'message' => 'Ticket approuvé avec succès',
-                'ticket' => $ticket
+            Log::info('Ticket approuvé avec succès', [
+                'ticket_id' => $id,
+                'executant_id' => $validated['executantId']
             ]);
+
+            return response()->json([
+                'message' => 'Ticket approuvé avec succès.',
+                'ticket' => $ticket->load($this->relations)
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Erreur de validation lors de l\'approbation du ticket', [
+                'errors' => $e->errors(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
-            Log::error('Error approving ticket', [
+            Log::error('Erreur lors de l\'approbation du ticket', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'ticket_id' => $id
             ]);
             return response()->json([

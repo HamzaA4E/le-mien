@@ -111,4 +111,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/services/used-items', [ServiceController::class, 'usedItems']);
     Route::get('/priorites/used-items', [PrioriteController::class, 'usedItems']);
     Route::get('/statuts/used-items', [StatutController::class, 'usedItems']);
+
+    // Routes pour les exécutants
+    Route::get('/executants', [ExecutantController::class, 'index']);
+    Route::post('/executants', [ExecutantController::class, 'store']);
+    Route::put('/executants/{executant}', [ExecutantController::class, 'update']);
+    Route::delete('/executants/{executant}', [ExecutantController::class, 'destroy']);
 }); 

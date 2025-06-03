@@ -5,6 +5,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { FaSyncAlt, FaFilter } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import ForcePasswordChangeModal from '../components/ForcePasswordChangeModal';
 
 // Enregistrement des composants Chart.js nécessaires
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, ChartDataLabels);
@@ -63,6 +64,7 @@ const Dashboard = () => {
   const [selectedDemandeurs, setSelectedDemandeurs] = useState([]);
   const [selectedEmplacements, setSelectedEmplacements] = useState([]);
   const [chartsLoaded, setChartsLoaded] = useState(false);
+  const [showForcePasswordChange, setShowForcePasswordChange] = useState(false);
 
   // Récupérer le user courant
   let currentUser = null;
@@ -249,6 +251,45 @@ const Dashboard = () => {
     const timer = setTimeout(() => setChartsLoaded(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const userResponse = await axios.get('/api/user');
+        console.log('Réponse API user:', userResponse.data);
+        
+        // Vérifier si l'utilisateur utilise le mot de passe par défaut
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        if (storedUser && storedUser.is_default_password) {
+          setShowForcePasswordChange(true);
+        }
+
+        // Charger les statistiques
+        const response = await axios.get('/api/dashboard/stats');
+        setStats(response.data);
+        setError('');
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+        setError('Erreur lors du chargement des statistiques');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handlePasswordChanged = () => {
+    setShowForcePasswordChange(false);
+    // Mettre à jour l'utilisateur dans le localStorage
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser) {
+      storedUser.is_default_password = false;
+      localStorage.setItem('user', JSON.stringify(storedUser));
+    }
+    // Rafraîchir les données utilisateur
+    window.location.reload();
+  };
 
   if (loading) {
     return (
@@ -512,6 +553,11 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      <ForcePasswordChangeModal 
+        isOpen={showForcePasswordChange} 
+        onPasswordChanged={handlePasswordChanged}
+      />
     </Layout>
   );
 };

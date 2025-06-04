@@ -523,6 +523,18 @@ class TicketController extends Controller
             DB::beginTransaction();
             try {
                 $ticket->update($data);
+
+                // Ajout d'un commentaire automatique si l'admin change le statut d'un ticket qui n'est pas assigné à lui-même
+                $user = auth()->user();
+                if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
+                    $executant = \App\Models\Executant::where('designation', $user->designation)->first();
+                    if (!$executant || $ticket->Id_Executant !== $executant->id) {
+                        $comment = "\n\n[{$user->designation}|" . date('d/m/Y H:i:s') . "]Action admin : changement de statut du ticket (non assigné à lui-même).";
+                        $ticket->Commentaire = ($ticket->Commentaire ?? '') . $comment;
+                        $ticket->save();
+                    }
+                }
+
                 DB::commit();
                 
                 Log::info('Ticket mis à jour avec succès', [

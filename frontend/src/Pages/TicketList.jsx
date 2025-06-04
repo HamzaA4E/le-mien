@@ -811,7 +811,8 @@ const TicketList = () => {
                   </div>
                 </div>
                 <div className="mt-6 md:mt-0 md:ml-6 flex-shrink-0 flex flex-col items-end justify-between h-full gap-2">
-                  {(niveau === '1' || niveau === 1) && (
+                  {(niveau === '1' || niveau === 1) ? (
+                    // ADMIN : peut tout changer
                     <>
                       {['En instance', 'En cours', 'Terminé'].includes(ticket.statut?.designation) ? (
                         <select
@@ -843,8 +844,40 @@ const TicketList = () => {
                         </div>
                       )}
                     </>
-                  )}
-                  {!(niveau === '1' || niveau === 1) && (
+                  ) : (niveau === '5' || niveau === 5) && ticket.executant?.designation === user?.designation ? (
+                    // EXECUTANT : peut changer le statut de ses propres tickets
+                    <>
+                      {['En instance', 'En cours', 'Terminé'].includes(ticket.statut?.designation) ? (
+                        <select
+                          value={ticket.Id_Statut}
+                          onChange={e => handleStatutChange(ticket.id, e.target.value)}
+                          className={`mb-2 px-2 py-1 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                            ticket.statut?.designation === 'Refusé' ? 'border-red-300 bg-red-50' :
+                            isRejectedByDemandeur ? 'border-purple-300 bg-purple-50' :
+                            'border-gray-300'
+                          }`}
+                        >
+                          {statuts && statuts.length > 0 ? (
+                            statuts
+                              .filter(s => ['En instance', 'En cours', 'Terminé'].includes(s.designation))
+                              .map(s => (
+                                <option key={s.id} value={s.id}>{s.designation}</option>
+                              ))
+                          ) : (
+                            <option value="">Chargement des statuts...</option>
+                          )}
+                        </select>
+                      ) : (
+                        <div className={`mb-2 px-2 py-1 text-sm ${
+                          ticket.statut?.designation === 'Refusé' ? 'text-red-700' :
+                          isRejectedByDemandeur ? 'text-purple-700' :
+                          'text-gray-700'
+                        }`}>
+                          Statut : {ticket.statut?.designation || 'Non défini'}
+                        </div>
+                      )}
+                    </>
+                  ) : (
                     <div className={`mb-2 px-2 py-1 text-sm ${
                       ticket.statut?.designation === 'Refusé' ? 'text-red-700' :
                       isRejectedByDemandeur ? 'text-purple-700' :

@@ -441,6 +441,27 @@ class TicketController extends Controller
                 }
             }
 
+            // Autorisation pour l'exécutant
+            $user = auth()->user();
+            if ($user && method_exists($user, 'isExecutant') && $user->isExecutant()) {
+                // Récupérer l'exécutant lié à l'utilisateur
+                $executant = \App\Models\Executant::where('designation', $user->designation)->first();
+                if (!$executant || $ticket->Id_Executant !== $executant->id) {
+                    return response()->json([
+                        'message' => 'Vous n\'êtes pas autorisé à modifier ce ticket'
+                    ], 403);
+                }
+                // L'exécutant ne peut changer le statut que vers "En cours" ou "Terminé"
+                if (isset($data['Id_Statut'])) {
+                    $statutAutorises = \App\Models\Statut::whereIn('designation', ['En cours', 'Terminé'])->pluck('id')->toArray();
+                    if (!in_array($data['Id_Statut'], $statutAutorises)) {
+                        return response()->json([
+                            'message' => 'Vous ne pouvez changer le statut que vers "En cours" ou "Terminé"'
+                        ], 403);
+                    }
+                }
+            }
+
             // Gestion de la pièce jointe
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');

@@ -34,7 +34,8 @@ class TicketController extends Controller
                 'demandeur',
                 'emplacement',
                 'categorie',
-                'reports'
+                'reports',
+                'executant'
             ]);
 
             // Restriction pour les administrateurs : ils ne voient pas les tickets "Nouveau" et "Refusé"
@@ -67,6 +68,22 @@ class TicketController extends Controller
                 $query->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
                       ->where('T_DEMDEUR.id_service', $user->id_service)
                       ->select('T_TICKET.*');
+            }
+
+            // Restriction pour les exécutants : ils ne voient que les tickets qui leur sont assignés
+            //Expliquant cette condition en detaillé:
+            //1. $user c'est l'utilisateur connecté
+            //methode exists c'est une methode qui permet de verifier si la methode isExecutant existe dans la classe Utilisateur
+            //2. $user->isExecutant() c'est la methode qui permet de verifier si l'utilisateur connecté est un exécutant
+            if ($user && method_exists($user, 'isExecutant') && $user->isExecutant()) {
+                // On suppose que la désignation de l'utilisateur == désignation de l'exécutant
+                $executant = \App\Models\Executant::where('designation', $user->designation)->first();
+                if ($executant) {
+                    $query->where('Id_Executant', $executant->id);
+                } else {
+                    // Aucun ticket si pas d'exécutant correspondant
+                    $query->whereRaw('1=0');
+                }
             }
 
             // Appliquer les filtres
@@ -344,7 +361,8 @@ class TicketController extends Controller
                 'demandeur.service',
                 'emplacement',
                 'utilisateur',
-                'reports'
+                'reports',
+                'executant'
             ])->findOrFail($id);
 
             // Si le ticket a des commentaires, récupérer les informations des utilisateurs
@@ -492,7 +510,7 @@ class TicketController extends Controller
                 ]);
 
                 // Recharger le ticket avec ses relations
-                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'emplacement', 'categorie'])->find($ticket->id);
+                $ticket = Ticket::with(['statut', 'priorite', 'demandeur', 'emplacement', 'categorie', 'executant'])->find($ticket->id);
                 
                 return response()->json($ticket);
             } catch (\Exception $e) {
@@ -667,7 +685,7 @@ class TicketController extends Controller
     // Utilitaire pour la commande de rappel
     public static function ticketsFinPrevueDans24hNonCloture()
     {
-        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'emplacement', 'categorie'])
+        return \App\Models\Ticket::with(['statut', 'priorite', 'demandeur', 'emplacement', 'categorie', 'executant'])
             ->finPrevueDans24hNonCloture()
             ->get();
     }
@@ -727,6 +745,7 @@ class TicketController extends Controller
                 'demandeur',
                 'emplacement',
                 'categorie',
+                'executant'
             ]);
 
             // Appliquer les filtres
@@ -874,7 +893,8 @@ class TicketController extends Controller
                 'categorie',
                 'demandeur.service',
                 'emplacement',
-                'utilisateur'
+                'utilisateur',
+                'executant'
             ])->findOrFail($ticketId);
             
             $user = auth()->user();
@@ -980,6 +1000,7 @@ class TicketController extends Controller
                 'demandeur',
                 'emplacement',
                 'categorie',
+                'executant'
             ]);
 
             if ($request->boolean('show_rejected')) {
@@ -1018,7 +1039,8 @@ class TicketController extends Controller
                 'demandeur',
                 'emplacement',
                 'categorie',
-                'reports'
+                'reports',
+                'executant'
             ])->whereHas('statut', function($q) {
                 $q->where('designation', 'Refusé');
             });
@@ -1223,6 +1245,7 @@ class TicketController extends Controller
                 'demandeur',
                 'emplacement',
                 'categorie',
+                'executant'
             ])
             ->where('Id_Demandeur', $demandeur->id)
             ->whereHas('statut', function($q) {

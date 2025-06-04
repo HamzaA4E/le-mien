@@ -63,6 +63,7 @@ const TicketList = () => {
     emplacement: searchParams.get('emplacement') || '',
     statut: searchParams.get('statut') ? parseInt(searchParams.get('statut'), 10) : '',
     priorite: searchParams.get('priorite') || '',
+    executant: searchParams.get('executant') || '',
     dateDebut: searchParams.get('dateDebut') || '',
     dateDebutFin: searchParams.get('dateDebutFin') || '',
     dateFinPrevueDebut: searchParams.get('dateFinPrevueDebut') || '',
@@ -802,6 +803,10 @@ const TicketList = () => {
                           </span>
                         </div>
                       )}
+                      <div className="flex items-center text-sm text-gray-600">
+                    <MdPerson className="mr-1" />
+                    <span>Exécutant: {ticket.executant?.nom || ticket.executant?.designation || 'Non assigné'}</span>
+                  </div>
                     </div>
                   </div>
                 </div>
@@ -848,6 +853,7 @@ const TicketList = () => {
                       Statut : {ticket.statut?.designation || 'Non défini'}
                     </div>
                   )}
+                  
                   <Link
                     to={`/tickets/${ticket.id}`}
                     className={`inline-flex items-center gap-2 text-white font-semibold px-5 py-2 rounded-lg shadow transition-colors text-base ${

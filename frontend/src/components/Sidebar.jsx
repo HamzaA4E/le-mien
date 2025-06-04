@@ -164,6 +164,14 @@ const Sidebar = () => {
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }
+  // Si exécutant (niveau 5), menu spécifique
+  else if (niveau === '5' || niveau === 5) {
+    menuItems = [
+      { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
+      { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets assignés' },
+      { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
+    ];
+  }
 
   return (
     <div className="fixed top-0 left-0 h-screen w-64 bg-gray-800 text-white p-4 flex flex-col z-40">

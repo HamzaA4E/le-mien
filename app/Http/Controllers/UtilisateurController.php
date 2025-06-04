@@ -29,7 +29,7 @@ class UtilisateurController extends Controller
                 'designation' => 'required|string|max:255',
                 'email' => 'required|email|unique:T_UTILISAT',
                 'password' => 'required|min:6',
-                'niveau' => 'required|in:1,2,3,4',
+                'niveau' => 'required|in:1,2,3,4,5',
                 'statut' => 'required|in:0,1',
                 'id_service' => 'required_if:niveau,3,4|nullable|exists:T_SERVICE,id'
             ]);

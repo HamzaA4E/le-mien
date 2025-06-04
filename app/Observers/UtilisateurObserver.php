@@ -58,6 +58,38 @@ class UtilisateurObserver
                 ]);
             }
         }
+        // Si l'utilisateur est un exécutant (niveau 5)
+        if ($utilisateur->niveau === 5) {
+            try {
+                $existingExecutant = \App\Models\Executant::where('designation', $utilisateur->designation)->first();
+                if (!$existingExecutant) {
+                    $executant = \App\Models\Executant::create([
+                        'designation' => $utilisateur->designation,
+                        'is_active' => true
+                    ]);
+                    Log::info('Executant créé automatiquement pour l\'utilisateur', [
+                        'utilisateur_id' => $utilisateur->id,
+                        'executant_id' => $executant->id,
+                        'designation' => $utilisateur->designation
+                    ]);
+                } else {
+                    $existingExecutant->update([
+                        'is_active' => true
+                    ]);
+                    Log::info('Executant existant réactivé pour l\'utilisateur', [
+                        'utilisateur_id' => $utilisateur->id,
+                        'executant_id' => $existingExecutant->id,
+                        'designation' => $utilisateur->designation
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de la création automatique de l\'executant', [
+                    'utilisateur_id' => $utilisateur->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+        }
     }
 
     /**
@@ -107,6 +139,38 @@ class UtilisateurObserver
                 ]);
             }
         }
+        // Si l'utilisateur devient un exécutant (niveau 5)
+        if ($utilisateur->niveau === 5 && $utilisateur->isDirty('niveau')) {
+            try {
+                $executant = \App\Models\Executant::where('designation', $utilisateur->designation)->first();
+                if (!$executant) {
+                    $executant = \App\Models\Executant::create([
+                        'designation' => $utilisateur->designation,
+                        'is_active' => true
+                    ]);
+                    Log::info('Executant créé automatiquement pour l\'utilisateur mis à jour', [
+                        'utilisateur_id' => $utilisateur->id,
+                        'executant_id' => $executant->id,
+                        'designation' => $utilisateur->designation
+                    ]);
+                } else {
+                    $executant->update([
+                        'is_active' => true
+                    ]);
+                    Log::info('Executant réactivé pour l\'utilisateur mis à jour', [
+                        'utilisateur_id' => $utilisateur->id,
+                        'executant_id' => $executant->id,
+                        'designation' => $utilisateur->designation
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de la création/mise à jour de l\'executant', [
+                    'utilisateur_id' => $utilisateur->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+        }
     }
 
     /**
@@ -132,6 +196,28 @@ class UtilisateurObserver
                 }
             } catch (\Exception $e) {
                 Log::error('Erreur lors de la désactivation du demandeur', [
+                    'utilisateur_id' => $utilisateur->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+        }
+        // Si l'utilisateur était un exécutant
+        if ($utilisateur->niveau === 5) {
+            try {
+                $executant = \App\Models\Executant::where('designation', $utilisateur->designation)->first();
+                if ($executant) {
+                    $executant->update([
+                        'is_active' => false
+                    ]);
+                    Log::info('Executant désactivé après suppression de l\'utilisateur', [
+                        'utilisateur_id' => $utilisateur->id,
+                        'executant_id' => $executant->id,
+                        'designation' => $utilisateur->designation
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de la désactivation de l\'executant', [
                     'utilisateur_id' => $utilisateur->id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()

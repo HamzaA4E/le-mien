@@ -44,7 +44,8 @@ const ListUsers = () => {
       '1': 'Administrateur',
       '2': 'Directeur Général',
       '3': 'Directeur Département',
-      '4': 'Demandeur'
+      '4': 'Demandeur',
+      '5': 'Exécutant'
     };
     
     return niveauMap[niveau] || 'Non spécifié';

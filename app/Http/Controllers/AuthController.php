@@ -92,9 +92,18 @@ class AuthController extends Controller
             if (!$user) {
                 return response()->json(['message' => 'Non authentifié'], 401);
             }
-
+            // Charger le service si besoin
+            $user->load('service');
             return response()->json([
-                'user' => $user
+                'id' => $user->id,
+                'email' => $user->email,
+                'designation' => $user->designation,
+                'niveau' => $user->niveau,
+                'statut' => $user->statut,
+                'service' => $user->service ? [
+                    'id' => $user->service->id,
+                    'designation' => $user->service->designation
+                ] : null
             ]);
         } catch (\Exception $e) {
             Log::error('Erreur lors de la récupération des données utilisateur: ' . $e->getMessage());

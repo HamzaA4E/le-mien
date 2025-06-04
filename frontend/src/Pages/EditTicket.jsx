@@ -17,6 +17,7 @@ const EditTicket = () => {
     Id_Demandeur: '',
     Id_Emplacement: '',
     Id_Categorie: '',
+    Id_Executant: '',
     DateDebut: '',
     DateFinPrevue: '',
     attachment: null
@@ -26,7 +27,8 @@ const EditTicket = () => {
     statuts: [],
     demandeurs: [],
     emplacements: [],
-    categories: []
+    categories: [],
+    executants: []
   });
   const [currentAttachment, setCurrentAttachment] = useState(null);
   const API_BASE_URL = 'http://localhost:8000';
@@ -63,6 +65,7 @@ const EditTicket = () => {
           Id_Demandeur: ticket.Id_Demandeur || '',
           Id_Emplacement: ticket.Id_Emplacement || '',
           Id_Categorie: ticket.Id_Categorie || '',
+          Id_Executant: ticket.Id_Executant || '',
           DateDebut: formatDate(ticket.DateDebut),
           DateFinPrevue: formatDate(ticket.DateFinPrevue),
           attachment: ticket.attachment ? new Blob([ticket.attachment]) : null
@@ -78,7 +81,8 @@ const EditTicket = () => {
           statuts: options.statuts || [],
           demandeurs: options.demandeurs || [],
           emplacements: options.emplacements || [],
-          categories: options.categories || []
+          categories: options.categories || [],
+          executants: options.executants || []
         });
 
         // Afficher le nom de la pièce jointe existante
@@ -157,6 +161,7 @@ const EditTicket = () => {
         Id_Demandeur: parseInt(formData.Id_Demandeur),
         Id_Emplacement: parseInt(formData.Id_Emplacement),
         Id_Categorie: parseInt(formData.Id_Categorie),
+        Id_Executant: parseInt(formData.Id_Executant),
         DateDebut: formatDateForBackend(formData.DateDebut),
         DateFinPrevue: formatDateForBackend(formData.DateFinPrevue)
       };
@@ -388,6 +393,26 @@ const EditTicket = () => {
                 {options.categories.map(categorie => (
                   <option key={categorie.id} value={categorie.id}>
                     {categorie.designation}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="Id_Executant" className="block text-sm font-medium text-gray-700">
+                Exécutant
+              </label>
+              <select
+                name="Id_Executant"
+                id="Id_Executant"
+                value={formData.Id_Executant}
+                onChange={handleChange}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="">Sélectionner un exécutant</option>
+                {options.executants.map(executant => (
+                  <option key={executant.id} value={executant.id}>
+                    {executant.nom}
                   </option>
                 ))}
               </select>

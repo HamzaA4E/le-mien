@@ -134,6 +134,7 @@ const CreateUser = () => {
                 <option value="2">Directeur Général</option>
                 <option value="3">Directeur Département</option>
                 <option value="4">Demandeur</option>
+                <option value="5">Exécutant</option>
               </select>
             </div>
 

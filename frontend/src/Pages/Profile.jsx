@@ -25,7 +25,8 @@ const Profile = () => {
       '1': 'Administrateur',
       '2': 'Directeur Général',
       '3': 'Directeur Département',
-      '4': 'Demandeur'
+      '4': 'Demandeur',
+      '5': 'Exécutant'
     };
     
     return niveauMap[niveau] || 'Non spécifié';
@@ -169,7 +170,7 @@ const Profile = () => {
                   {getNiveauText(user?.niveau)}
                 </dd>
               </div>
-              {(user?.niveau === 3 || user?.niveau === 4) && (
+              {(user?.niveau === 3 || user?.niveau === 4 || user?.niveau === 5) && (
                 <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-500 flex items-center">
                     <FaBuilding className="mr-2" /> Service

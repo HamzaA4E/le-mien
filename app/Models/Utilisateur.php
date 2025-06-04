@@ -18,7 +18,7 @@ class Utilisateur extends Authenticatable
     const NIVEAU_directeur_general = 2;
     const NIVEAU_DIRECTEUR_DEPARTEMENT = 3;
     const NIVEAU_DEMANDEUR = 4;
-
+    const NIVEAU_EXECUTANT = 5;
     protected $table = 'T_UTILISAT';
     protected $primaryKey = 'id';
     public $incrementing = true;
@@ -77,6 +77,14 @@ class Utilisateur extends Authenticatable
     public function isDemandeur()
     {
         return $this->niveau === self::NIVEAU_DEMANDEUR;
+    }
+
+    /**
+     * Vérifie si l'utilisateur est un exécutant
+     */
+    public function isExecutant()
+    {
+        return $this->niveau === self::NIVEAU_EXECUTANT;
     }
 
     /**

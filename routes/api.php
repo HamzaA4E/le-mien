@@ -18,6 +18,7 @@ use App\Http\Controllers\TicketStatsController;
 use App\Http\Controllers\ExecutantController;
 use App\Http\Controllers\TicketReportController;
 use App\Http\Controllers\RegisterRequestController;
+use App\Http\Controllers\ReportController;
 
 // Routes publiques
 Route::post('/login', [AuthController::class, 'login']);
@@ -118,4 +119,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/executants', [ExecutantController::class, 'store']);
     Route::put('/executants/{executant}', [ExecutantController::class, 'update']);
     Route::delete('/executants/{executant}', [ExecutantController::class, 'destroy']);
+
+    // Route pour la génération de rapports
+    Route::get('/reports', [ReportController::class, 'generateReport']);
 }); 

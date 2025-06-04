@@ -5,15 +5,16 @@ import Dashboard from '../pages/Dashboard';
 import TicketList from '../pages/TicketList';
 import ChatBot from '../components/ChatBot/ChatBot';
 import CreateUser from '../pages/CreateUser';
-import Profile from '../pages/Profile';
+import Profile from '../Pages/Profile';
 import ListUsers from '../pages/ListUsers';
 import TicketDetails from '../pages/TicketDetails';
-import EditTicket from '../pages/EditTicket';
+import EditTicket from '../Pages/EditTicket';
 import AdminEntitiesManagement from '../pages/AdminEntitiesManagement';
 import PendingTicketsPage from '../pages/PendingTicketsPage';
 import CompletedTicketsPage from '../pages/CompletedTicketsPage';
 import Register from '../pages/Register';
 import RegisterRequests from '../pages/AdminRegisterRequests';
+import ReportsPage from '../pages/ReportsPage';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -103,6 +104,11 @@ const router = createBrowserRouter([
   {
     path: '/completed-tickets',
     element: <PrivateRoute><CompletedTicketsPage /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/reports',
+    element: <PrivateRoute><ReportsPage /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
   {

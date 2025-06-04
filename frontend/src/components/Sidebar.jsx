@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs, FaRobot, FaClock, FaCheckCircle } from 'react-icons/fa';
+import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs, FaRobot, FaClock, FaCheckCircle, FaChartBar } from 'react-icons/fa';
 import axios from 'axios';
 
 // Configuration de la base URL pour axios
@@ -111,6 +111,7 @@ const Sidebar = () => {
     { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
     { path: '/admin/entities', icon: <FaCogs />, text: 'Gestion des référentiels' },
+    { path: '/reports', icon: <FaChartBar />, text: 'Rapports' },
     { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
   ];
 
@@ -125,6 +126,7 @@ const Sidebar = () => {
         text: 'Tickets en attente',
         badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
       },
+      { path: '/reports', icon: <FaChartBar />, text: 'Rapports' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }
@@ -140,6 +142,7 @@ const Sidebar = () => {
         badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
       },
       { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
+      { path: '/reports', icon: <FaChartBar />, text: 'Rapports' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }

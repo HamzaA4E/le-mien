@@ -154,7 +154,18 @@ const TicketDetails = () => {
   const handleDownload = async () => {
     try {
         setError('');
-        const fileName = ticket.attachment_path.split('/').pop();
+        // Correction : parser le JSON et nettoyer le nom du fichier
+        let fileName = '';
+        try {
+          const paths = JSON.parse(ticket.attachment_path);
+          if (Array.isArray(paths) && paths.length > 0) {
+            fileName = paths[0].split('/').pop();
+          }
+        } catch {
+          fileName = ticket.attachment_path.split('/').pop();
+        }
+        // Nettoyage final pour éviter tout caractère parasite
+        fileName = fileName.replace(/^[\s"\[\]]+|[\s"\[\]]+$/g, '');
         const isPdf = fileName.toLowerCase().endsWith('.pdf');
         
         // Approche unifiée pour tous les fichiers
@@ -637,7 +648,18 @@ const TicketDetails = () => {
                   <dt className="text-sm font-medium text-gray-500">Pièce jointe</dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                     <div className="flex items-center space-x-4">
-                      <span className="text-gray-600">{ticket.attachment_path.split('/').pop()}</span>
+                      {(() => {
+                        let fileName = '';
+                        try {
+                          const paths = JSON.parse(ticket.attachment_path);
+                          if (Array.isArray(paths) && paths.length > 0) {
+                            fileName = paths[0].split('/').pop();
+                          }
+                        } catch {
+                          fileName = ticket.attachment_path.split('/').pop();
+                        }
+                        return <span className="text-gray-600">{fileName}</span>;
+                      })()}
                       <button
                         onClick={handleDownload}
                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

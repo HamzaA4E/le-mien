@@ -198,7 +198,8 @@ class TicketController extends Controller
                 'titre' => 'required|string|max:255',
                 'description' => 'required|string',
                 'commentaire' => 'nullable|string',
-                'attachment' => 'nullable|file|max:10240', // max 10MB
+                'attachments' => 'nullable',
+                'attachments.*' => 'file|max:10240', // max 10MB par fichier
                 'date_debut' => 'nullable|date',
                 'date_fin_prevue' => [
                     'nullable',
@@ -272,38 +273,41 @@ class TicketController extends Controller
                     'date_creation' => $dateCreation
                 ]);
                 // Gestion de la pièce jointe
-                $attachmentPath = null;
-                if ($request->hasFile('attachment')) {
-                    $file = $request->file('attachment');
-                    Log::info('Fichier reçu:', [
-                        'name' => $file->getClientOriginalName(),
-                        'size' => $file->getSize(),
-                        'mime' => $file->getMimeType()
-                    ]);
-                    
-                    try {
-                        // Get the original filename
-                        $originalName = $file->getClientOriginalName();
-                        // Store the file with its original name
-                        $attachmentPath = $file->storeAs('attachments', $originalName, 'public');
-                        Log::info('Fichier stocké avec succès:', ['path' => $attachmentPath]);
-                    } catch (\Exception $e) {
-                        Log::error('Erreur lors du stockage du fichier:', [
-                            'error' => $e->getMessage(),
-                            'file' => $file->getClientOriginalName()
+                $attachmentPaths = [];
+                if ($request->hasFile('attachments')) {
+                    foreach ($request->file('attachments') as $file) {
+                        Log::info('Fichier reçu:', [
+                            'name' => $file->getClientOriginalName(),
+                            'size' => $file->getSize(),
+                            'mime' => $file->getMimeType()
                         ]);
-                        throw $e;
+                        try {
+                            $originalName = $file->getClientOriginalName();
+                            $path = $file->storeAs('attachments', $originalName, 'public');
+                            $attachmentPaths[] = $path;
+                            Log::info('Fichier stocké avec succès:', ['path' => $path]);
+                        } catch (\Exception $e) {
+                            Log::error('Erreur lors du stockage du fichier:', [
+                                'error' => $e->getMessage(),
+                                'file' => $file->getClientOriginalName()
+                            ]);
+                            throw $e;
+                        }
                     }
                 } else {
                     Log::info('Aucun fichier n\'a été envoyé');
                 }
 
-                //Création du ticket
+                // Création du ticket
+                $attachmentPathValue = null;
+                if (!empty($attachmentPaths)) {
+                    $attachmentPathValue = json_encode($attachmentPaths);
+                }
                 $data = [
                     'Titre' => $validated['titre'],
                     'Description' => $validated['description'],
                     'Commentaire' => $validated['commentaire'] ?? null,
-                    'attachment_path' => $attachmentPath,
+                    'attachment_path' => $attachmentPathValue,
                     'Id_Priorite' => (int)$validated['id_priorite'],
                     'Id_Statut' => (int)$validated['id_statut'],
                     'Id_Demandeur' => (int)$validated['id_demandeur'],
@@ -327,7 +331,8 @@ class TicketController extends Controller
 
                 return response()->json([
                     'message' => 'Ticket créé avec succès',
-                    'ticket' => $ticket
+                    'ticket' => $ticket,
+                    'attachments' => $attachmentPaths
                 ], 201);
 
             } catch (\Exception $e) {
@@ -725,7 +730,7 @@ class TicketController extends Controller
             ->get();
     }
     //Téléchargement de la pièce jointe
-    public function downloadAttachment($id)
+    public function downloadAttachment($id, $index = 0)
     {
         try {
             $ticket = Ticket::findOrFail($id);
@@ -734,17 +739,30 @@ class TicketController extends Controller
                 return response()->json(['message' => 'Aucune pièce jointe trouvée'], 404);
             }
 
-            $path = storage_path('app/public/' . $ticket->attachment_path);
+            $paths = json_decode($ticket->attachment_path, true);
+            if (!is_array($paths)) {
+                $paths = [$ticket->attachment_path];
+            }
+
+            if (!isset($paths[$index])) {
+                return response()->json(['message' => 'Pièce jointe non trouvée'], 404);
+            }
+
+            $path = storage_path('app/public/' . $paths[$index]);
 
             if (!file_exists($path)) {
                 return response()->json(['message' => 'Le fichier n\'existe plus'], 404);
             }
 
-            $mimeType = mime_content_type($path) ?: 'application/octet-stream'; //application/octet-stream : type de fichier par défaut
+            $mimeType = mime_content_type($path) ?: 'application/octet-stream';
 
-            return response()->download($path, basename($path), [
+            // Nettoyer le nom du fichier pour éviter les crochets, guillemets ou espaces parasites
+            $filename = basename($path);
+            $filename = preg_replace('/^[\s"\[\]]+|[\s"\[\]]+$/', '', $filename);
+
+            return response()->download($path, $filename, [
                 'Content-Type' => $mimeType,
-                'Content-Disposition' => 'attachment; filename="'.basename($path).'"',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0',
                 'Pragma' => 'no-cache'
             ]);

@@ -494,6 +494,12 @@ export const createTicketFromChat = async (ticketData) => {
 
         // Si ticketData est un FormData, on suppose que la vérification a déjà été faite
         if (ticketData instanceof FormData) {
+            console.log('Envoi des données avec FormData');
+            // Log des données envoyées pour debug
+            for (let pair of ticketData.entries()) {
+                console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+            }
+
             const response = await axios.post('/api/tickets', ticketData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
@@ -504,7 +510,7 @@ export const createTicketFromChat = async (ticketData) => {
             return response.data;
         }
 
-        // Sinon, on vérifie les champs comme avant
+        // Vérification des champs requis
         if (!ticketData.title || !ticketData.description ||
             !ticketData.id_categorie || !ticketData.id_emplacement || !ticketData.id_priorite) {
             console.error('Données manquantes:', {
@@ -523,8 +529,6 @@ export const createTicketFromChat = async (ticketData) => {
             console.error('Utilisateur non connecté ou ID invalide');
             throw new Error('Vous devez être connecté pour créer un ticket.');
         }
-        ticketData.id_utilisateur = currentUser.id;
-        ticketData.id_demandeur = currentUser.id;
 
         // Transformer les données en format attendu par l'API
         const transformedData = {
@@ -539,6 +543,7 @@ export const createTicketFromChat = async (ticketData) => {
             id_categorie: ticketData.id_categorie,
             id_statut: ticketData.id_statut,
         };
+
         if (ticketData.startDate) {
             transformedData.date_debut = ticketData.startDate;
         }
@@ -553,27 +558,14 @@ export const createTicketFromChat = async (ticketData) => {
             throw new Error('Token d\'authentification manquant. Veuillez vous reconnecter.');
         }
 
-        // Si ticketData est une instance de FormData, l'envoyer directement
-        if (ticketData instanceof FormData) {
-            const response = await axios.post('/api/tickets', ticketData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-            });
-            return response.data;
-        } else {
-            // Sinon, envoyer les données JSON normalement
-            const response = await axios.post('/api/tickets', transformedData, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-            });
-            return response.data;
-        }
+        const response = await axios.post('/api/tickets', transformedData, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+        });
+        return response.data;
     } catch (error) {
         console.error('Error in createTicketFromChat:', error);
         

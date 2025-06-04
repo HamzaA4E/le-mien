@@ -228,6 +228,49 @@ const ChatBot = () => {
     const renderTicketSummary = (ticketData) => {
         if (!ticketData) return null;
 
+        // Affichage des pièces jointes
+        let attachments = [];
+        let attachmentsBlock = null;
+        try {
+            let raw = ticketData.attachment_path;
+            if (typeof raw === 'string') {
+                attachments = JSON.parse(raw);
+                // Si le premier élément est encore une string JSON, parse-le aussi
+                if (
+                    Array.isArray(attachments) &&
+                    attachments.length === 1 &&
+                    typeof attachments[0] === 'string' &&
+                    attachments[0].includes('[')
+                ) {
+                    attachments = JSON.parse(attachments[0]);
+                }
+            }
+        } catch (e) {
+            attachments = [];
+        }
+        console.log('attachment_path brut:', ticketData.attachment_path);
+        console.log('attachments après parse:', attachments);
+        if (Array.isArray(attachments) && attachments.length > 0) {
+            attachmentsBlock = (
+                <div className="mt-2">
+                    <strong>Pièces jointes :</strong>
+                    <ul>
+                        {attachments.map((url, idx) => {
+                            // Nettoyage du nom de fichier
+                            const cleanName = url.split('/').pop().replace(/^[\s"'\[\]]+|[\s"'\[\]]+$/g, '').trim();
+                            return (
+                                <li key={idx}>
+                                    <a href={`/api/tickets/${ticketData.id}/download/${idx}`} target="_blank" rel="noopener noreferrer">
+                                        {cleanName}
+                                    </a>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            );
+        }
+
         return (
             <div className="mt-4 p-4 bg-white rounded-lg shadow-lg border border-gray-200">
                 <h3 className="text-lg font-semibold mb-4 text-gray-700">📋 RÉSUMÉ DU TICKET</h3>
@@ -285,9 +328,19 @@ const ChatBot = () => {
                                 <td className="px-4 py-2 text-sm font-medium text-gray-600">Commentaire</td>
                                 <td className="px-4 py-2 text-sm text-gray-800">{ticketData.commentaire || '-'}</td>
                             </tr>
+                            <tr>
+                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Pièces jointes</td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                    {attachmentsBlock || (attachments && attachments.length > 0 ? attachments.map(f => f.name).join(', ') : '-')}
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${attachmentsBlock ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{attachmentsBlock ? '✓' : '-'}</span>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
+                {attachmentsBlock}
             </div>
         );
     };
@@ -447,7 +500,7 @@ const ChatBot = () => {
         if (!ticketData) return;
 
         // Ajout du log pour debug
-        console.log('TicketData envoyé à l’API:', ticketData);
+        console.log('TicketData envoyé à l\'API:', ticketData);
 
         // Vérification des champs essentiels
         if (
@@ -471,7 +524,7 @@ const ChatBot = () => {
             formData.append('titre', ticketData.title);
             formData.append('description', ticketData.description);
             formData.append('commentaire', ticketData.commentaire || ticketData.description);
-            formData.append('id_demandeur', ticketData.id_utilisateur); // ou ticketData.id_demandeur si tu l'as
+            formData.append('id_demandeur', ticketData.id_utilisateur);
             formData.append('id_utilisateur', ticketData.id_utilisateur);
             formData.append('id_societe', ticketData.id_societe);
             formData.append('id_emplacement', ticketData.id_emplacement);
@@ -486,6 +539,7 @@ const ChatBot = () => {
             }
 
             // Ajouter les pièces jointes
+            console.log('Fichiers envoyés:', attachments);
             attachments.forEach((file, index) => {
                 formData.append(`attachments[${index}]`, file);
             });

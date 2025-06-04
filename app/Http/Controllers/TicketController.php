@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Mail\TicketAssignedNotification;
+use Illuminate\Support\Facades\Mail;
 
 class TicketController extends Controller
 {
@@ -1143,7 +1145,7 @@ class TicketController extends Controller
                 'executantId' => 'required|integer|exists:T_EXECUTANT,id'
             ]);
 
-            $ticket = Ticket::with('statut')->findOrFail($id);
+            $ticket = Ticket::with(['statut', 'priorite', 'categorie'])->findOrFail($id);
             
             // Log détaillé du statut du ticket
             Log::info('Statut du ticket', [
@@ -1192,14 +1194,43 @@ class TicketController extends Controller
             $ticket->Commentaire = ($ticket->Commentaire ?? '') . $comment;
             $ticket->save();
 
+            // Récupérer l'exécutant pour l'email
+            $executant = \App\Models\Executant::find($validated['executantId']);
+            
+            // Envoyer l'email de notification
+            if ($executant) {
+                try {
+                    // Récupérer l'utilisateur associé à l'exécutant
+                    $utilisateur = \App\Models\Utilisateur::where('designation', $executant->designation)->first();
+                    
+                    if ($utilisateur && $utilisateur->email) {
+                        Mail::to($utilisateur->email)->send(new TicketAssignedNotification($ticket, $executant));
+                        Log::info('Email de notification envoyé à l\'exécutant', [
+                            'executant_id' => $executant->id,
+                            'utilisateur_email' => $utilisateur->email
+                        ]);
+                    } else {
+                        Log::warning('Email non trouvé pour l\'exécutant', [
+                            'executant_id' => $executant->id,
+                            'executant_designation' => $executant->designation
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Erreur lors de l\'envoi de l\'email de notification', [
+                        'error' => $e->getMessage(),
+                        'executant_id' => $executant->id
+                    ]);
+                }
+            }
+
             Log::info('Ticket approuvé avec succès', [
                 'ticket_id' => $id,
                 'executant_id' => $validated['executantId']
             ]);
 
             return response()->json([
-                'message' => 'Ticket approuvé avec succès.',
-                'ticket' => $ticket->load($this->relations)
+                'message' => 'Ticket approuvé avec succès',
+                'ticket' => $ticket
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Erreur de validation lors de l\'approbation du ticket', [

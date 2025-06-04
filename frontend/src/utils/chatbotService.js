@@ -149,31 +149,38 @@ OPTIONS DISPONIBLES :
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-4. DÉTERMINATION DE LA CATÉGORIE
+4. COLLECTE DES PIÈCES JOINTES
+   - Demander si l'utilisateur souhaite joindre des fichiers
+   - Si oui, indiquer les types de fichiers acceptés et la taille maximale
+   - ATTENDRE sa réponse
+   - Passer à l'étape suivante
+
+5. DÉTERMINATION DE LA CATÉGORIE
    - Afficher les catégories disponibles : ${formatOptions(userInfo.ticketOptions.categories)}
    - Demander à l'utilisateur de choisir une catégorie parmi celles listées
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-5. COLLECTE DE L'EMPLACEMENT
+6. COLLECTE DE L'EMPLACEMENT
    - Afficher les emplacements disponibles : ${formatOptions(userInfo.ticketOptions.emplacements)}
    - Demander à l'utilisateur de choisir un emplacement parmi ceux listés
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-6. DÉTERMINATION DE LA PRIORITÉ
+7. DÉTERMINATION DE LA PRIORITÉ
    - Afficher les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}
    - Demander à l'utilisateur de choisir une priorité parmi celles listées
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-7. RÉSUMÉ ET DEMANDE DE CRÉATION
+8. RÉSUMÉ ET DEMANDE DE CRÉATION
    - Présenter le résumé dans le format suivant :
      📋 RÉSUMÉ DU TICKET
      ──────────────────────────────
      📌 Titre : [titre reformulé]
      📝 Description : [description en un seul paragraphe]
      💬 Commentaire initial : [commentaire]
+     📎 Pièces jointes : [liste des pièces jointes ou "Aucune"]
      🏷️ Catégorie : [catégorie]
      📍 Emplacement : [emplacement]
      ⚡ Priorité : [priorité]
@@ -189,6 +196,7 @@ EXEMPLES DE RÉPONSES PROFESSIONNELLES :
 - "Merci pour le titre. Voici ma proposition de reformulation professionnelle : [titre reformulé]. Êtes-vous d'accord avec cette formulation ?"
 - "Merci pour la description. Voici ma proposition de reformulation professionnelle : [description reformulée]. Cette formulation vous convient-elle ?"
 - "Merci pour la description. Pourriez-vous ajouter un commentaire initial qui servira de suivi pour ce ticket ? Ce commentaire peut inclure des informations supplémentaires ou des instructions spécifiques."
+- "Souhaitez-vous joindre des fichiers à ce ticket ? Les types de fichiers acceptés sont : PDF, DOC, DOCX, XLS, XLSX, JPG, PNG. La taille maximale par fichier est de 10 Mo."
 - "Voici les catégories disponibles : ${formatOptions(userInfo.ticketOptions.categories)}. Quelle catégorie correspond le mieux à votre demande ?"
 - "Voici les emplacements disponibles : ${formatOptions(userInfo.ticketOptions.emplacements)}. Quel est l'emplacement concerné ?"
 - "Voici les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}. Quelle priorité souhaitez-vous attribuer à ce ticket ?"
@@ -279,6 +287,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         title: '',
         description: '',
         commentaire: '',
+        attachments: [],
         category: '',
         service: userInfo?.service?.designation || '',
         location: '',
@@ -294,8 +303,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         id_emplacement: null,
         id_priorite: null,
         id_categorie: null,
-        id_statut: 1,
-        id_executant: 1
+        id_statut: 1
     };
 
     // Fonction utilitaire pour nettoyer le texte
@@ -398,7 +406,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
     // Fonction pour extraire une valeur après un émoji
     const extractValue = (text, emoji) => {
         // Regex pour extraire la valeur après l'émoji jusqu'à la fin de la ligne ou le prochain émoji
-        const regex = new RegExp(`${emoji}\\s*([^\\n📌📝💬🏷️📍⚡📅]+)`, 'i');
+        const regex = new RegExp(`${emoji}\\s*([^\\n📌📝💬📎🏷️📍⚡👥📅]+)`, 'i');
         const match = text.match(regex);
         if (!match) return null;
         
@@ -406,7 +414,7 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         let value = match[1].trim();
         
         // Supprimer les labels communs et les deux-points
-        value = value.replace(/^(Titre|Description|Commentaire initial|Catégorie|Emplacement|Priorité|Date de début|Date de fin)\s*:\s*/i, '');
+        value = value.replace(/^(Titre|Description|Commentaire initial|Pièces jointes|Catégorie|Emplacement|Priorité|Date de début|Date de fin)\s*:\s*/i, '');
         value = value.replace(/^:\s*/, ''); // Supprimer les deux-points au début
         
         return value;
@@ -433,6 +441,13 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
                 // Extraire le commentaire
                 ticketInfo.commentaire = extractValue(content, '💬');
                 console.log('Commentaire extrait:', ticketInfo.commentaire);
+
+                // Extraire les pièces jointes
+                const attachmentsText = extractValue(content, '📎');
+                if (attachmentsText && attachmentsText !== 'Aucune') {
+                    ticketInfo.attachments = attachmentsText.split(',').map(file => file.trim());
+                }
+                console.log('Pièces jointes extraites:', ticketInfo.attachments);
 
                 // Extraire la catégorie
                 ticketInfo.category = extractValue(content, '🏷️');
@@ -476,8 +491,20 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
 export const createTicketFromChat = async (ticketData) => {
     try {
         const token = localStorage.getItem('token');
-        
-        // Vérifier que toutes les données requises sont présentes
+
+        // Si ticketData est un FormData, on suppose que la vérification a déjà été faite
+        if (ticketData instanceof FormData) {
+            const response = await axios.post('/api/tickets', ticketData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+            return response.data;
+        }
+
+        // Sinon, on vérifie les champs comme avant
         if (!ticketData.title || !ticketData.description ||
             !ticketData.id_categorie || !ticketData.id_emplacement || !ticketData.id_priorite) {
             console.error('Données manquantes:', {
@@ -511,7 +538,6 @@ export const createTicketFromChat = async (ticketData) => {
             id_priorite: ticketData.id_priorite,
             id_categorie: ticketData.id_categorie,
             id_statut: ticketData.id_statut,
-            id_executant: ticketData.id_executant
         };
         if (ticketData.startDate) {
             transformedData.date_debut = ticketData.startDate;
@@ -527,14 +553,27 @@ export const createTicketFromChat = async (ticketData) => {
             throw new Error('Token d\'authentification manquant. Veuillez vous reconnecter.');
         }
 
-        const response = await axios.post('/api/tickets', transformedData, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-        });
-        return response.data;
+        // Si ticketData est une instance de FormData, l'envoyer directement
+        if (ticketData instanceof FormData) {
+            const response = await axios.post('/api/tickets', ticketData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+            return response.data;
+        } else {
+            // Sinon, envoyer les données JSON normalement
+            const response = await axios.post('/api/tickets', transformedData, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+            return response.data;
+        }
     } catch (error) {
         console.error('Error in createTicketFromChat:', error);
         
@@ -571,7 +610,6 @@ const formatTicketInfo = (ticket) => {
         <emplacement>${ticket.emplacement?.designation || 'Non défini'}</emplacement>
         <societe>${ticket.societe?.designation || 'Non définie'}</societe>
         <demandeur>${ticket.demandeur?.nom || 'Non défini'}</demandeur>
-        <executant>${ticket.executant?.nom || 'Non défini'}</executant>
         <date_creation>${ticket.DateCreation}</date_creation>
         <date_fin_prevue>${ticket.DateFinPrevue}</date_fin_prevue>
         <date_fin_reelle>${ticket.DateFinReelle || 'Non définie'}</date_fin_reelle>

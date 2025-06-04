@@ -21,6 +21,8 @@ const ChatBot = () => {
     const [showPriorities, setShowPriorities] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [dateType, setDateType] = useState(null); // 'start' ou 'end'
+    const [attachments, setAttachments] = useState([]);
+    const fileInputRef = useRef(null);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -290,6 +292,60 @@ const ChatBot = () => {
         );
     };
 
+    const handleFileChange = (event) => {
+        const files = Array.from(event.target.files);
+        const validFiles = files.filter(file => {
+            const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+                              'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                              'image/jpeg', 'image/png'];
+            const maxSize = 10 * 1024 * 1024; // 10 Mo
+            
+            if (!validTypes.includes(file.type)) {
+                toast.error(`Le fichier ${file.name} n'est pas d'un type accepté. Types acceptés : PDF, DOC, DOCX, XLS, XLSX, JPG, PNG`);
+                return false;
+            }
+            
+            if (file.size > maxSize) {
+                toast.error(`Le fichier ${file.name} dépasse la taille maximale de 10 Mo`);
+                return false;
+            }
+            
+            return true;
+        });
+
+        if (validFiles.length > 0) {
+            setAttachments(prev => [...prev, ...validFiles]);
+            toast.success(`${validFiles.length} fichier(s) ajouté(s) avec succès`);
+        }
+    };
+
+    const removeAttachment = (index) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const renderAttachments = () => {
+        if (attachments.length === 0) return null;
+
+        return (
+            <div className="mt-4 p-4 bg-white rounded-lg shadow-lg border border-gray-200">
+                <h3 className="text-lg font-semibold mb-4 text-gray-700">Pièces jointes</h3>
+                <div className="space-y-2">
+                    {attachments.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            <span className="text-sm text-gray-600">{file.name}</span>
+                            <button
+                                onClick={() => removeAttachment(index)}
+                                className="text-red-500 hover:text-red-700"
+                            >
+                                Supprimer
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!input.trim() || !userInfo || !ticketOptions) {
@@ -390,23 +446,57 @@ const ChatBot = () => {
     const handleCreateTicket = async () => {
         if (!ticketData) return;
 
+        // Ajout du log pour debug
+        console.log('TicketData envoyé à l’API:', ticketData);
+
+        // Vérification des champs essentiels
+        if (
+            !ticketData.title ||
+            !ticketData.description ||
+            !ticketData.id_categorie ||
+            !ticketData.id_emplacement ||
+            !ticketData.id_priorite
+        ) {
+            toast.error("Veuillez compléter toutes les informations du ticket avant de le créer.");
+            return;
+        }
+
         try {
             setIsLoading(true);
             setError(null);
 
-            // Formater les dates avant l'envoi
-            const formattedTicketData = {
-                ...ticketData,
-                startDate: ticketData.startDate ? new Date(ticketData.startDate).toISOString().split('T')[0] : null,
-                endDate: ticketData.endDate ? new Date(ticketData.endDate).toISOString().split('T')[0] : null
-            };
+            // Créer un objet FormData pour envoyer les fichiers
+            const formData = new FormData();
+            // Ajouter les données du ticket avec les bons noms pour l'API
+            formData.append('titre', ticketData.title);
+            formData.append('description', ticketData.description);
+            formData.append('commentaire', ticketData.commentaire || ticketData.description);
+            formData.append('id_demandeur', ticketData.id_utilisateur); // ou ticketData.id_demandeur si tu l'as
+            formData.append('id_utilisateur', ticketData.id_utilisateur);
+            formData.append('id_societe', ticketData.id_societe);
+            formData.append('id_emplacement', ticketData.id_emplacement);
+            formData.append('id_priorite', ticketData.id_priorite);
+            formData.append('id_categorie', ticketData.id_categorie);
+            formData.append('id_statut', ticketData.id_statut);
+            if (ticketData.startDate) {
+                formData.append('date_debut', ticketData.startDate);
+            }
+            if (ticketData.endDate) {
+                formData.append('date_fin_prevue', ticketData.endDate);
+            }
 
-            const response = await createTicketFromChat(formattedTicketData);
+            // Ajouter les pièces jointes
+            attachments.forEach((file, index) => {
+                formData.append(`attachments[${index}]`, file);
+            });
+
+            const response = await createTicketFromChat(formData);
             setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: `Ticket créé avec succès ! Numéro du ticket : ${response.id}`
             }]);
             setTicketData(null);
+            setAttachments([]);
         } catch (error) {
             const errorMessage = error.message || "Une erreur est survenue lors de la création du ticket.";
             setError(errorMessage);
@@ -521,20 +611,13 @@ const ChatBot = () => {
                                 </td>
                             </tr>
                             <tr>
-                                <td className="px-4 py-2 text-sm text-gray-700">Date de début</td>
-                                <td className="px-4 py-2 text-sm text-gray-600">{ticketData?.startDate || '-'}</td>
-                                <td className="px-4 py-2 text-center">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ticketData?.startDate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {ticketData?.startDate ? '✓' : '✗'}
-                                    </span>
+                                <td className="px-4 py-2 text-sm text-gray-700">Pièces jointes</td>
+                                <td className="px-4 py-2 text-sm text-gray-600">
+                                    {attachments.length > 0 ? attachments.map(f => f.name).join(', ') : '-'}
                                 </td>
-                            </tr>
-                            <tr>
-                                <td className="px-4 py-2 text-sm text-gray-700">Date de fin</td>
-                                <td className="px-4 py-2 text-sm text-gray-600">{ticketData?.endDate || '-'}</td>
                                 <td className="px-4 py-2 text-center">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ticketData?.endDate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {ticketData?.endDate ? '✓' : '✗'}
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${attachments.length > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                        {attachments.length > 0 ? '✓' : '-'}
                                     </span>
                                 </td>
                             </tr>
@@ -565,34 +648,64 @@ const ChatBot = () => {
                         {renderCategories()}
                         {renderLocations()}
                         {renderPriorities()}
+                        {renderAttachments()}
                         <div ref={messagesEndRef} />
                     </div>
                     <form onSubmit={handleSubmit} className="border-t p-4">
-                        <div className="flex space-x-2">
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder="Tapez votre message..."
-                                className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={isLoading}
-                            />
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                            >
-                                {isLoading ? 'Envoi...' : 'Envoyer'}
-                            </button>
+                        <div className="flex flex-col space-y-2">
+                            <div className="flex space-x-2">
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    placeholder="Tapez votre message..."
+                                    className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={isLoading}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                >
+                                    {isLoading ? 'Envoi...' : 'Envoyer'}
+                                </button>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    multiple
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-sm text-gray-600 hover:text-gray-800"
+                                >
+                                    Ajouter des pièces jointes
+                                </button>
+                                <span className="text-sm text-gray-500">
+                                    Types acceptés : PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max 10 Mo)
+                                </span>
+                            </div>
                         </div>
                     </form>
                     {ticketData && (
                         <div className="border-t p-4 bg-gray-50">
                             <button
                                 onClick={handleCreateTicket}
-                                disabled={isLoading}
+                                disabled={
+                                    isLoading ||
+                                    !ticketData?.title ||
+                                    !ticketData?.description ||
+                                    !ticketData?.id_categorie ||
+                                    !ticketData?.id_emplacement ||
+                                    !ticketData?.id_priorite
+                                }
                                 className="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
                             >
                                 {isLoading ? 'Création en cours...' : 'Créer le ticket'}

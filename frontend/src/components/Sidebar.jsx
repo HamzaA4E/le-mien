@@ -96,6 +96,7 @@ const Sidebar = () => {
   let menuItems = [
     { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
     { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
+    
     { 
       path: '/admin/pending-tickets', 
       icon: <FaClock />, 
@@ -153,12 +154,6 @@ const Sidebar = () => {
       { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Mes Tickets' },
       { 
-        path: '/admin/pending-tickets', 
-        icon: <FaClock />, 
-        text: 'Tickets en attente',
-        badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
-      },
-      { 
         path: '/completed-tickets', 
         icon: <FaCheckCircle />, 
         text: 'Tickets terminés',
@@ -177,11 +172,11 @@ const Sidebar = () => {
   }
 
   return (
-    <div className="fixed top-0 left-0 h-screen w-64 bg-gray-800 text-white p-4 flex flex-col z-40">
+    <div className="fixed top-0 left-0 h-screen w-64 bg-gray-800 text-white p-4 flex flex-col z-50 shadow-lg">
       <div className="mb-8">
         <h1 className="text-2xl font-bold">Gestion Tickets</h1>
       </div>
-      <nav>
+      <nav className="flex-1 overflow-y-auto">
         <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.path}>

@@ -5,7 +5,6 @@ import Layout from '../components/Layout';
 const entities = [
   { entity: 'categories', label: 'Catégorie' },
   { entity: 'emplacements', label: 'Emplacement' },
-  { entity: 'societes', label: 'Société' },
   { entity: 'demandeurs', label: 'Demandeur' },
   { entity: 'services', label: 'Service' },
   { entity: 'priorites', label: 'Priorité' },

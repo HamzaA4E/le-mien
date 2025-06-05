@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Mail\TicketAssignedNotification;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\TicketCompletedNotification;
 
 class TicketController extends Controller
 {
@@ -539,6 +540,30 @@ class TicketController extends Controller
                         $comment = "\n\n[{$user->designation}|" . date('d/m/Y H:i:s') . "]Action admin : changement de statut du ticket (non assigné à lui-même).";
                         $ticket->Commentaire = ($ticket->Commentaire ?? '') . $comment;
                         $ticket->save();
+                    }
+                }
+
+                // Envoyer un email si le ticket est marqué comme terminé
+                if (isset($data['Id_Statut'])) {
+                    $statutTermine = Statut::where('designation', 'Terminé')->first();
+                    if ($statutTermine && (int)$data['Id_Statut'] === (int)$statutTermine->id) {
+                        $demandeur = $ticket->demandeur;
+                        $utilisateur = Utilisateur::where('designation', $demandeur->designation)->first();
+                        if ($utilisateur && $utilisateur->email) {
+                            Mail::to($utilisateur->email)
+                                ->send(new TicketCompletedNotification($ticket, $demandeur));
+                            Log::info('Email de notification envoyé au demandeur', [
+                                'ticket_id' => $ticket->id,
+                                'demandeur_email' => $utilisateur->email
+                            ]);
+                        } else {
+                            Log::warning('Impossible d\'envoyer l\'email de notification : utilisateur non trouvé ou sans email', [
+                                'ticket_id' => $ticket->id,
+                                'demandeur_exists' => $demandeur ? 'yes' : 'no',
+                                'utilisateur_exists' => $utilisateur ? 'yes' : 'no',
+                                'has_email' => $utilisateur && $utilisateur->email ? 'yes' : 'no'
+                            ]);
+                        }
                     }
                 }
 

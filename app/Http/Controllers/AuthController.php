@@ -39,8 +39,8 @@ class AuthController extends Controller
             if ($user->statut !== 1) {
                 Log::info('Tentative de connexion échouée - Compte inactif: ' . $request->email);
                 return response()->json([
-                    'message' => 'Votre compte est inactif. Veuillez contacter l\'administrateur.'
-                ], 403);
+                    'message' => 'Email ou mot de passe incorrect'
+                ], 401);
             }
 
             // Vérifier si le mot de passe est "password"

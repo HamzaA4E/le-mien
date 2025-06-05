@@ -8,7 +8,7 @@ class Service extends Model
 {
     protected $table = 'T_SERVICE';
     protected $primaryKey = 'id';
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'designation',

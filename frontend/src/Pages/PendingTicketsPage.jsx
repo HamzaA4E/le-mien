@@ -315,6 +315,7 @@ const PendingTicketsPage = () => {
     const [rejectTicketId, setRejectTicketId] = useState(null);
     const [lastRejectedTicketId, setLastRejectedTicketId] = useState(null);
     const [hasMoreRejected, setHasMoreRejected] = useState(true);
+    const [processedTicketIds] = useState(new Set());
 
     const fetchTickets = useCallback(async () => {
         setSpin(true);
@@ -324,6 +325,7 @@ const PendingTicketsPage = () => {
                 setTickets([]);
                 setLastRejectedTicketId(null);
                 setHasMoreRejected(true);
+                processedTicketIds.clear();
                 await fetchNextRejectedTicket();
             } else {
                 const response = await axios.get('/api/tickets/pending', {
@@ -339,7 +341,7 @@ const PendingTicketsPage = () => {
             setLoading(false);
             setTimeout(() => setSpin(false), 600);
         }
-    }, [showRejected]);
+    }, [showRejected, processedTicketIds]);
 
     const fetchNextRejectedTicket = useCallback(async () => {
         if (!hasMoreRejected) return;
@@ -350,13 +352,13 @@ const PendingTicketsPage = () => {
             });
             
             if (response.data) {
-                // Vérifier si le ticket existe déjà dans la liste
-                const ticketExists = tickets.some(ticket => ticket.id === response.data.id);
-                if (!ticketExists) {
+                // Check if we've already processed this ticket ID
+                if (!processedTicketIds.has(response.data.id)) {
                     setTickets(prevTickets => [...prevTickets, response.data]);
                     setLastRejectedTicketId(response.data.id);
+                    processedTicketIds.add(response.data.id);
                 } else {
-                    // Si le ticket existe déjà, on marque qu'il n'y a plus de tickets à charger
+                    // If we've already processed this ticket, mark that there are no more tickets
                     setHasMoreRejected(false);
                 }
             } else {
@@ -369,7 +371,7 @@ const PendingTicketsPage = () => {
                 console.error('Erreur lors du chargement du ticket refusé:', err);
             }
         }
-    }, [lastRejectedTicketId, hasMoreRejected, tickets]);
+    }, [lastRejectedTicketId, hasMoreRejected, processedTicketIds]);
 
     useEffect(() => {
         fetchTickets();
@@ -602,7 +604,7 @@ const PendingTicketsPage = () => {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {tickets.map((ticket) => (
-                                    <tr key={ticket.id}>
+                                    <tr key={`${ticket.id}-${showRejected ? 'rejected' : 'pending'}`}>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">{ticket.Titre}</div>
                                         </td>

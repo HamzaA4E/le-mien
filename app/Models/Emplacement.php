@@ -11,11 +11,13 @@ class Emplacement extends Model
 
     protected $table = 'T_EMPLACEMENT';
     protected $primaryKey = 'id';
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'designation',
-        'is_active'
+        'is_active',
+        'created_at',
+        'updated_at'
     ];
 
     public function tickets()

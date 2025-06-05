@@ -11,7 +11,7 @@ class Ticket extends Model
 
     protected $table = 'T_TICKET';
     protected $primaryKey = 'id';
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'Titre',

@@ -8,6 +8,7 @@ import AddPrioriteForm from '../components/forms/AddPrioriteForm';
 import AddCategorieForm from '../components/forms/AddCategorieForm';
 import AddStatutForm from '../components/forms/AddStatutForm';
 import AddExecutantForm from '../components/forms/AddExecutantForm';
+import { FaPlus, FaTrash } from 'react-icons/fa';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -58,6 +59,8 @@ const CreateTicket = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [attachments, setAttachments] = useState([]);
 
   const getCacheKey = (entity) => `create_ticket_${entity}_cache`;
 
@@ -207,6 +210,15 @@ const CreateTicket = () => {
     setError('');
   };
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setAttachments(prev => [...prev, ...files]);
+  };
+
+  const removeAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleFormSuccess = (data, type) => {
     const newItem = { ...data, id: data.id.toString() };
     const setters = {
@@ -236,29 +248,23 @@ const CreateTicket = () => {
     setSuccess('');
     setIsSubmitting(true);
     try {
-      // Create FormData object
       const formDataObj = new FormData();
-      
-      // Add all form fields to FormData
       Object.keys(formData).forEach(key => {
-        if (key === 'attachment' && formData[key]) {
-          // If it's a file input, get the actual file
-          const fileInput = document.querySelector('input[name="attachment"]');
-          if (fileInput && fileInput.files[0]) {
-            formDataObj.append('attachment', fileInput.files[0]);
-          }
-        } else if (formData[key] !== '') {
-          // Convert numeric fields
+        if (key === 'attachment') return; // On gère attachments séparément
+        if (formData[key] !== '') {
           if (key.startsWith('id_')) {
             formDataObj.append(key, Number(formData[key]));
-          } else if (key === 'date_debut' || key === 'date_fin_prevue') {
-            // Format dates as YYYY-MM-DD
+          } else if (key === 'date_debut' || key === 'date_fin_prevue' || key === 'date_fin_reelle') {
             const date = formData[key].split(' ')[0];
             formDataObj.append(key, date);
           } else {
             formDataObj.append(key, formData[key]);
           }
         }
+      });
+      // Ajouter les fichiers
+      attachments.forEach((file, idx) => {
+        formDataObj.append('attachments[]', file);
       });
 
       // Add user ID and other required fields
@@ -293,6 +299,7 @@ const CreateTicket = () => {
           date_debut: '',
           date_fin_prevue: '',
         });
+        setAttachments([]);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {
@@ -438,12 +445,42 @@ const CreateTicket = () => {
             </div>
             <div className="md:col-span-2">
               <label className="block mb-1">Pièce jointe</label>
-              <input
-                type="file"
-                name="attachment"
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-              />
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    name="attachments"
+                    multiple
+                    onChange={handleFileChange}
+                    className="w-full border rounded px-3 py-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => document.querySelector('input[name=attachments]').click()}
+                    className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    title="Ajouter une pièce jointe"
+                  >
+                    <FaPlus />
+                  </button>
+                </div>
+                {attachments.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {attachments.map((file, idx) => (
+                      <li key={idx} className="flex items-center gap-2 text-sm bg-gray-100 rounded px-2 py-1">
+                        <span className="truncate flex-1">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(idx)}
+                          className="text-red-600 hover:text-red-800"
+                          title="Supprimer"
+                        >
+                          <FaTrash />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
 

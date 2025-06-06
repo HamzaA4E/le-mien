@@ -282,10 +282,30 @@ class TicketController extends Controller
                     'date_creation' => $dateCreation
                 ]);
                 // Gestion de la pièce jointe
+                $attachmentPathValue = null;
                 $attachmentPaths = [];
-                if ($request->hasFile('attachments')) {
+                if ($request->hasFile('attachment')) {
+                    $file = $request->file('attachment');
+                    Log::info('Fichier reçu (singulier):', [
+                        'name' => $file->getClientOriginalName(),
+                        'size' => $file->getSize(),
+                        'mime' => $file->getMimeType()
+                    ]);
+                    try {
+                        $originalName = $file->getClientOriginalName();
+                        $path = $file->storeAs('attachments', $originalName, 'public');
+                        $attachmentPathValue = $path;
+                        Log::info('Fichier stocké avec succès:', ['path' => $path]);
+                    } catch (\Exception $e) {
+                        Log::error('Erreur lors du stockage du fichier:', [
+                            'error' => $e->getMessage(),
+                            'file' => $file->getClientOriginalName()
+                        ]);
+                        throw $e;
+                    }
+                } else if ($request->hasFile('attachments')) {
                     foreach ($request->file('attachments') as $file) {
-                        Log::info('Fichier reçu:', [
+                        Log::info('Fichier reçu (multiple):', [
                             'name' => $file->getClientOriginalName(),
                             'size' => $file->getSize(),
                             'mime' => $file->getMimeType()
@@ -302,16 +322,16 @@ class TicketController extends Controller
                             ]);
                             throw $e;
                         }
+
+                    }
+                    if (!empty($attachmentPaths)) {
+                        $attachmentPathValue = json_encode($attachmentPaths);
                     }
                 } else {
                     Log::info('Aucun fichier n\'a été envoyé');
                 }
 
                 // Création du ticket
-                $attachmentPathValue = null;
-                if (!empty($attachmentPaths)) {
-                    $attachmentPathValue = json_encode($attachmentPaths);
-                }
                 $data = [
                     'Titre' => $validated['titre'],
                     'Description' => $validated['description'],

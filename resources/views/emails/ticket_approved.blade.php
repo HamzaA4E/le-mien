@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ticket terminé</title>
+    <title>Ticket approuvé</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -19,7 +19,7 @@
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+            background: linear-gradient(135deg, #065f46 0%, #059669 100%);
             color: white;
             padding: 30px 20px;
             text-align: center;
@@ -78,12 +78,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Ticket terminé</h1>
+            <h1>Ticket approuvé</h1>
         </div>
         <div class="content">
             <p>Bonjour {{ $demandeur->designation }},</p>
             
-            <p>Votre ticket a été marqué comme terminé. Voici les détails :</p>
+            <p>Votre ticket a été approuvé et sera traité. Voici les détails :</p>
             
             <div class="details">
                 <h2>Détails du ticket</h2>
@@ -108,14 +108,20 @@
                     <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateCreation)->format('d/m/Y') }}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Date de fin :</span>
-                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateFinReelle)->format('d/m/Y') }}</span>
+                    <span class="detail-label">Date de début :</span>
+                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateDebut)->format('d/m/Y') }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Date de fin prévue :</span>
+                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateFinPrevue)->format('d/m/Y') }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Exécutant :</span>
+                    <span class="detail-value">{{ $ticket->executant->designation }}</span>
                 </div>
             </div>
             
-            <p>Vous pouvez consulter les détails complets de votre ticket en vous connectant à la plateforme.</p>
-            
-            <p>Si vous êtes satisfait du travail effectué, vous pouvez approuver le ticket. Sinon, vous avez la possibilité de le refuser et de demander des modifications.</p>
+            <p>Vous pouvez suivre l'avancement de votre ticket en vous connectant à la plateforme.</p>
         </div>
         <div class="footer">
             <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>

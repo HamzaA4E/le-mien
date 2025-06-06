@@ -2,22 +2,23 @@ import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
 import AddDemandeurForm from '../components/forms/AddDemandeurForm';
-import AddSocieteForm from '../components/forms/AddSocieteForm';
+
 import AddEmplacementForm from '../components/forms/AddEmplacementForm';
 import AddPrioriteForm from '../components/forms/AddPrioriteForm';
 import AddCategorieForm from '../components/forms/AddCategorieForm';
 import AddStatutForm from '../components/forms/AddStatutForm';
+import AddExecutantForm from '../components/forms/AddExecutantForm';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const CreateTicket = () => {
   const [formData, setFormData] = useState({
     id_demandeur: '',
-    id_societe: '',
     id_emplacement: '',
     id_priorite: '',
     id_categorie: '',
     id_statut: '',
+    id_executant: '',
     titre: '',
     description: '',
     commentaire: '',
@@ -26,19 +27,21 @@ const CreateTicket = () => {
   });
 
   const [demandeurs, setDemandeurs] = useState([]);
-  const [societes, setSocietes] = useState([]);
+  
   const [emplacements, setEmplacements] = useState([]);
   const [priorites, setPriorites] = useState([]);
   const [categories, setCategories] = useState([]);
   const [statuts, setStatuts] = useState([]);
+  const [executants, setExecutants] = useState([]);
 
   const [loadingStates, setLoadingStates] = useState({
     demandeurs: true,
-    societes: true,
+    
     emplacements: true,
     priorites: true,
     categories: true,
     statuts: true,
+    executants: true,
   });
 
   const [error, setError] = useState('');
@@ -46,11 +49,12 @@ const CreateTicket = () => {
 
   const [showForms, setShowForms] = useState({
     demandeur: false,
-    societe: false,
+    
     emplacement: false,
     priorite: false,
     categorie: false,
     statut: false,
+    executant: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,11 +112,12 @@ const CreateTicket = () => {
       try {
         setLoadingStates(prev => ({
           demandeurs: true,
-          societes: true,
+         
           emplacements: true,
           priorites: true,
           categories: true,
           statuts: true,
+          executants: true,
         }));
 
         // Vérifier le cache dans localStorage
@@ -121,18 +126,20 @@ const CreateTicket = () => {
           const { data, timestamp } = JSON.parse(cached);
           if (Date.now() - timestamp < CACHE_DURATION) {
             setDemandeurs(data.demandeurs || []);
-            setSocietes(data.societes || []);
+            
             setEmplacements(data.emplacements || []);
             setPriorites(data.priorites || []);
             setCategories(data.categories || []);
             setStatuts(data.statuts || []);
+            setExecutants(data.executants || []);
             setLoadingStates(prev => ({
               demandeurs: false,
-              societes: false,
+              
               emplacements: false,
               priorites: false,
               categories: false,
               statuts: false,
+              executants: false,
             }));
             return;
           }
@@ -150,11 +157,12 @@ const CreateTicket = () => {
 
         // Mettre à jour les états
         setDemandeurs(options.demandeurs || []);
-        setSocietes(options.societes || []);
+      
         setEmplacements(options.emplacements || []);
         setPriorites(options.priorites || []);
         setCategories(options.categories || []);
         setStatuts(options.statuts || []);
+        setExecutants(options.executants || []);
 
       } catch (err) {
         console.error('Erreur lors du chargement des options:', err);
@@ -162,11 +170,12 @@ const CreateTicket = () => {
       } finally {
         setLoadingStates(prev => ({
           demandeurs: false,
-          societes: false,
+         
           emplacements: false,
           priorites: false,
           categories: false,
           statuts: false,
+          executants: false,
         }));
       }
     };
@@ -202,11 +211,12 @@ const CreateTicket = () => {
     const newItem = { ...data, id: data.id.toString() };
     const setters = {
       demandeur: setDemandeurs,
-      societe: setSocietes,
+     
       emplacement: setEmplacements,
       priorite: setPriorites,
       categorie: setCategories,
-      statut: setStatuts
+      statut: setStatuts,
+      executant: setExecutants
     };
 
     console.log(`[CreateTicket] Ajout d'une entité`, { type, data: newItem });
@@ -271,11 +281,12 @@ const CreateTicket = () => {
         setSuccess('Ticket créé avec succès !');
         setFormData({
           id_demandeur: '',
-          id_societe: '',
+          
           id_emplacement: '',
           id_priorite: '',
           id_categorie: '',
           id_statut: '',
+          id_executant: '',
           titre: '',
           description: '',
           commentaire: '',
@@ -399,7 +410,7 @@ const CreateTicket = () => {
 
             {/* Demandeur et Société */}
             {renderSelect('id_demandeur', 'Demandeur', demandeurs, loadingStates.demandeurs)}
-            {renderSelect('id_societe', 'Société', societes, loadingStates.societes)}
+           
 
             {/* Emplacement et Priorité */}
             {renderSelect('id_emplacement', 'Emplacement', emplacements, loadingStates.emplacements)}
@@ -410,6 +421,9 @@ const CreateTicket = () => {
 
             {/* Statut */}
             {renderSelect('id_statut', 'Statut', statuts, loadingStates.statuts)}
+
+            {/* Exécutant */}
+            {renderSelect('id_executant', 'Exécutant', executants, loadingStates.executants)}
 
             {/* Commentaire */}
             <div className="md:col-span-2">
@@ -466,14 +480,7 @@ const CreateTicket = () => {
             onCancel={() => setShowForms(prev => ({ ...prev, demandeur: false }))}
           />
         )}
-        {showForms.societe && (
-          <AddSocieteForm
-            onSuccess={(data) => {
-              handleFormSuccess(data, 'societe');
-            }}
-            onCancel={() => setShowForms(prev => ({ ...prev, societe: false }))}
-          />
-        )}
+        
         {showForms.emplacement && (
           <AddEmplacementForm
             onSuccess={(data) => {
@@ -504,6 +511,14 @@ const CreateTicket = () => {
               handleFormSuccess(data, 'statut');
             }}
             onCancel={() => setShowForms(prev => ({ ...prev, statut: false }))}
+          />
+        )}
+        {showForms.executant && (
+          <AddExecutantForm
+            onSuccess={(data) => {
+              handleFormSuccess(data, 'executant');
+            }}
+            onCancel={() => setShowForms(prev => ({ ...prev, executant: false }))}
           />
         )}
 

@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\Log;
 use App\Mail\TicketAssignedNotification;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\TicketCompletedNotification;
+use App\Mail\TicketApprovedNotification;
+use App\Mail\TicketRejectedNotification;
+use App\Models\Executant;
 
 class TicketController extends Controller
 {
@@ -205,8 +208,12 @@ class TicketController extends Controller
                 'date_fin_prevue' => [
                     'nullable',
                     'date',
-                    function ($attribute, $value, $fail) use ($request) {
-                        if ($value && $request->date_debut && strtotime($value) < strtotime($request->date_debut)) {
+                    function (
+                        $attribute, $value, $fail
+                    ) use ($request) {
+                        if (
+                            $value && $request->date_debut && strtotime($value) < strtotime($request->date_debut)
+                        ) {
                             $fail('La date de fin prévue ne peut pas être antérieure à la date de début.');
                         }
                     },
@@ -218,6 +225,7 @@ class TicketController extends Controller
                 'id_priorite' => 'required|exists:T_PRIORITE,id',
                 'id_categorie' => 'required|exists:T_CATEGORIE,id',
                 'id_statut' => 'required|exists:T_STATUT,id',
+                'id_executant' => 'nullable|exists:T_EXECUTANT,id',
             ]);
 
             Log::info('Données validées:', $validated);
@@ -315,6 +323,7 @@ class TicketController extends Controller
                     'Id_Emplacement' => (int)$validated['id_emplacement'],
                     'Id_Categorie' => (int)$validated['id_categorie'],
                     'Id_Utilisat' => (int)$validated['id_utilisateur'],
+                    'Id_Executant' => isset($validated['id_executant']) ? (int)$validated['id_executant'] : null,
                     'DateDebut' => $dateDebut,
                     'DateFinPrevue' => $dateFinPrevue,
                     'DateFinReelle' => $dateFinReelle,
@@ -372,6 +381,13 @@ class TicketController extends Controller
                 'reports',
                 'executant'
             ])->findOrFail($id);
+
+            // Add logging to inspect the executant data
+            Log::info('Ticket fetched with executant relationship', [
+                'ticket_id' => $ticket->id,
+                'Id_Executant' => $ticket->Id_Executant,
+                'executant_data' => $ticket->executant
+            ]);
 
             // Si le ticket a des commentaires, récupérer les informations des utilisateurs
             if ($ticket->Commentaire) {
@@ -431,8 +447,12 @@ class TicketController extends Controller
                     'sometimes',
                     'date_format:d/m/Y',
                     function ($attribute, $value, $fail) use ($request) {
-                        if ($request->has('DateDebut') && strtotime($value) < strtotime($request->DateDebut)) {
-                            $fail('La date de fin prévue ne peut pas être antérieure à la date de début.');
+                        if ($request->has('DateDebut')) {
+                            $dateDebut = \DateTime::createFromFormat('d/m/Y', $request->DateDebut);
+                            $dateFinPrevue = \DateTime::createFromFormat('d/m/Y', $value);
+                            if ($dateDebut && $dateFinPrevue && $dateFinPrevue < $dateDebut) {
+                                $fail('La date de fin prévue ne peut pas être antérieure à la date de début.');
+                            }
                         }
                     },
                 ],
@@ -639,17 +659,37 @@ class TicketController extends Controller
     //Récupérer les options
     public function getOptions()
     {
-        return response()->json([
-            'options' => [
-                'statuts' => Statut::where('is_active', true)
-                    ->where('id', '!=', 1) // Exclure le statut "Nouveau"
-                    ->get(),
-                'priorites' => Priorite::where('is_active', true)->get(),
-                'demandeurs' => Demandeur::where('is_active', true)->get(),
-                'emplacements' => Emplacement::where('is_active', true)->get(),
-                'categories' => Categorie::where('is_active', true)->get()
-            ]
-        ]);
+        try {
+            $demandeurs = Demandeur::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
+            $emplacements = Emplacement::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
+            $priorites = Priorite::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
+            $categories = Categorie::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
+            $statuts = Statut::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
+            // Fetch executants from the Executant model
+            $executants = Executant::where('is_active', true)
+                                     ->orderBy('designation')
+                                     ->get(['id', 'designation', 'is_active']);
+
+            return response()->json([
+                'options' => [
+                    'demandeurs' => $demandeurs,
+                    'emplacements' => $emplacements,
+                    'priorites' => $priorites,
+                    'categories' => $categories,
+                    'statuts' => $statuts,
+                    'executants' => $executants,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching ticket options', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des options de ticket',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     //Récupérer les statistiques
     public function getStats()
@@ -1188,7 +1228,7 @@ class TicketController extends Controller
                 'executantId' => 'required|integer|exists:T_EXECUTANT,id'
             ]);
 
-            $ticket = Ticket::with(['statut', 'priorite', 'categorie'])->findOrFail($id);
+            $ticket = Ticket::with(['statut', 'priorite', 'categorie', 'demandeur'])->findOrFail($id);
             
             // Log détaillé du statut du ticket
             Log::info('Statut du ticket', [
@@ -1214,41 +1254,48 @@ class TicketController extends Controller
             $dateDebut = Carbon::createFromFormat('Y-m-d', $validated['DateDebut'])->format('d/m/Y H:i:s');
             $dateFinPrevue = Carbon::createFromFormat('Y-m-d', $validated['DateFinPrevue'])->format('d/m/Y H:i:s');
 
-            // Log des données avant la mise à jour
-            Log::info('Données de mise à jour du ticket', [
-                'ticket_id' => $id,
-                'nouveau_statut' => 3,
-                'date_debut' => $dateDebut,
-                'date_fin_prevue' => $dateFinPrevue,
-                'executant_id' => $validated['executantId']
-            ]);
-
             // Mettre à jour le ticket
-            $ticket->update([
-                'Id_Statut' => 3, // En instance
-                'DateDebut' => $dateDebut,
-                'DateFinPrevue' => $dateFinPrevue,
-                'Id_Executant' => $validated['executantId']
-            ]);
-
-            // Ajouter un commentaire automatique
-            $user = auth()->user();
-            $comment = "\n\n[{$user->designation}|" . date('d/m/Y H:i:s') . "]Ticket approuvé et assigné à l'exécutant.";
-            $ticket->Commentaire = ($ticket->Commentaire ?? '') . $comment;
+            $ticket->Id_Statut = Statut::where('designation', 'En cours')->value('id');
+            $ticket->Id_Executant = $validated['executantId'];
+            $ticket->DateDebut = $dateDebut;
+            $ticket->DateFinPrevue = $dateFinPrevue;
             $ticket->save();
 
-            // Récupérer l'exécutant pour l'email
-            $executant = \App\Models\Executant::find($validated['executantId']);
-            
-            // Envoyer l'email de notification
-            if ($executant) {
-                try {
-                    // Récupérer l'utilisateur associé à l'exécutant
-                    $utilisateur = \App\Models\Utilisateur::where('designation', $executant->designation)->first();
-                    
+            // Envoyer l'email au demandeur
+            try {
+                $demandeur = $ticket->demandeur;
+                if ($demandeur) {
+                    $utilisateur = Utilisateur::where('designation', $demandeur->designation)->first();
+                    if ($utilisateur && $utilisateur->email) {
+                        Mail::to($utilisateur->email)->send(new TicketApprovedNotification($ticket, $demandeur));
+                        Log::info('Email d\'approbation envoyé avec succès', [
+                            'ticket_id' => $ticket->id,
+                            'demandeur_id' => $demandeur->id,
+                            'utilisateur_email' => $utilisateur->email
+                        ]);
+                    } else {
+                        Log::warning('Email non trouvé pour le demandeur', [
+                            'demandeur_id' => $demandeur->id,
+                            'demandeur_designation' => $demandeur->designation
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de l\'envoi de l\'email d\'approbation', [
+                    'error' => $e->getMessage(),
+                    'ticket_id' => $ticket->id
+                ]);
+            }
+
+            // Envoyer l'email à l'exécutant
+            try {
+                $executant = \App\Models\Executant::find($validated['executantId']);
+                if ($executant) {
+                    $utilisateur = Utilisateur::where('designation', $executant->designation)->first();
                     if ($utilisateur && $utilisateur->email) {
                         Mail::to($utilisateur->email)->send(new TicketAssignedNotification($ticket, $executant));
-                        Log::info('Email de notification envoyé à l\'exécutant', [
+                        Log::info('Email d\'assignation envoyé avec succès', [
+                            'ticket_id' => $ticket->id,
                             'executant_id' => $executant->id,
                             'utilisateur_email' => $utilisateur->email
                         ]);
@@ -1258,12 +1305,12 @@ class TicketController extends Controller
                             'executant_designation' => $executant->designation
                         ]);
                     }
-                } catch (\Exception $e) {
-                    Log::error('Erreur lors de l\'envoi de l\'email de notification', [
-                        'error' => $e->getMessage(),
-                        'executant_id' => $executant->id
-                    ]);
                 }
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de l\'envoi de l\'email de notification', [
+                    'error' => $e->getMessage(),
+                    'executant_id' => $executant->id
+                ]);
             }
 
             Log::info('Ticket approuvé avec succès', [
@@ -1304,7 +1351,7 @@ class TicketController extends Controller
                 'raison' => 'required|string'
             ]);
 
-            $ticket = Ticket::findOrFail($id);
+            $ticket = Ticket::with(['demandeur'])->findOrFail($id);
             $refuseId = \App\Models\Statut::where('designation', 'Refusé')->value('id');
             $ticket->Id_Statut = $refuseId; // Statut "Refusé"
             $ticket->save();
@@ -1317,6 +1364,32 @@ class TicketController extends Controller
                 'type' => 'rejet',
                 'is_viewed' => false
             ]);
+
+            // Envoyer l'email au demandeur
+            try {
+                $demandeur = $ticket->demandeur;
+                if ($demandeur) {
+                    $utilisateur = Utilisateur::where('designation', $demandeur->designation)->first();
+                    if ($utilisateur && $utilisateur->email) {
+                        Mail::to($utilisateur->email)->send(new TicketRejectedNotification($ticket, $demandeur, $request->raison));
+                        Log::info('Email de rejet envoyé avec succès', [
+                            'ticket_id' => $ticket->id,
+                            'demandeur_id' => $demandeur->id,
+                            'utilisateur_email' => $utilisateur->email
+                        ]);
+                    } else {
+                        Log::warning('Email non trouvé pour le demandeur', [
+                            'demandeur_id' => $demandeur->id,
+                            'demandeur_designation' => $demandeur->designation
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de l\'envoi de l\'email de rejet', [
+                    'error' => $e->getMessage(),
+                    'ticket_id' => $ticket->id
+                ]);
+            }
 
             return response()->json([
                 'message' => 'Ticket refusé avec succès',

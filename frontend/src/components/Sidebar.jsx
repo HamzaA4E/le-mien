@@ -96,7 +96,7 @@ const Sidebar = () => {
   let menuItems = [
     { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
     { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
-    
+    { path: '/admin/create-ticket', icon: <FaPlus />, text: 'Créer un ticket (Admin)' },
     { 
       path: '/admin/pending-tickets', 
       icon: <FaClock />, 
@@ -172,26 +172,26 @@ const Sidebar = () => {
   }
 
   return (
-    <div className="fixed top-0 left-0 h-screen w-64 bg-gray-800 text-white p-4 flex flex-col z-50 shadow-lg">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">Gestion Tickets</h1>
+    <div className="fixed top-0 left-0 h-screen w-64 bg-gray-800 text-white p-3 flex flex-col z-50 shadow-lg">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold">Gestion Tickets</h1>
       </div>
       <nav className="flex-1 overflow-y-auto">
-        <ul className="space-y-2">
+        <ul className="space-y-1">
           {menuItems.map((item) => (
             <li key={item.path}>
               <Link
                 to={item.path}
-                className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${
+                className={`flex items-center space-x-2 p-2 rounded-lg transition-colors text-base ${
                   isActive(item.path)
                     ? 'bg-gray-900 text-white'
                     : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 }`}
               >
-                <span className="text-lg">{item.icon}</span>
+                <span className="text-xl flex-shrink-0">{item.icon}</span>
                 <span className="flex-1">{item.text}</span>
                 {item.badge && (
-                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  <span className="bg-red-500 text-white text-sm font-bold px-2 py-0.5 rounded-full min-w-[1.5rem] text-center flex-shrink-0">
                     {item.badge}
                   </span>
                 )}
@@ -201,12 +201,12 @@ const Sidebar = () => {
           <li>
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-2 p-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white w-full"
+              className="flex items-center space-x-2 p-2 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white w-full text-base"
               disabled={loading}
             >
-              <span className="text-lg">
+              <span className="text-xl flex-shrink-0">
                 {loading ? (
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.908l2-2.617zm10 0l2 2.617A7.962 7.962 0 0020 12h-4a8 8 0 01-2 5.291z"></path>
                   </svg>

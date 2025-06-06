@@ -15,6 +15,7 @@ import CompletedTicketsPage from '../pages/CompletedTicketsPage';
 import Register from '../pages/Register';
 import RegisterRequests from '../pages/AdminRegisterRequests';
 import ReportsPage from '../pages/ReportsPage';
+import CreateTicket from '../Pages/CreateTicket';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -109,6 +110,11 @@ const router = createBrowserRouter([
   {
     path: '/reports',
     element: <PrivateRoute><ReportsPage /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/admin/create-ticket',
+    element: <PrivateRoute><CreateTicket /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
   {

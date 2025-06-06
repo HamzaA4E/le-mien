@@ -33,6 +33,10 @@ const EditTicket = () => {
   const [currentAttachment, setCurrentAttachment] = useState(null);
   const API_BASE_URL = 'http://localhost:8000';
 
+  // Ajout de la détection admin
+  const currentUser = JSON.parse(localStorage.getItem('user'));
+  const isAdmin = currentUser && currentUser.niveau === 1;
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -144,12 +148,9 @@ const EditTicket = () => {
       // Formater les dates au format attendu par le backend
       const formatDateForBackend = (dateStr) => {
         if (!dateStr) return null;
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('fr-FR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        });
+        // dateStr est du type '2025-06-12'
+        const [year, month, day] = dateStr.split('-');
+        return `${day}/${month}/${year}`;
       };
 
       // Créer un objet avec les données formatées
@@ -322,8 +323,8 @@ const EditTicket = () => {
                 required
                 value={formData.Id_Statut}
                 onChange={handleChange}
-                disabled
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
+                disabled={!isAdmin ? true : false}
+                className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               >
                 <option value="">Sélectionner un statut</option>
                 {options.statuts.map(statut => (
@@ -344,8 +345,8 @@ const EditTicket = () => {
                 required
                 value={formData.Id_Demandeur}
                 onChange={handleChange}
-                disabled
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
+                disabled={!isAdmin ? true : false}
+                className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               >
                 <option value="">Sélectionner un demandeur</option>
                 {options.demandeurs.map(demandeur => (
@@ -412,7 +413,7 @@ const EditTicket = () => {
                 <option value="">Sélectionner un exécutant</option>
                 {options.executants.map(executant => (
                   <option key={executant.id} value={executant.id}>
-                    {executant.nom}
+                    {executant.designation}
                   </option>
                 ))}
               </select>
@@ -429,8 +430,8 @@ const EditTicket = () => {
                 required
                 value={formData.DateDebut}
                 onChange={handleChange}
-                disabled
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
+                disabled={!isAdmin ? true : false}
+                className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
             </div>
 
@@ -445,8 +446,8 @@ const EditTicket = () => {
                 required
                 value={formData.DateFinPrevue}
                 onChange={handleChange}
-                disabled
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
+                disabled={!isAdmin ? true : false}
+                className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
             </div>
           </div>

@@ -28,6 +28,19 @@ const ListUsers = () => {
   const [resetPasswordForm, setResetPasswordForm] = useState({
     admin_password: ''
   });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [userToEdit, setUserToEdit] = useState(null);
+  const [editForm, setEditForm] = useState({
+    designation: '',
+    email: '',
+    niveau: '',
+    statut: '',
+    id_service: ''
+  });
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [services, setServices] = useState([]);
 
   // Récupérer le user courant
   let currentUser = null;
@@ -59,6 +72,16 @@ const ListUsers = () => {
     );
   };
 
+  const fetchServices = async () => {
+    try {
+      const response = await axios.get('/api/services');
+      setServices(response.data);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des services:', error);
+      setError('Erreur lors de la récupération des services');
+    }
+  };
+
   const fetchUsers = async (force = false) => {
     setSpin(true);
     if (userCache.users && userCache.lastFetch && !force) {
@@ -87,6 +110,7 @@ const ListUsers = () => {
 
   useEffect(() => {
     fetchUsers(true);
+    fetchServices();
   }, [location.pathname]);
 
   const handleDelete = async (userId) => {
@@ -175,6 +199,47 @@ const ListUsers = () => {
       setResetPasswordError(err.response?.data?.message || 'Erreur lors de la réinitialisation du mot de passe');
     } finally {
       setResetPasswordLoading(false);
+    }
+  };
+
+  const handleEdit = (user) => {
+    setUserToEdit(user);
+    setEditForm({
+      designation: user.designation,
+      email: user.email,
+      niveau: user.niveau,
+      statut: user.statut.toString(),
+      id_service: user.id_service || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditLoading(true);
+    setEditError('');
+    setEditSuccess('');
+
+    try {
+      await axios.put(`/api/utilisateurs/${userToEdit.id}`, editForm);
+      setEditSuccess('Utilisateur modifié avec succès');
+      await fetchUsers(true);
+      setTimeout(() => {
+        setShowEditModal(false);
+        setUserToEdit(null);
+      }, 2000);
+    } catch (err) {
+      setEditError(err.response?.data?.message || 'Erreur lors de la modification de l\'utilisateur');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -331,6 +396,127 @@ const ListUsers = () => {
           </div>
         )}
 
+        {/* Modal d'édition */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full">
+              <h2 className="text-2xl font-bold mb-6">Modifier l'utilisateur</h2>
+              
+              {editError && (
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                  {editError}
+                </div>
+              )}
+              
+              {editSuccess && (
+                <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
+                  {editSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Désignation</label>
+                  <input
+                    type="text"
+                    name="designation"
+                    value={editForm.designation}
+                    onChange={handleEditChange}
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editForm.email}
+                    onChange={handleEditChange}
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Niveau d'accès</label>
+                  <select
+                    name="niveau"
+                    value={editForm.niveau}
+                    onChange={handleEditChange}
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option value="">Sélectionner un niveau</option>
+                    <option value="1">Administrateur</option>
+                    <option value="2">Directeur Général</option>
+                    <option value="3">Directeur Département</option>
+                    <option value="4">Demandeur</option>
+                    <option value="5">Exécutant</option>
+                  </select>
+                </div>
+
+                {(editForm.niveau === '3' || editForm.niveau === '4') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Service</label>
+                    <select
+                      name="id_service"
+                      value={editForm.id_service}
+                      onChange={handleEditChange}
+                      required
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    >
+                      <option value="">Sélectionner un service</option>
+                      {services.map(service => (
+                        <option key={service.id} value={service.id}>
+                          {service.designation}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Statut</label>
+                  <select
+                    name="statut"
+                    value={editForm.statut}
+                    onChange={handleEditChange}
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option value="1">Actif</option>
+                    <option value="0">Inactif</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setUserToEdit(null);
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                      editLoading ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {editLoading ? 'Modification en cours...' : 'Modifier'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="overflow-x-auto">
             <table className="w-full divide-y divide-gray-200">
@@ -397,6 +583,13 @@ const ListUsers = () => {
                       <div className="flex justify-end space-x-2 gap-2">
                         {currentUser?.niveau === 1 && user.id !== currentUser?.id && (
                           <>
+                            <button
+                              onClick={() => handleEdit(user)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Modifier l'utilisateur"
+                            >
+                              <FaEdit />
+                            </button>
                             <button
                               onClick={() => handleSetStatut(user.id, user.statut === 1 ? 0 : 1)}
                               className={user.statut === 1 ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}

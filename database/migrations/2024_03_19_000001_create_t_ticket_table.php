@@ -14,7 +14,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('Id_Demandeur');
             $table->unsignedSmallInteger('Id_Utilisat');
             $table->unsignedSmallInteger('Id_Emplacement');
-            $table->unsignedSmallInteger('Id_Priorite');
+            $table->unsignedSmallInteger('Id_Priorite')->nullable();
             $table->unsignedSmallInteger('Id_Categorie');
             $table->unsignedSmallInteger('Id_Statut');
             $table->string('Titre', 200);

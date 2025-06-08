@@ -72,7 +72,7 @@ export const chatWithGemini = async (message, conversationHistory, userInfo) => 
             }
 
             // Vérification que toutes les options nécessaires sont présentes
-            const requiredOptions = ['categories', 'emplacements', 'priorites'];
+            const requiredOptions = ['categories', 'emplacements'];
             const missingOptions = requiredOptions.filter(option => !userInfo.ticketOptions[option]?.length);
             
             if (missingOptions.length > 0) {
@@ -127,7 +127,6 @@ RÈGLES DE REFORMULATION :
 OPTIONS DISPONIBLES :
 - Catégories : ${formatOptions(userInfo.ticketOptions.categories)}
 - Emplacements : ${formatOptions(userInfo.ticketOptions.emplacements)}
-- Priorités : ${formatOptions(userInfo.ticketOptions.priorites)}
 
 ÉTAPES OBLIGATOIRES (à suivre dans l'ordre) :
 
@@ -167,13 +166,7 @@ OPTIONS DISPONIBLES :
    - ATTENDRE sa réponse
    - Passer à l'étape suivante
 
-7. DÉTERMINATION DE LA PRIORITÉ
-   - Afficher les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}
-   - Demander à l'utilisateur de choisir une priorité parmi celles listées
-   - ATTENDRE sa réponse
-   - Passer à l'étape suivante
-
-8. RÉSUMÉ ET DEMANDE DE CRÉATION
+7. RÉSUMÉ ET DEMANDE DE CRÉATION
    - Présenter le résumé dans le format suivant :
      📋 RÉSUMÉ DU TICKET
      ──────────────────────────────
@@ -183,7 +176,6 @@ OPTIONS DISPONIBLES :
      📎 Pièces jointes : [liste des pièces jointes ou "Aucune"]
      🏷️ Catégorie : [catégorie]
      📍 Emplacement : [emplacement]
-     ⚡ Priorité : [priorité]
      ──────────────────────────────
    - Demander si l'utilisateur souhaite procéder à la création du ticket
    - Si l'utilisateur répond "oui" :
@@ -199,7 +191,6 @@ EXEMPLES DE RÉPONSES PROFESSIONNELLES :
 - "Souhaitez-vous joindre des fichiers à ce ticket ? Les types de fichiers acceptés sont : PDF, DOC, DOCX, XLS, XLSX, JPG, PNG. La taille maximale par fichier est de 10 Mo."
 - "Voici les catégories disponibles : ${formatOptions(userInfo.ticketOptions.categories)}. Quelle catégorie correspond le mieux à votre demande ?"
 - "Voici les emplacements disponibles : ${formatOptions(userInfo.ticketOptions.emplacements)}. Quel est l'emplacement concerné ?"
-- "Voici les priorités disponibles : ${formatOptions(userInfo.ticketOptions.priorites)}. Quelle priorité souhaitez-vous attribuer à ce ticket ?"
 - "Je vais vérifier que toutes les informations sont présentes avant de procéder à la création du ticket."
 - "Il manque certaines informations. Pourriez-vous me préciser [information manquante] ?"
 - "Toutes les informations sont présentes. Je vais transmettre ces informations pour la création du ticket."
@@ -294,14 +285,12 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
         company: userInfo?.email ? userInfo.email.split('@')[1] : 'Non spécifiée',
         requester: userInfo?.designation || 'Non spécifié',
         status: 'Nouveau',
-        priority: '',
         startDate: '',
         endDate: '',
         createdAt: new Date().toISOString(),
         id_utilisateur: userInfo?.id || 1,
         id_societe: userInfo?.id_societe || 1,
         id_emplacement: null,
-        id_priorite: null,
         id_categorie: null,
         id_statut: 1
     };
@@ -459,11 +448,6 @@ export const extractTicketInfo = (conversationHistory, ticketOptions, userInfo) 
                 ticketInfo.id_emplacement = findIdByDesignation(ticketInfo.location, ticketOptions.emplacements);
                 console.log('Emplacement extrait:', ticketInfo.location, 'ID:', ticketInfo.id_emplacement);
 
-                // Extraire la priorité
-                ticketInfo.priority = extractValue(content, '⚡');
-                ticketInfo.id_priorite = findIdByDesignation(ticketInfo.priority, ticketOptions.priorites);
-                console.log('Priorité extraite:', ticketInfo.priority, 'ID:', ticketInfo.id_priorite);
-
                 // Extraire les dates
                 const startDate = extractValue(content, '📅 Date de début');
                 const endDate = extractValue(content, '📅 Date de fin');
@@ -512,13 +496,12 @@ export const createTicketFromChat = async (ticketData) => {
 
         // Vérification des champs requis
         if (!ticketData.title || !ticketData.description ||
-            !ticketData.id_categorie || !ticketData.id_emplacement || !ticketData.id_priorite) {
+            !ticketData.id_categorie || !ticketData.id_emplacement) {
             console.error('Données manquantes:', {
                 title: ticketData.title,
                 description: ticketData.description,
                 id_categorie: ticketData.id_categorie,
-                id_emplacement: ticketData.id_emplacement,
-                id_priorite: ticketData.id_priorite
+                id_emplacement: ticketData.id_emplacement
             });
             throw new Error('Données de ticket incomplètes');
         }
@@ -539,9 +522,9 @@ export const createTicketFromChat = async (ticketData) => {
             id_utilisateur: ticketData.id_utilisateur,
             id_societe: ticketData.id_societe,
             id_emplacement: ticketData.id_emplacement,
-            id_priorite: ticketData.id_priorite,
             id_categorie: ticketData.id_categorie,
-            id_statut: ticketData.id_statut,
+            id_statut: ticketData.id_statut
+            // Ne pas inclure id_priorite du tout
         };
 
         if (ticketData.startDate) {
@@ -596,7 +579,6 @@ const formatTicketInfo = (ticket) => {
         <id>${ticket.id}</id>
         <titre>${ticket.titre}</titre>
         <description>${ticket.description}</description>
-        <priorite>${ticket.priorite?.designation || 'Non définie'}</priorite>
         <statut>${ticket.statut?.designation || 'Non défini'}</statut>
         <categorie>${ticket.categorie?.designation || 'Non définie'}</categorie>
         <emplacement>${ticket.emplacement?.designation || 'Non défini'}</emplacement>

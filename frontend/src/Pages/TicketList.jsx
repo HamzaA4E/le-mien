@@ -825,11 +825,15 @@ const TicketList = () => {
                           }`}
                         >
                           {statuts && statuts.length > 0 ? (
-                            statuts
-                              .filter(s => ['En instance', 'En cours', 'Terminé'].includes(s.designation))
-                              .map(s => (
+                            (() => {
+                              const statutOrder = ['En instance', 'En cours', 'Terminé'];
+                              const statutsTries = statuts
+                                .filter(s => statutOrder.includes(s.designation))
+                                .sort((a, b) => statutOrder.indexOf(a.designation) - statutOrder.indexOf(b.designation));
+                              return statutsTries.map(s => (
                                 <option key={s.id} value={s.id}>{s.designation}</option>
-                              ))
+                              ));
+                            })()
                           ) : (
                             <option value="">Chargement des statuts...</option>
                           )}
@@ -858,11 +862,15 @@ const TicketList = () => {
                           }`}
                         >
                           {statuts && statuts.length > 0 ? (
-                            statuts
-                              .filter(s => ['En instance', 'En cours', 'Terminé'].includes(s.designation))
-                              .map(s => (
+                            (() => {
+                              const statutOrder = ['En instance', 'En cours', 'Terminé'];
+                              const statutsTries = statuts
+                                .filter(s => statutOrder.includes(s.designation))
+                                .sort((a, b) => statutOrder.indexOf(a.designation) - statutOrder.indexOf(b.designation));
+                              return statutsTries.map(s => (
                                 <option key={s.id} value={s.id}>{s.designation}</option>
-                              ))
+                              ));
+                            })()
                           ) : (
                             <option value="">Chargement des statuts...</option>
                           )}

@@ -18,7 +18,6 @@ const ChatBot = () => {
     const [userInfo, setUserInfo] = useState(null);
     const [showCategories, setShowCategories] = useState(false);
     const [showLocations, setShowLocations] = useState(false);
-    const [showPriorities, setShowPriorities] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [dateType, setDateType] = useState(null); // 'start' ou 'end'
     const [attachments, setAttachments] = useState([]);
@@ -53,7 +52,7 @@ const ChatBot = () => {
 
                 const options = optionsResponse.data.options;
                 // Vérifier que toutes les options requises sont présentes
-                const requiredOptions = ['categories', 'emplacements', 'priorites'];
+                const requiredOptions = ['categories', 'emplacements'];
                 const missingOptions = requiredOptions.filter(option => !options[option]?.length);
                 
                 if (missingOptions.length > 0) {
@@ -92,9 +91,6 @@ const ChatBot = () => {
             case 'location':
                 setShowLocations(false);
                 break;
-            case 'priority':
-                setShowPriorities(false);
-                break;
         }
         const userMessage = option.designation;
         setInput('');
@@ -107,8 +103,7 @@ const ChatBot = () => {
             ...userInfo,
             ticketOptions: {
                 categories: ticketOptions.categories || [],
-                emplacements: ticketOptions.emplacements || [],
-                priorites: ticketOptions.priorites || []
+                emplacements: ticketOptions.emplacements || []
             }
         };
 
@@ -119,7 +114,6 @@ const ChatBot = () => {
                 const lowerResponse = response.toLowerCase();
                 setShowCategories(lowerResponse.includes('catégorie'));
                 setShowLocations(lowerResponse.includes('emplacement'));
-                setShowPriorities(lowerResponse.includes('priorité'));
                 
                 // Vérifier si la réponse contient plusieurs questions
                 const questions = response.split('?').filter(q => q.trim().length > 0);
@@ -152,7 +146,6 @@ const ChatBot = () => {
                     // Fermer tous les sélecteurs après le résumé
                     setShowCategories(false);
                     setShowLocations(false);
-                    setShowPriorities(false);
                     // Ajouter le résumé du ticket dans les messages
                     setMessages(prev => [...prev, { 
                         role: 'assistant', 
@@ -183,8 +176,6 @@ const ChatBot = () => {
                     return 'bg-blue-50 hover:bg-blue-100 text-blue-800';
                 case 'location':
                     return 'bg-green-50 hover:bg-green-100 text-green-800';
-                case 'priority':
-                    return 'bg-purple-50 hover:bg-purple-100 text-purple-800';
                 default:
                     return 'bg-gray-50 hover:bg-gray-100 text-gray-800';
             }
@@ -218,11 +209,6 @@ const ChatBot = () => {
     const renderLocations = () => {
         if (!showLocations || !ticketOptions?.emplacements) return null;
         return renderOptionTable(ticketOptions.emplacements, 'location', 'Sélectionnez un emplacement :');
-    };
-
-    const renderPriorities = () => {
-        if (!showPriorities || !ticketOptions?.priorites) return null;
-        return renderOptionTable(ticketOptions.priorites, 'priority', 'Sélectionnez une priorité :');
     };
 
     const renderTicketSummary = (ticketData) => {
@@ -288,17 +274,6 @@ const ChatBot = () => {
                             <tr>
                                 <td className="px-4 py-2 text-sm font-medium text-gray-600">Catégorie</td>
                                 <td className="px-4 py-2 text-sm text-gray-800">{ticketData.category || '-'}</td>
-                            </tr>
-                            <tr>
-                                <td className="px-4 py-2 text-sm font-medium text-gray-600">Priorité</td>
-                                <td className="px-4 py-2 text-sm text-gray-800">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                        ${ticketData.priority === 'Urgent' ? 'bg-red-100 text-red-800' :
-                                        ticketData.priority === 'Moyenne' ? 'bg-yellow-100 text-yellow-800' :
-                                        'bg-green-100 text-green-800'}`}>
-                                        {ticketData.priority || '-'}
-                                    </span>
-                                </td>
                             </tr>
                             <tr>
                                 <td className="px-4 py-2 text-sm font-medium text-gray-600">Emplacement</td>
@@ -407,7 +382,7 @@ const ChatBot = () => {
         }
 
         // Vérifier que toutes les options requises sont présentes
-        const requiredOptions = ['categories', 'emplacements', 'priorites'];
+        const requiredOptions = ['categories', 'emplacements'];
         const missingOptions = requiredOptions.filter(option => !ticketOptions[option]?.length);
         
         if (missingOptions.length > 0) {
@@ -427,8 +402,7 @@ const ChatBot = () => {
                 ...userInfo,
                 ticketOptions: {
                     categories: ticketOptions.categories || [],
-                    emplacements: ticketOptions.emplacements || [],
-                    priorites: ticketOptions.priorites || []
+                    emplacements: ticketOptions.emplacements || []
                 }
             };
 
@@ -440,7 +414,6 @@ const ChatBot = () => {
             const lowerResponse = response.toLowerCase();
             setShowCategories(lowerResponse.includes('catégorie'));
             setShowLocations(lowerResponse.includes('emplacement'));
-            setShowPriorities(lowerResponse.includes('priorité'));
             
             // Vérifier si la réponse contient plusieurs questions
             const questions = response.split('?').filter(q => q.trim().length > 0);
@@ -507,8 +480,7 @@ const ChatBot = () => {
             !ticketData.title ||
             !ticketData.description ||
             !ticketData.id_categorie ||
-            !ticketData.id_emplacement ||
-            !ticketData.id_priorite
+            !ticketData.id_emplacement
         ) {
             toast.error("Veuillez compléter toutes les informations du ticket avant de le créer.");
             return;
@@ -528,7 +500,6 @@ const ChatBot = () => {
             formData.append('id_utilisateur', ticketData.id_utilisateur);
             formData.append('id_societe', ticketData.id_societe);
             formData.append('id_emplacement', ticketData.id_emplacement);
-            formData.append('id_priorite', ticketData.id_priorite);
             formData.append('id_categorie', ticketData.id_categorie);
             formData.append('id_statut', ticketData.id_statut);
             if (ticketData.startDate) {
@@ -647,15 +618,6 @@ const ChatBot = () => {
                                 </td>
                             </tr>
                             <tr>
-                                <td className="px-4 py-2 text-sm text-gray-700">Priorité</td>
-                                <td className="px-4 py-2 text-sm text-gray-600">{ticketData?.priority || '-'}</td>
-                                <td className="px-4 py-2 text-center">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ticketData?.priority ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {ticketData?.priority ? '✓' : '✗'}
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
                                 <td className="px-4 py-2 text-sm text-gray-700">Emplacement</td>
                                 <td className="px-4 py-2 text-sm text-gray-600">{ticketData?.location || '-'}</td>
                                 <td className="px-4 py-2 text-center">
@@ -701,7 +663,6 @@ const ChatBot = () => {
                         ))}
                         {renderCategories()}
                         {renderLocations()}
-                        {renderPriorities()}
                         {renderAttachments()}
                         <div ref={messagesEndRef} />
                     </div>
@@ -757,8 +718,7 @@ const ChatBot = () => {
                                     !ticketData?.title ||
                                     !ticketData?.description ||
                                     !ticketData?.id_categorie ||
-                                    !ticketData?.id_emplacement ||
-                                    !ticketData?.id_priorite
+                                    !ticketData?.id_emplacement
                                 }
                                 className="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
                             >

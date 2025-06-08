@@ -8,14 +8,32 @@ const ApproveModal = ({ isOpen, onClose, onApprove, ticketId, executants, loadin
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [executantId, setExecutantId] = useState('');
+    const [priorityId, setPriorityId] = useState('');
+    const [priorities, setPriorities] = useState([]);
+    const [loadingPriorities, setLoadingPriorities] = useState(true);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        // Charger les priorités
+        const fetchPriorities = async () => {
+            try {
+                const response = await axios.get('/api/priorites');
+                setPriorities(response.data);
+            } catch (error) {
+                console.error('Erreur lors du chargement des priorités:', error);
+            } finally {
+                setLoadingPriorities(false);
+            }
+        };
+        fetchPriorities();
+    }, []);
 
     useEffect(() => {
         console.log('ApproveModal - executants reçus:', executants);
     }, [executants]);
 
     const handleSubmit = useCallback(() => {
-        if (!startDate || !endDate || !executantId) {
+        if (!startDate || !endDate || !executantId || !priorityId) {
             setError('Veuillez renseigner tous les champs obligatoires.');
             return;
         }
@@ -29,8 +47,8 @@ const ApproveModal = ({ isOpen, onClose, onApprove, ticketId, executants, loadin
             return;
         }
 
-        onApprove(ticketId, formattedStartDate, formattedEndDate, executantId);
-    }, [startDate, endDate, executantId, ticketId, onApprove]);
+        onApprove(ticketId, formattedStartDate, formattedEndDate, executantId, priorityId);
+    }, [startDate, endDate, executantId, priorityId, ticketId, onApprove]);
 
     if (!isOpen) return null;
 
@@ -79,6 +97,27 @@ const ApproveModal = ({ isOpen, onClose, onApprove, ticketId, executants, loadin
                                 </select>
                             ) : (
                                 <div className="mt-1 text-sm text-red-500">Aucun exécutant disponible</div>
+                            )}
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700">Priorité</label>
+                            {loadingPriorities ? (
+                                <div className="mt-1 text-sm text-gray-500">Chargement des priorités...</div>
+                            ) : priorities && priorities.length > 0 ? (
+                                <select
+                                    value={priorityId}
+                                    onChange={(e) => setPriorityId(e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                >
+                                    <option value="">Sélectionnez une priorité</option>
+                                    {priorities.map((priority) => (
+                                        <option key={priority.id} value={priority.id}>
+                                            {priority.designation}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="mt-1 text-sm text-red-500">Aucune priorité disponible</div>
                             )}
                         </div>
                         {error && (
@@ -402,7 +441,7 @@ const PendingTicketsPage = () => {
         };
     }, [showRejected, hasMoreRejected, fetchNextRejectedTicket]);
 
-    const handleApprove = useCallback(async (ticketId, startDate, endDate, executantId) => {
+    const handleApprove = useCallback(async (ticketId, startDate, endDate, executantId, priorityId) => {
         try {
             // Vérifier d'abord le statut du ticket
             const ticketResponse = await axios.get(`/api/tickets/${ticketId}`);
@@ -416,13 +455,15 @@ const PendingTicketsPage = () => {
             console.log('Sending approval data:', {
                 DateDebut: startDate,
                 DateFinPrevue: endDate,
-                executantId: executantId
+                executantId: executantId,
+                priorityId: priorityId
             });
 
             const response = await axios.post(`/api/tickets/${ticketId}/approve`, {
                 DateDebut: startDate,
                 DateFinPrevue: endDate,
-                executantId: parseInt(executantId, 10)
+                executantId: parseInt(executantId, 10),
+                priorityId: parseInt(priorityId, 10)
             });
 
             if (response.data) {

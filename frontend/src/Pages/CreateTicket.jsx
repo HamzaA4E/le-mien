@@ -327,7 +327,7 @@ const CreateTicket = () => {
   };
 
   // Modifier la partie du rendu pour afficher les états de chargement
-  const renderSelect = (name, label, options, loading) => (
+  const renderSelect = (name, label, options, loading, optional = true) => (
     <div>
       <label className="block mb-1">{label}</label>
       {loading ? (
@@ -339,7 +339,7 @@ const CreateTicket = () => {
           name={name}
           value={formData[name]}
           onChange={handleChange}
-          required
+          required={optional}
           className="w-full border rounded px-3 py-2"
         >
           <option value="">Sélectionner {label.toLowerCase()}</option>
@@ -421,7 +421,7 @@ const CreateTicket = () => {
 
             {/* Emplacement et Priorité */}
             {renderSelect('id_emplacement', 'Emplacement', emplacements, loadingStates.emplacements)}
-            {renderSelect('id_priorite', 'Priorité', priorites, loadingStates.priorites)}
+            {renderSelect('id_priorite', 'Priorité (optionnel)', priorites, loadingStates.priorites, false)}
 
             {/* Catégorie */}
             {renderSelect('id_categorie', 'Catégorie', categories, loadingStates.categories)}

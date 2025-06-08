@@ -222,7 +222,7 @@ class TicketController extends Controller
                 'id_demandeur' => 'required|exists:T_UTILISAT,id',
                 'id_utilisateur' => 'required|exists:T_UTILISAT,id',
                 'id_emplacement' => 'required|exists:T_EMPLACEMENT,id',
-                'id_priorite' => 'required|exists:T_PRIORITE,id',
+                'id_priorite' => 'nullable|exists:T_PRIORITE,id',
                 'id_categorie' => 'required|exists:T_CATEGORIE,id',
                 'id_statut' => 'required|exists:T_STATUT,id',
                 'id_executant' => 'nullable|exists:T_EXECUTANT,id',
@@ -264,80 +264,31 @@ class TicketController extends Controller
                 // Mettre à jour l'id_demandeur avec l'ID du demandeur
                 $validated['id_demandeur'] = $demandeur->id;
 
-                Log::info('Valeurs brutes des dates:', [
-                    'date_debut' => $validated['date_debut'] ?? null,
-                    'date_fin_prevue' => $validated['date_fin_prevue'] ?? null,
-                    'date_fin_reelle' => $validated['date_fin_reelle'] ?? null
-                ]);
-                // Convertir les dates en format SQL Server
-                $dateDebut = !empty($validated['date_debut']) ? date('d/m/Y H:i:s', strtotime($validated['date_debut'])) : null;
-                $dateFinPrevue = !empty($validated['date_fin_prevue']) ? date('d/m/Y H:i:s', strtotime($validated['date_fin_prevue'])) : null;
-                $dateFinReelle = !empty($validated['date_fin_reelle']) ? date('d/m/Y H:i:s', strtotime($validated['date_fin_reelle'])) : null;
-                $dateCreation = date('d/m/Y H:i:s');
+                // Préparer les dates
+                $dateDebut = $validated['date_debut'] ?? null;
+                $dateFinPrevue = $validated['date_fin_prevue'] ?? null;
+                $dateFinReelle = $validated['date_fin_reelle'] ?? null;
+                $dateCreation = now();
 
-                Log::info('Valeurs converties des dates:', [
-                    'date_debut' => $dateDebut,
-                    'date_fin_prevue' => $dateFinPrevue,
-                    'date_fin_reelle' => $dateFinReelle,
-                    'date_creation' => $dateCreation
-                ]);
-                // Gestion de la pièce jointe
-                $attachmentPathValue = null;
+                // Gestion des pièces jointes
                 $attachmentPaths = [];
-                if ($request->hasFile('attachment')) {
-                    $file = $request->file('attachment');
-                    Log::info('Fichier reçu (singulier):', [
-                        'name' => $file->getClientOriginalName(),
-                        'size' => $file->getSize(),
-                        'mime' => $file->getMimeType()
-                    ]);
-                    try {
-                        $originalName = $file->getClientOriginalName();
-                        $path = $file->storeAs('attachments', $originalName, 'public');
-                        $attachmentPathValue = $path;
-                        Log::info('Fichier stocké avec succès:', ['path' => $path]);
-                    } catch (\Exception $e) {
-                        Log::error('Erreur lors du stockage du fichier:', [
-                            'error' => $e->getMessage(),
-                            'file' => $file->getClientOriginalName()
-                        ]);
-                        throw $e;
-                    }
-                } else if ($request->hasFile('attachments')) {
-                    foreach ($request->file('attachments') as $file) {
-                        Log::info('Fichier reçu (multiple):', [
-                            'name' => $file->getClientOriginalName(),
-                            'size' => $file->getSize(),
-                            'mime' => $file->getMimeType()
-                        ]);
-                        try {
-                            $originalName = $file->getClientOriginalName();
-                            $path = $file->storeAs('attachments', $originalName, 'public');
-                            $attachmentPaths[] = $path;
-                            Log::info('Fichier stocké avec succès:', ['path' => $path]);
-                        } catch (\Exception $e) {
-                            Log::error('Erreur lors du stockage du fichier:', [
-                                'error' => $e->getMessage(),
-                                'file' => $file->getClientOriginalName()
-                            ]);
-                            throw $e;
-                        }
+                $attachmentPathValue = null;
 
+                if ($request->hasFile('attachments')) {
+                    foreach ($request->file('attachments') as $file) {
+                        $path = $file->store('attachments');
+                        $attachmentPaths[] = $path;
                     }
-                    if (!empty($attachmentPaths)) {
-                        $attachmentPathValue = json_encode($attachmentPaths);
-                    }
-                } else {
-                    Log::info('Aucun fichier n\'a été envoyé');
+                    $attachmentPathValue = implode(',', $attachmentPaths);
                 }
 
-                // Création du ticket
+                // Préparer les données pour la création du ticket
                 $data = [
                     'Titre' => $validated['titre'],
                     'Description' => $validated['description'],
                     'Commentaire' => $validated['commentaire'] ?? null,
                     'attachment_path' => $attachmentPathValue,
-                    'Id_Priorite' => (int)$validated['id_priorite'],
+                    'Id_Priorite' => $validated['id_priorite'] ?? null,
                     'Id_Statut' => (int)$validated['id_statut'],
                     'Id_Demandeur' => (int)$validated['id_demandeur'],
                     'Id_Emplacement' => (int)$validated['id_emplacement'],
@@ -1245,7 +1196,8 @@ class TicketController extends Controller
                     'date_format:Y-m-d',
                     'after:DateDebut'
                 ],
-                'executantId' => 'required|integer|exists:T_EXECUTANT,id'
+                'executantId' => 'required|integer|exists:T_EXECUTANT,id',
+                'priorityId' => 'required|integer|exists:T_PRIORITE,id'
             ]);
 
             $ticket = Ticket::with(['statut', 'priorite', 'categorie', 'demandeur'])->findOrFail($id);
@@ -1275,8 +1227,9 @@ class TicketController extends Controller
             $dateFinPrevue = Carbon::createFromFormat('Y-m-d', $validated['DateFinPrevue'])->format('d/m/Y H:i:s');
 
             // Mettre à jour le ticket
-            $ticket->Id_Statut = Statut::where('designation', 'En cours')->value('id');
+            $ticket->Id_Statut = Statut::where('designation', 'En instance')->value('id');
             $ticket->Id_Executant = $validated['executantId'];
+            $ticket->Id_Priorite = $validated['priorityId'];
             $ticket->DateDebut = $dateDebut;
             $ticket->DateFinPrevue = $dateFinPrevue;
             $ticket->save();

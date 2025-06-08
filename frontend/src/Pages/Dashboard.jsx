@@ -65,6 +65,7 @@ const Dashboard = () => {
   const [selectedEmplacements, setSelectedEmplacements] = useState([]);
   const [chartsLoaded, setChartsLoaded] = useState(false);
   const [showForcePasswordChange, setShowForcePasswordChange] = useState(false);
+  const [dataInitialized, setDataInitialized] = useState(false);
 
   // Récupérer le user courant
   let currentUser = null;
@@ -102,6 +103,9 @@ const Dashboard = () => {
     }
 
     console.log('Filtered demandeurs:', filteredDemandeurs); // Debug log
+    console.log('Current user niveau:', currentUser?.niveau); // Debug log pour vérifier le niveau de l'utilisateur
+    console.log('Can view demandeur stats:', canViewDemandeurStats); // Debug log pour vérifier la condition d'affichage
+    
     return {
       labels: filteredDemandeurs.map(item => item.designation),
       datasets: [{
@@ -123,15 +127,18 @@ const Dashboard = () => {
     }],
   }), [stats.ticketsByCategorie]);
 
-  const emplacementData = useMemo(() => ({
-    labels: (stats.ticketsByEmplacement || []).map(item => item.designation),
-    datasets: [{
-      data: (stats.ticketsByEmplacement || []).map(item => item.count),
-      backgroundColor: PIE_COLORS,
-      borderWidth: 1,
-      hoverOffset: 45,
-    }],
-  }), [stats.ticketsByEmplacement]);
+  const emplacementData = useMemo(() => {
+    console.log('Stats ticketsByEmplacement:', stats.ticketsByEmplacement); // Debug log
+    return {
+      labels: (stats.ticketsByEmplacement || []).map(item => item.designation),
+      datasets: [{
+        data: (stats.ticketsByEmplacement || []).map(item => item.count),
+        backgroundColor: PIE_COLORS,
+        borderWidth: 1,
+        hoverOffset: 45,
+      }],
+    };
+  }, [stats.ticketsByEmplacement]);
 
   // Options mémorisées pour les graphiques
   const getPieOptions = useMemo(() => (title, selectedItems, setSelectedItems) => ({
@@ -195,6 +202,7 @@ const Dashboard = () => {
         dashboardCache.stats && 
         dashboardCache.lastFetch && 
         (now - dashboardCache.lastFetch < dashboardCache.cacheDuration)) {
+      console.log('Using cached stats:', dashboardCache.stats);
       setStats(dashboardCache.stats);
       setLoading(false);
       return;
@@ -227,9 +235,22 @@ const Dashboard = () => {
           })) || []
         };
         console.log('Transformed data:', transformedData); // Debug log
-        setStats(transformedData);
-        dashboardCache.stats = transformedData;
-        dashboardCache.lastFetch = now;
+        console.log('par_demandeur original:', response.data.par_demandeur); // Debug log pour vérifier les données originales
+        console.log('par_emplacement original:', response.data.par_emplacement); // Debug log pour vérifier les données originales
+        
+        // Vérifier si les données sont valides avant de les définir
+        if (transformedData.ticketsByDemandeur.length > 0 || transformedData.ticketsByEmplacement.length > 0) {
+          setStats(transformedData);
+          dashboardCache.stats = transformedData;
+          dashboardCache.lastFetch = now;
+          setDataInitialized(true);
+        } else {
+          console.warn('Les données transformées sont vides, utilisation des données en cache si disponibles');
+          if (dashboardCache.stats) {
+            setStats(dashboardCache.stats);
+            setDataInitialized(true);
+          }
+        }
         setError('');
       } else {
         throw new Error(response.data.error || 'Erreur inconnue');
@@ -238,7 +259,9 @@ const Dashboard = () => {
       console.error('Erreur lors du chargement des statistiques:', err);
       setError(err.response?.data?.error || 'Erreur lors du chargement des statistiques');
       if (dashboardCache.stats) {
+        console.log('Utilisation des données en cache après erreur:', dashboardCache.stats);
         setStats(dashboardCache.stats);
+        setDataInitialized(true);
       }
     } finally {
       setLoading(false);
@@ -246,14 +269,21 @@ const Dashboard = () => {
     }
   };
 
+  // Initialiser les données une seule fois au chargement du composant
   useEffect(() => {
-    fetchStats(true);
-    const timer = setTimeout(() => setChartsLoaded(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!dataInitialized) {
+      fetchStats(true);
+      const timer = setTimeout(() => {
+        console.log('Charts loaded:', chartsLoaded); // Debug log pour vérifier l'état de chartsLoaded
+        setChartsLoaded(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [dataInitialized]);
 
+  // Vérifier le mot de passe par défaut
   useEffect(() => {
-    const fetchData = async () => {
+    const checkDefaultPassword = async () => {
       try {
         const userResponse = await axios.get('/api/user');
         console.log('Réponse API user:', userResponse.data);
@@ -263,20 +293,12 @@ const Dashboard = () => {
         if (storedUser && storedUser.is_default_password) {
           setShowForcePasswordChange(true);
         }
-
-        // Charger les statistiques
-        const response = await axios.get('/api/dashboard/stats');
-        setStats(response.data);
-        setError('');
       } catch (error) {
-        console.error('Erreur lors du chargement des données:', error);
-        setError('Erreur lors du chargement des statistiques');
-      } finally {
-        setLoading(false);
+        console.error('Erreur lors de la vérification du mot de passe par défaut:', error);
       }
     };
 
-    fetchData();
+    checkDefaultPassword();
   }, []);
 
   const handlePasswordChanged = () => {

@@ -29,9 +29,9 @@
             <td>{{ $ticket->emplacement->designation ?? $ticket->Id_Emplacement ?? 'N/A' }}</td>
             <td>{{ $ticket->categorie->designation ?? $ticket->Id_Categorie ?? 'N/A' }}</td>
             <td>{{ $ticket->executant->designation ?? $ticket->Id_Executant ?? 'N/A' }}</td>
-            <td>{{ is_object($ticket->DateDebut) ? $ticket->DateDebut->format('d/m/Y H:i') : $ticket->DateDebut }}</td>
-            <td style="color:#dc2626;font-weight:bold;">{{ is_object($ticket->DateFinPrevue) ? $ticket->DateFinPrevue->format('d/m/Y H:i') : $ticket->DateFinPrevue }}</td>
-            <td>{{ is_object($ticket->DateFinReelle) ? $ticket->DateFinReelle->format('d/m/Y H:i') : ($ticket->DateFinReelle ?? 'N/A') }}</td>
+            <td>{{ is_object($ticket->DateDebut) ? $ticket->DateDebut->format('d/m/Y') : \Carbon\Carbon::parse($ticket->DateDebut)->format('d/m/Y') }}</td>
+            <td style="color:#dc2626;font-weight:bold;">{{ is_object($ticket->DateFinPrevue) ? $ticket->DateFinPrevue->format('d/m/Y') : \Carbon\Carbon::parse($ticket->DateFinPrevue)->format('d/m/Y') }}</td>
+            <td>{{ is_object($ticket->DateFinReelle) ? $ticket->DateFinReelle->format('d/m/Y') : ($ticket->DateFinReelle ? \Carbon\Carbon::parse($ticket->DateFinReelle)->format('d/m/Y') : 'N/A') }}</td>
         </tr>
         <tr>
             <td style="padding: 10px; border-bottom: 1px solid #eee;">

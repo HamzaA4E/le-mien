@@ -167,6 +167,7 @@ const Sidebar = () => {
     menuItems = [
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets assignés' },
+      { path: '/reports', icon: <FaChartBar />, text: 'Rapports' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
   }

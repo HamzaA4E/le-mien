@@ -17,9 +17,35 @@ class ReportController extends Controller
         $serviceId = $request->input('service');
         $statusId = $request->input('status');
         $priorityId = $request->input('priority');
-        $societeId = $request->input('societe');
+        $demandeurId = $request->input('demandeur');
 
         $query = Ticket::query();
+
+        // Log du nombre de tickets avant filtres
+        \Log::info('Nombre de tickets avant filtres', ['count' => $query->count()]);
+
+        // Exclure les tickets "Nouveau" (Id_Statut = 1) et "Refusé" (designation = 'Refusé')
+        $query->where('T_TICKET.Id_Statut', '!=', 1)
+              ->whereHas('statut', function($q) {
+                  $q->where('designation', '!=', 'Refusé');
+              });
+
+        // Log du nombre de tickets après filtres d'exclusion
+        \Log::info('Nombre de tickets après filtres d\'exclusion', ['count' => $query->count()]);
+
+        // Restriction pour l'exécutant : ne voir que ses tickets
+        $user = $request->user();
+        if ($user && method_exists($user, 'isExecutant') && $user->isExecutant()) {
+            $executant = \App\Models\Executant::where('designation', $user->designation)->first();
+            if ($executant) {
+                $query->where('Id_Executant', $executant->id);
+            } else {
+                $query->whereRaw('1=0');
+            }
+        }
+
+        // Log du nombre de tickets après filtres d'exécutant
+        \Log::info('Nombre de tickets après filtres d\'exécutant', ['count' => $query->count()]);
 
         // Appliquer les filtres
         if ($startDate) {
@@ -29,17 +55,20 @@ class ReportController extends Controller
             $query->where('created_at', '<=', Carbon::parse($endDate)->endOfDay());
         }
         if ($serviceId) {
-            $query->where('service_id', $serviceId);
+            $query->where('T_DEMDEUR.id_service', $serviceId);
         }
         if ($statusId) {
-            $query->where('statut_id', $statusId);
+            $query->where('id_statut', $statusId);
         }
         if ($priorityId) {
-            $query->where('priorite_id', $priorityId);
+            $query->where('id_priorite', $priorityId);
         }
-        if ($societeId) {
-            $query->where('societe_id', $societeId);
+        if ($demandeurId) {
+            $query->where('id_demandeur', $demandeurId);
         }
+
+        // Log du nombre de tickets après tous les filtres
+        \Log::info('Nombre de tickets après tous les filtres', ['count' => $query->count()]);
 
         switch ($type) {
             case 'tickets_by_service':
@@ -63,17 +92,27 @@ class ReportController extends Controller
 
     private function getTicketsByService($query)
     {
-        return $query->select('T_SERVICE.designation as Service', DB::raw('count(*) as Nombre'))
-            ->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
-            ->join('T_SERVICE', 'T_DEMDEUR.id_service', '=', 'T_SERVICE.id')
-            ->groupBy('T_SERVICE.id', 'T_SERVICE.designation')
+        // Debug : log les tickets, demandeurs et services avant group by
+        $debugQuery = clone $query;
+        $debugTickets = $debugQuery->select('T_TICKET.id as ticket_id', 'T_TICKET.Titre', 'dem.id as demandeur_id', 'dem.designation as demandeur', 'srv.id as service_id', 'srv.designation as service')
+            ->leftJoin('T_DEMDEUR as dem', 'T_TICKET.Id_Demandeur', '=', 'dem.id')
+            ->leftJoin('T_SERVICE as srv', 'dem.id_service', '=', 'srv.id')
+            ->get();
+        \Log::info('DEBUG tickets_by_service', ['tickets' => $debugTickets]);
+
+        // Utiliser le $query d'origine pour le group by (sans join déjà appliqué)
+        return $query->select('srv.designation as Service', DB::raw('count(*) as Nombre'))
+            ->leftJoin('T_DEMDEUR as dem', 'T_TICKET.Id_Demandeur', '=', 'dem.id')
+            ->leftJoin('T_SERVICE as srv', 'dem.id_service', '=', 'srv.id')
+            ->groupBy('srv.id', 'srv.designation')
             ->get();
     }
 
     private function getTicketsByStatus($query)
     {
         return $query->select('T_STATUT.designation as Statut', DB::raw('count(*) as Nombre'))
-            ->join('T_STATUT', 'T_TICKET.Id_Statut', '=', 'T_STATUT.id')
+            ->leftJoin('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+            ->leftJoin('T_STATUT', 'T_TICKET.Id_Statut', '=', 'T_STATUT.id')
             ->groupBy('T_STATUT.id', 'T_STATUT.designation')
             ->get();
     }
@@ -81,7 +120,8 @@ class ReportController extends Controller
     private function getTicketsByPriority($query)
     {
         return $query->select('T_PRIORITE.designation as Priorité', DB::raw('count(*) as Nombre'))
-            ->join('T_PRIORITE', 'T_TICKET.Id_Priorite', '=', 'T_PRIORITE.id')
+            ->leftJoin('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+            ->leftJoin('T_PRIORITE', 'T_TICKET.Id_Priorite', '=', 'T_PRIORITE.id')
             ->groupBy('T_PRIORITE.id', 'T_PRIORITE.designation')
             ->get();
     }
@@ -89,7 +129,7 @@ class ReportController extends Controller
     private function getTicketsByDemandeur($query)
     {
         return $query->select('T_DEMDEUR.designation as Demandeur', DB::raw('count(*) as Nombre'))
-            ->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+            ->leftJoin('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
             ->groupBy('T_DEMDEUR.id', 'T_DEMDEUR.designation')
             ->get();
     }
@@ -100,6 +140,7 @@ class ReportController extends Controller
             DB::raw('DATE(DateCreation) as Période'),
             DB::raw('count(*) as Nombre')
         )
+            ->leftJoin('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
             ->groupBy(DB::raw('DATE(DateCreation)'))
             ->orderBy('Période')
             ->get();
@@ -107,8 +148,8 @@ class ReportController extends Controller
 
     private function getTicketsByTypeDemande($query)
     {
-        return $query->select('T_CATEGORIE.designation as "Type de demande"', DB::raw('count(*) as Nombre'))
-            ->join('T_CATEGORIE', 'T_TICKET.Id_Categorie', '=', 'T_CATEGORIE.id')
+        return $query->select('T_CATEGORIE.designation as Catégorie', DB::raw('count(*) as Nombre'))
+            ->leftJoin('T_CATEGORIE', 'T_TICKET.Id_Categorie', '=', 'T_CATEGORIE.id')
             ->groupBy('T_CATEGORIE.id', 'T_CATEGORIE.designation')
             ->get();
     }
@@ -122,14 +163,18 @@ class ReportController extends Controller
             'T_SERVICE.designation as Service',
             'T_STATUT.designation as Statut',
             'T_PRIORITE.designation as Priorité',
+            'T_CATEGORIE.designation as Catégorie',
             'T_DEMDEUR.designation as Demandeur',
+            'T_EXECUTANT.designation as Exécutant',
             'T_TICKET.DateCreation as "Date de création"',
             'T_TICKET.DateFinReelle as "Dernière mise à jour"'
         ])
-            ->join('T_SERVICE', 'T_TICKET.Id_Service', '=', 'T_SERVICE.id')
-            ->join('T_STATUT', 'T_TICKET.Id_Statut', '=', 'T_STATUT.id')
-            ->join('T_PRIORITE', 'T_TICKET.Id_Priorite', '=', 'T_PRIORITE.id')
-            ->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+            ->leftJoin('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
+            ->leftJoin('T_SERVICE', 'T_DEMDEUR.id_service', '=', 'T_SERVICE.id')
+            ->leftJoin('T_STATUT', 'T_TICKET.Id_Statut', '=', 'T_STATUT.id')
+            ->leftJoin('T_PRIORITE', 'T_TICKET.Id_Priorite', '=', 'T_PRIORITE.id')
+            ->leftJoin('T_CATEGORIE', 'T_TICKET.Id_Categorie', '=', 'T_CATEGORIE.id')
+            ->leftJoin('T_EXECUTANT', 'T_TICKET.Id_Executant', '=', 'T_EXECUTANT.id')
             ->get();
     }
 } 

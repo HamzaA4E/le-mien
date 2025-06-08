@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import Layout from '../components/Layout';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import ReportExport from '../components/ReportExport';
 
 // Enregistrer les composants Chart.js nécessaires
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
@@ -92,7 +93,7 @@ const ReportsPage = () => {
   const getChartColumns = () => {
     const columns = getTableColumns();
     const labelCol = columns.find(col =>
-      /service|statut|priorit|demandeur|période|type de demande/i.test(col)
+      /service|statut|priorit|demandeur|période|categorie/i.test(col)
     ) || columns[0];
     const valueCol = columns.find(col =>
       /nombre|total|count|valeur/i.test(col)
@@ -188,7 +189,7 @@ const ReportsPage = () => {
                     <option value="tickets_by_priority">Tickets par priorité</option>
                     <option value="tickets_by_demandeur">Tickets par demandeur</option>
                     <option value="tickets_by_period">Tickets par période</option>
-                    <option value="tickets_by_type_demande">Tickets par type de demande</option>
+                    <option value="tickets_by_type_demande">Tickets par catégorie</option>
                     <option value="tickets_detailed">Rapport détaillé</option>
                   </select>
                 </div>
@@ -278,12 +279,18 @@ const ReportsPage = () => {
             </button>
 
             {reportData && (
-              <button
-                onClick={exportToExcel}
-                className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors"
-              >
-                Exporter en Excel
-              </button>
+              <>
+                <button
+                  onClick={exportToExcel}
+                  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors"
+                >
+                  Exporter en Excel
+                </button>
+                <ReportExport
+                  reportTitle={reportType.replace(/_/g, ' ').toUpperCase()}
+                  reportDate={new Date().toLocaleDateString('fr-FR')}
+                />
+              </>
             )}
           </div>
         </div>
@@ -295,17 +302,18 @@ const ReportsPage = () => {
         )}
 
         {reportData && Array.isArray(reportData) && reportData.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="bg-white rounded-lg shadow-lg p-6 report-content">
             <div className="mb-8">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Visualisation</h3>
-              <div className="w-full max-w-2xl mx-auto">
+              <div className="w-full max-w-md mx-auto" style={{height: '300px'}}>
                 {chartType === 'pie' ? (
-                  <Pie data={prepareChartData()} options={{ responsive: true }} />
+                  <Pie data={prepareChartData()} options={{ responsive: true, maintainAspectRatio: false }} height={220} />
                 ) : (
                   <Bar 
                     data={prepareChartData()} 
                     options={{
                       responsive: true,
+                      maintainAspectRatio: false,
                       plugins: {
                         legend: {
                           position: 'top',
@@ -316,6 +324,7 @@ const ReportsPage = () => {
                         }
                       }
                     }}
+                    height={220}
                   />
                 )}
               </div>
@@ -323,12 +332,12 @@ const ReportsPage = () => {
 
             <div className="mt-8">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Données détaillées</h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div className="w-full">
+                <table className="w-full table-auto border-collapse">
                   <thead className="bg-gray-50">
                     <tr>
                       {getTableColumns().map((col, idx) => (
-                        <th key={idx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th key={idx} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                           {col}
                         </th>
                       ))}
@@ -342,8 +351,11 @@ const ReportsPage = () => {
                         return reportData.map((item, index) => (
                           <tr key={index}>
                             {columns.map((col, idx) => (
-                              <td key={idx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item[col]}
+                              <td key={idx} className="px-4 py-3 text-sm text-gray-900 border-b">
+                                {typeof item[col] === 'object' && item[col] !== null && item[col].date
+                                  ? new Date(item[col].date).toLocaleString()
+                                  : String(item[col] ?? '')
+                                }
                               </td>
                             ))}
                           </tr>
@@ -364,7 +376,7 @@ const ReportsPage = () => {
                                 if (col === 'Service') {
                                   if (i === 0) {
                                     return (
-                                      <td key={colIdx} rowSpan={items.length} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold bg-gray-50 align-middle border-r">
+                                      <td key={colIdx} rowSpan={items.length} className="px-4 py-3 text-sm text-gray-900 font-bold bg-gray-50 align-middle border-b border-r">
                                         {service}
                                       </td>
                                     );
@@ -373,8 +385,11 @@ const ReportsPage = () => {
                                   }
                                 }
                                 return (
-                                  <td key={colIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {item[col]}
+                                  <td key={colIdx} className="px-4 py-3 text-sm text-gray-900 border-b">
+                                    {typeof item[col] === 'object' && item[col] !== null && item[col].date
+                                      ? new Date(item[col].date).toLocaleString()
+                                      : String(item[col] ?? '')
+                                    }
                                   </td>
                                 );
                               })}

@@ -77,7 +77,7 @@ const Dashboard = () => {
     currentUser = null;
   }
 
-  const canViewDemandeurStats = currentUser?.niveau === 1 || currentUser?.niveau === 2 || currentUser?.niveau === 3;
+  const canViewDemandeurStats = currentUser?.niveau === 1 || currentUser?.niveau === 2 || currentUser?.niveau === 3 || currentUser?.niveau === 5;
   console.log('Can view demandeur stats:', canViewDemandeurStats); // Debug log
 
   // Mémorisation des données des graphiques

@@ -69,6 +69,15 @@ class DashboardController extends Controller
                 } elseif ($user->isDirecteurDepartement()) {
                     $baseQuery->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
                         ->where('T_DEMDEUR.id_service', $user->id_service);
+                } elseif ($user->isExecutant()) {
+                    // On suppose que la désignation de l'utilisateur == désignation de l'exécutant
+                    $executant = \App\Models\Executant::where('designation', $user->designation)->first();
+                    if ($executant) {
+                        $baseQuery->where('T_TICKET.Id_Executant', $executant->id);
+                    } else {
+                        // Aucun ticket si pas d'exécutant correspondant
+                        $baseQuery->whereRaw('1=0');
+                    }
                 }
 
                 // Exécuter la requête une seule fois
@@ -84,11 +93,28 @@ class DashboardController extends Controller
                         ->when($user && method_exists($user, 'isDirecteurDepartement') && $user->isDirecteurDepartement(), function($query) use ($user) {
                             return $query->where('id_service', $user->id_service);
                         })
+                        ->when($user && method_exists($user, 'isExecutant') && $user->isExecutant(), function($query) use ($user) {
+                            $executant = \App\Models\Executant::where('designation', $user->designation)->first();
+                            if ($executant) {
+                                return $query->whereHas('tickets', function($q) use ($executant) {
+                                    $q->where('Id_Executant', $executant->id);
+                                });
+                            }
+                            return $query->whereRaw('1=0');
+                        })
                         ->get()
-                        ->map(function($demandeur) {
+                        ->map(function($demandeur) use ($user) {
+                            $query = $demandeur->tickets();
+                            if ($user && method_exists($user, 'isExecutant') && $user->isExecutant()) {
+                                $executant = \App\Models\Executant::where('designation', $user->designation)->first();
+                                if ($executant) {
+                                    $query->where('Id_Executant', $executant->id);
+                                }
+                            }
                             return [
                                 'demandeur' => $demandeur->designation,
-                                'total' => $demandeur->tickets()->count()
+                                'total' => $query->count(),
+                                'service_id' => $demandeur->id_service
                             ];
                         }),
                     'par_emplacement' => Emplacement::where('is_active', true)

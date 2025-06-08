@@ -128,6 +128,7 @@ class ReportController extends Controller
 
     private function getTicketsByDemandeur($query)
     {
+        // On utilise directement la requête déjà filtrée par l'exécutant si nécessaire
         return $query->select('T_DEMDEUR.designation as Demandeur', DB::raw('count(*) as Nombre'))
             ->leftJoin('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
             ->groupBy('T_DEMDEUR.id', 'T_DEMDEUR.designation')

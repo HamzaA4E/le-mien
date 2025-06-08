@@ -7,12 +7,7 @@ import { BiCategory } from 'react-icons/bi';
 import { MdPerson, MdBusinessCenter, MdLocationOn, MdDateRange } from 'react-icons/md';
 import { toast, Toaster } from 'react-hot-toast';
 
-// Mapping des couleurs pour les types de demande
-const TYPE_COLORS = {
-  'Tâche': { bg: 'bg-fuchsia-300', text: 'text-fuchsia-950', border: 'border-fuchsia-200' },
-  'Projet': { bg: 'bg-stone-300', text: 'text-stone-900', border: 'border-stone-200' },
-  'default': { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' }
-};
+
 
 // Fonction pour supprimer les accents d'une chaîne et remplacer les espaces par underscores
 const normalizeString = (str) => {
@@ -107,22 +102,36 @@ const TicketList = () => {
     );
   }, []);
 
-  // Calcul du nombre de tickets refusés par le demandeur
+  // Calcul du nombre de tickets refusés par le demandeur pour l'exécutant
   const rejectedTicketsCount = useMemo(() => {
-    if (!allTickets || !(niveau === '1' || niveau === 1)) return 0;
-    return allTickets.filter(ticket => 
-      ticket.reports && 
-      ticket.reports.some(report => 
-        report.type === 'rejet' && (
-          // report.Id_Demandeur === ticket.Id_Demandeur ||
-          // report.id_demandeur === ticket.Id_Demandeur ||
-          report.Id_Demandeur === ticket.id_demandeur 
-          // report.id_demandeur === ticket.id_demandeur
-        )
-      ) &&
-      (ticket.statut?.designation === 'En cours')
-    ).length;
-  }, [allTickets, niveau]);
+    if (!allTickets) return 0;
+    // Admin
+    if (niveau === '1' || niveau === 1) {
+      return allTickets.filter(ticket => 
+        ticket.reports && 
+        ticket.reports.some(report => 
+          report.type === 'rejet' && (
+            report.Id_Demandeur === ticket.id_demandeur
+          )
+        ) &&
+        (ticket.statut?.designation === 'En instance')
+      ).length;
+    }
+    // Executant
+    if (niveau === '4' || niveau === 4 || niveau === '5' || niveau === 5) {
+      return allTickets.filter(ticket => 
+        ticket.executant?.designation === user?.designation &&
+        ticket.reports &&
+        ticket.reports.some(report => 
+          report.type === 'rejet' && (
+            report.Id_Demandeur === ticket.id_demandeur
+          )
+        ) &&
+        (ticket.statut?.designation === 'En instance')
+      ).length;
+    }
+    return 0;
+  }, [allTickets, niveau, user]);
 
   // Tickets filtrés localement
   const filteredTickets = useMemo(() => {
@@ -136,22 +145,32 @@ const TicketList = () => {
     // Pour les administrateurs, gérer l'affichage des tickets refusés par le demandeur
     if (niveau === '1' || niveau === 1) {
       if (filters.showRejectedByDemandeur) {
-        // Si le filtre est activé, ne montrer que les tickets refusés par le demandeur (même logique que le compteur)
         filtered = filtered.filter(ticket => 
           ticket.reports &&
           ticket.reports.some(report =>
             report.type === 'rejet' && (
               report.Id_Demandeur === ticket.id_demandeur
             )
-          ) &&
-          (ticket.statut?.designation || '').toLowerCase().replace(/\s/g, '') === 'encours'
+          )
         );
       }
-      // Sinon, on n'exclut rien, on affiche tout
+    }
+    if (niveau === '4' || niveau === 4 || niveau === '5' || niveau === 5) {
+      if (filters.showRejectedByDemandeur) {
+        filtered = filtered.filter(ticket => 
+          ticket.executant?.designation === user?.designation &&
+          ticket.reports &&
+          ticket.reports.some(report =>
+            report.type === 'rejet' && (
+              report.Id_Demandeur === ticket.id_demandeur
+            )
+          )
+        );
+      }
     }
 
     return filtered;
-  }, [allTickets, localTitleFilter, filterTicketsLocally, niveau, filters.showRejectedByDemandeur]);
+  }, [allTickets, localTitleFilter, filterTicketsLocally, niveau, filters.showRejectedByDemandeur, user]);
 
   // Calcul du nombre de rapports non lus
   const totalUnreadReports = useMemo(() => {
@@ -506,7 +525,7 @@ const TicketList = () => {
               </button>
             ))}
             {/* Bouton pour les tickets refusés par le demandeur */}
-            {(niveau === '1' || niveau === 1) && (
+            {(niveau === '1' || niveau === 1 || niveau === '4' || niveau === 4 || niveau === '5' || niveau === 5) && (
               <button
                 onClick={() => setFilters(prev => ({
                   ...prev,

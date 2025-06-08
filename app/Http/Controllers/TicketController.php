@@ -451,14 +451,14 @@ class TicketController extends Controller
                     ], 403);
                 }
                 // L'exécutant ne peut changer le statut que vers "En cours" ou "Terminé"
-                if (isset($data['Id_Statut'])) {
-                    $statutAutorises = \App\Models\Statut::whereIn('designation', ['En cours', 'Terminé'])->pluck('id')->toArray();
-                    if (!in_array($data['Id_Statut'], $statutAutorises)) {
-                        return response()->json([
-                            'message' => 'Vous ne pouvez changer le statut que vers "En cours" ou "Terminé"'
-                        ], 403);
-                    }
-                }
+                // if (isset($data['Id_Statut'])) {
+                //     $statutAutorises = \App\Models\Statut::whereIn('designation', ['En cours', 'Terminé'])->pluck('id')->toArray();
+                //     if (!in_array($data['Id_Statut'], $statutAutorises)) {
+                //         return response()->json([
+                //             'message' => 'Vous ne pouvez changer le statut que vers "En cours" ou "Terminé"'
+                //         ], 403);
+                //     }
+                // }
             }
 
             // Gestion de la pièce jointe
@@ -1511,12 +1511,11 @@ class TicketController extends Controller
             }
 
             // Mettre à jour le statut du ticket
-            $statutEnCours = Statut::where('designation', 'En cours')->first();
-            if (!$statutEnCours) {
-                throw new \Exception('Statut "En cours" non trouvé dans la base de données');
+            $statutEnInstance = Statut::where('designation', 'En instance')->first();
+            if (!$statutEnInstance) {
+                throw new \Exception('Statut "En instance" non trouvé dans la base de données');
             }
-            
-            $ticket->Id_Statut = $statutEnCours->id;
+            $ticket->Id_Statut = $statutEnInstance->id;
             $ticket->save();
 
             // Créer un report de type "rejet" pour garder l'historique du refus

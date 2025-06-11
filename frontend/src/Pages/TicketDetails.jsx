@@ -671,16 +671,22 @@ const TicketDetails = () => {
                           if (Array.isArray(paths)) {
                             attachments = paths;
                           } else {
-                            attachments = [ticket.attachment_path];
+                            attachments = [{
+                              path: ticket.attachment_path,
+                              name: ticket.attachment_path.split('/').pop()
+                            }];
                           }
                         } catch {
-                          attachments = [ticket.attachment_path];
+                          attachments = [{
+                            path: ticket.attachment_path,
+                            name: ticket.attachment_path.split('/').pop()
+                          }];
                         }
                         return (
                           <>
-                            {attachments.map((path, index) => (
+                            {attachments.map((attachment, index) => (
                               <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
-                                <span className="text-gray-600">{path.split('/').pop()}</span>
+                                <span className="text-gray-600">{attachment.name}</span>
                                 <div className="flex space-x-2">
                                   <button
                                     onClick={() => handleDownload(index)}

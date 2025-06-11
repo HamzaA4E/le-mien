@@ -780,17 +780,24 @@ class TicketController extends Controller
             try {
                 $paths = json_decode($ticket->attachment_path, true);
                 if (!is_array($paths)) {
-                    $paths = [$ticket->attachment_path];
+                    $paths = [[
+                        'path' => $ticket->attachment_path,
+                        'name' => basename($ticket->attachment_path)
+                    ]];
                 }
             } catch (\Exception $e) {
-                $paths = [$ticket->attachment_path];
+                $paths = [[
+                    'path' => $ticket->attachment_path,
+                    'name' => basename($ticket->attachment_path)
+                ]];
             }
 
             if (!isset($paths[$index])) {
                 return response()->json(['message' => 'Pièce jointe non trouvée'], 404);
             }
 
-            $path = storage_path('app/public/' . $paths[$index]);
+            $path = storage_path('app/public/' . $paths[$index]['path']);
+            $filename = $paths[$index]['name'];
 
             if (!file_exists($path)) {
                 \Log::error('Fichier non trouvé', [
@@ -802,7 +809,6 @@ class TicketController extends Controller
             }
 
             $mimeType = mime_content_type($path) ?: 'application/octet-stream';
-            $filename = basename($path);
 
             return response()->download($path, $filename, [
                 'Content-Type' => $mimeType,
@@ -834,6 +840,7 @@ class TicketController extends Controller
 
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
+                $originalName = $file->getClientOriginalName();
                 $path = $file->store('attachments', 'public');
                 
                 // Récupérer les pièces jointes existantes
@@ -842,15 +849,24 @@ class TicketController extends Controller
                     try {
                         $existingAttachments = json_decode($ticket->attachment_path, true);
                         if (!is_array($existingAttachments)) {
-                            $existingAttachments = [$ticket->attachment_path];
+                            $existingAttachments = [[
+                                'path' => $ticket->attachment_path,
+                                'name' => basename($ticket->attachment_path)
+                            ]];
                         }
                     } catch (\Exception $e) {
-                        $existingAttachments = [$ticket->attachment_path];
+                        $existingAttachments = [[
+                            'path' => $ticket->attachment_path,
+                            'name' => basename($ticket->attachment_path)
+                        ]];
                     }
                 }
                 
-                // Ajouter la nouvelle pièce jointe
-                $existingAttachments[] = $path;
+                // Ajouter la nouvelle pièce jointe avec son nom original
+                $existingAttachments[] = [
+                    'path' => $path,
+                    'name' => $originalName
+                ];
                 
                 // Mettre à jour le chemin des fichiers dans le ticket
                 $ticket->attachment_path = json_encode($existingAttachments);
@@ -859,6 +875,7 @@ class TicketController extends Controller
                 return response()->json([
                     'message' => 'Pièce jointe ajoutée avec succès',
                     'path' => $path,
+                    'name' => $originalName,
                     'all_attachments' => $existingAttachments
                 ]);
             }

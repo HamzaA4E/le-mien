@@ -6,6 +6,29 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+// Modal de confirmation de suppression
+const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, label }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+        <h2 className="text-lg font-bold mb-4 text-gray-800">Confirmer la suppression</h2>
+        <p className="mb-6 text-gray-700">Êtes-vous sûr de vouloir supprimer ce/cette {label.toLowerCase()} ?</p>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+          >Annuler</button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+          >Supprimer</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const EntityManagement = ({ entity, label, isUsed = false }) => {
   const [items, setItems] = useState([]);
   const [services, setServices] = useState([]);
@@ -23,6 +46,8 @@ const EntityManagement = ({ entity, label, isUsed = false }) => {
   const [validationError, setValidationError] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [flashCount, setFlashCount] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
 
   const getCacheKey = (entity) => `entity_cache_${entity}`;
 
@@ -218,9 +243,16 @@ const EntityManagement = ({ entity, label, isUsed = false }) => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ce/cette ${label.toLowerCase()} ?`)) return;
+    setDeleteId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setShowDeleteModal(false);
+    setDeleteId(null);
     try {
-      await axios.delete(`/api/${entity}/${id}`);
+      await axios.delete(`/api/${entity}/${deleteId}`);
       invalidateCache();
       invalidateCreateTicketCache();
       await fetchItems();
@@ -342,6 +374,12 @@ const EntityManagement = ({ entity, label, isUsed = false }) => {
           </div>
         )}
       </div>
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setDeleteId(null); }}
+        onConfirm={confirmDelete}
+        label={label}
+      />
       <table className="w-full border">
         <thead>
           <tr>
@@ -419,24 +457,24 @@ const EntityManagement = ({ entity, label, isUsed = false }) => {
                   </span>
                 </td>
                 <td className="border px-2 py-1">
-                  {editId === item.id ? (
-                    <>
-                      <button 
-                        onClick={handleUpdate} 
-                        className="bg-green-600 text-white px-2 py-1 rounded mr-2 hover:bg-green-700 transition-colors"
-                      >
-                        Valider
-                      </button>
-                      <button
-                        onClick={() => setEditId(null)}
-                        className="bg-gray-400 text-white px-2 py-1 rounded hover:bg-gray-500 transition-colors"
-                      >
-                        Annuler
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {usedItems.has(item.id) ? (
+                  <div className="flex flex-row flex-nowrap gap-2">
+                    {editId === item.id ? (
+                      <>
+                        <button 
+                          onClick={handleUpdate} 
+                          className="bg-green-600 text-white px-2 py-1 rounded mr-2 hover:bg-green-700 transition-colors"
+                        >
+                          Valider
+                        </button>
+                        <button
+                          onClick={() => setEditId(null)}
+                          className="bg-gray-400 text-white px-2 py-1 rounded hover:bg-gray-500 transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      </>
+                    ) : (
+                      <>
                         <button
                           onClick={() => handleToggleActive(item.id, item.is_active)}
                           disabled={loadingId === item.id}
@@ -444,7 +482,7 @@ const EntityManagement = ({ entity, label, isUsed = false }) => {
                             (item.is_active
                               ? 'bg-red-500 hover:bg-red-600'
                               : 'bg-green-500 hover:bg-green-600') +
-                            ' text-white px-3 py-1 rounded transition-colors font-semibold mr-2' +
+                            ' w-24 text-white px-3 py-1 rounded transition-colors font-semibold' +
                             (loadingId === item.id ? ' opacity-60 cursor-not-allowed' : '')
                           }
                         >
@@ -452,22 +490,27 @@ const EntityManagement = ({ entity, label, isUsed = false }) => {
                             ? 'Changement...'
                             : item.is_active ? 'Désactiver' : 'Activer'}
                         </button>
-                      ) : (
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="w-24 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors font-semibold"
+                        >
+                          Modifier
+                        </button>
                         <button
                           onClick={() => handleDelete(item.id)}
-                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors font-semibold mr-2"
+                          className={
+                            (usedItems.has(item.id)
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-red-500 text-white hover:bg-red-600 transition-colors') +
+                            ' w-24 px-3 py-1 rounded font-semibold'
+                          }
+                          disabled={usedItems.has(item.id)}
                         >
                           Supprimer
                         </button>
-                      )}
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors font-semibold"
-                      >
-                        Modifier
-                      </button>
-                    </>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))

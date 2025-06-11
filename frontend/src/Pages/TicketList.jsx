@@ -582,7 +582,10 @@ const TicketList = () => {
                   className="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="">Tous</option>
-                  {demandeurs.map(dem => (
+                  {(user?.niveau === 3
+                    ? demandeurs.filter(d => d.id_service === user.service?.id)
+                    : demandeurs
+                  ).map(dem => (
                     <option key={dem.id} value={dem.id}>{dem.designation}</option>
                   ))}
                 </select>

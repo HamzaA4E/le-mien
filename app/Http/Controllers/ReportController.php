@@ -36,12 +36,11 @@ class ReportController extends Controller
         // Restriction pour l'exécutant : ne voir que ses tickets
         $user = $request->user();
         if ($user && method_exists($user, 'isExecutant') && $user->isExecutant()) {
-            $executant = \App\Models\Executant::where('designation', $user->designation)->first();
-            if ($executant) {
-                $query->where('Id_Executant', $executant->id);
-            } else {
-                $query->whereRaw('1=0');
-            }
+            $query->where('Id_Executant', $user->id);
+            \Log::info('Filtrage des tickets pour l\'exécutant', [
+                'userId' => $user->id,
+                'ticketsCount' => $query->count()
+            ]);
         }
 
         // Log du nombre de tickets après filtres d'exécutant
@@ -49,22 +48,22 @@ class ReportController extends Controller
 
         // Appliquer les filtres
         if ($startDate) {
-            $query->where('created_at', '>=', Carbon::parse($startDate)->startOfDay());
+            $query->where('T_TICKET.DateCreation', '>=', Carbon::parse($startDate)->startOfDay());
         }
         if ($endDate) {
-            $query->where('created_at', '<=', Carbon::parse($endDate)->endOfDay());
+            $query->where('T_TICKET.DateCreation', '<=', Carbon::parse($endDate)->endOfDay());
         }
         if ($serviceId) {
             $query->where('T_DEMDEUR.id_service', $serviceId);
         }
         if ($statusId) {
-            $query->where('id_statut', $statusId);
+            $query->where('T_TICKET.id_statut', $statusId);
         }
         if ($priorityId) {
-            $query->where('id_priorite', $priorityId);
+            $query->where('T_TICKET.id_priorite', $priorityId);
         }
         if ($demandeurId) {
-            $query->where('id_demandeur', $demandeurId);
+            $query->where('T_TICKET.id_demandeur', $demandeurId);
         }
 
         // Log du nombre de tickets après tous les filtres
@@ -138,11 +137,11 @@ class ReportController extends Controller
     private function getTicketsByPeriod($query)
     {
         return $query->select(
-            DB::raw('DATE(DateCreation) as Période'),
+            DB::raw('CONVERT(varchar, DateCreation, 103) as Période'),
             DB::raw('count(*) as Nombre')
         )
             ->leftJoin('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
-            ->groupBy(DB::raw('DATE(DateCreation)'))
+            ->groupBy(DB::raw('CONVERT(varchar, DateCreation, 103)'))
             ->orderBy('Période')
             ->get();
     }

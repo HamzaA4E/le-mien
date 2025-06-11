@@ -51,6 +51,95 @@ const RejectModal = ({ isOpen, onClose, onReject, ticketId }) => {
     );
 };
 
+// Composant Modal de détails
+const DetailModal = ({ isOpen, onClose, ticket, loading }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+            <div className="relative bg-white p-8 rounded-xl shadow-xl w-full max-w-2xl">
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition"
+                    title="Fermer"
+                >
+                    ×
+                </button>
+                <h2 className="text-xl font-bold text-blue-700 mb-6">Résumé du ticket</h2>
+                {loading ? (
+                    <div className="text-center text-blue-600 font-semibold">Chargement...</div>
+                ) : ticket ? (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 mb-6">
+                            <div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-800">Titre :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.Titre}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-800">Description :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.Description}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-800">Catégorie :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.categorie?.designation}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-800">Service :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.demandeur?.service?.designation}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-800">Date de création :</span>
+                                    <span className="ml-2 text-gray-900">{formatDate(ticket.DateCreation)}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-800">Date de fin :</span>
+                                    <span className="ml-2 text-gray-900">{formatDate(ticket.DateFinReelle)}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-800">Statut :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.statut?.designation}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-800">Demandeur :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.demandeur?.designation}</span>
+                                </div>
+                                {ticket.executant && (
+                                    <div className="mb-2">
+                                        <span className="font-semibold text-gray-800">Exécutant :</span>
+                                        <span className="ml-2 text-gray-900">{ticket.executant.designation}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <div className="text-center text-red-600">Erreur lors du chargement du ticket.</div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+function formatDate(dateValue) {
+    if (!dateValue) return '-';
+    let dateString = dateValue;
+    if (typeof dateValue === 'object' && dateValue.date) {
+        dateString = dateValue.date;
+    }
+    if (typeof dateString === 'string' && dateString.includes('.')) {
+        dateString = dateString.split('.')[0];
+    }
+    const isoString = dateString.replace(' ', 'T');
+    const date = new Date(isoString);
+    return isNaN(date) ? '-' : date.toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+}
+
 const CompletedTicketsPage = () => {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -59,6 +148,9 @@ const CompletedTicketsPage = () => {
     const [spin, setSpin] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [selectedTicketId, setSelectedTicketId] = useState(null);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
     useEffect(() => {
         fetchTickets();
@@ -104,12 +196,71 @@ const CompletedTicketsPage = () => {
         setShowRejectModal(true);
     };
 
-    if (loading) return <div>Chargement...</div>;
-    if (error) return <div>{error}</div>;
+    const openDetailModal = async (ticketId) => {
+        setLoadingDetail(true);
+        setShowDetailModal(true);
+        try {
+            const res = await axios.get(`/api/tickets/${ticketId}`);
+            setSelectedTicket(res.data);
+        } catch (e) {
+            setSelectedTicket(null);
+        }
+        setLoadingDetail(false);
+    };
+
+    const closeDetailModal = () => {
+        setShowDetailModal(false);
+        setSelectedTicket(null);
+    };
+
+    if (loading) {
+        return (
+            <Layout>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <div className="overflow-x-auto w-full">
+                            <table className="w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3"></th>
+                                        <th className="px-6 py-3"></th>
+                                        <th className="px-6 py-3"></th>
+                                        <th className="px-6 py-3"></th>
+                                        <th className="px-6 py-3"></th>
+                                        <th className="px-6 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {[...Array(3)].map((_, i) => (
+                                        <tr key={i} className="animate-pulse">
+                                            {[...Array(6)].map((_, j) => (
+                                                <td key={j} className="px-6 py-4">
+                                                    <div className="h-4 bg-gray-200 rounded w-full"></div>
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
+    if (error) {
+        return (
+            <Layout>
+                <div className="flex items-center justify-center h-96">
+                    <span className="text-lg text-red-600">{error}</span>
+                </div>
+            </Layout>
+        );
+    }
 
     return (
         <Layout>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="">
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-4">
                         <h1 className="text-2xl font-bold">Tickets terminés</h1>
@@ -128,15 +279,14 @@ const CompletedTicketsPage = () => {
                     </div>
                 )}
                 <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
+                    <div className="overflow-x-auto w-full">
+                        <table className="w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titre</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date de création</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date de fin</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priorité</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
@@ -169,7 +319,7 @@ const CompletedTicketsPage = () => {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
                                                 {ticket.DateFinReelle
-                                                    ? new Date(ticket.DateFinReelle.replace(' ', 'T')).toLocaleDateString('fr-FR', {
+                                                    ? new Date(ticket.DateFinReelle).toLocaleDateString('fr-FR', {
                                                         year: 'numeric',
                                                         month: '2-digit',
                                                         day: '2-digit'
@@ -177,17 +327,15 @@ const CompletedTicketsPage = () => {
                                                     : 'Date non disponible'}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{ticket.priorite?.designation}</div>
-                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div className="flex space-x-2">
-                                                <Link
-                                                    to={`/tickets/${ticket.id}`}
-                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                <button
+                                                    onClick={() => openDetailModal(ticket.id)}
+                                                    className="text-indigo-600 hover:text-indigo-900 cursor-pointer bg-transparent border-none p-0"
+                                                    style={{ background: 'none' }}
                                                 >
                                                     Voir les détails
-                                                </Link>
+                                                </button>
                                                 {ticket.statut?.designation === 'Terminé' && (
                                                     <>
                                                         <button
@@ -218,6 +366,12 @@ const CompletedTicketsPage = () => {
                 onClose={() => setShowRejectModal(false)}
                 onReject={handleReject}
                 ticketId={selectedTicketId}
+            />
+            <DetailModal
+                isOpen={showDetailModal}
+                onClose={closeDetailModal}
+                ticket={selectedTicket}
+                loading={loadingDetail}
             />
         </Layout>
     );

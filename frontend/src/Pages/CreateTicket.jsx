@@ -421,7 +421,7 @@ const CreateTicket = () => {
 
             {/* Emplacement et Priorité */}
             {renderSelect('id_emplacement', 'Emplacement', emplacements, loadingStates.emplacements)}
-            {renderSelect('id_priorite', 'Priorité (optionnel)', priorites, loadingStates.priorites, false)}
+            {renderSelect('id_priorite', 'Priorité', priorites, loadingStates.priorites, false)}
 
             {/* Catégorie */}
             {renderSelect('id_categorie', 'Catégorie', categories, loadingStates.categories)}
@@ -560,7 +560,7 @@ const CreateTicket = () => {
         )}
 
         {/* Debug section */}
-        <div className="mt-8 p-4 bg-gray-100 rounded">
+        {/* <div className="mt-8 p-4 bg-gray-100 rounded">
           <h3 className="font-bold mb-2">Debug formData :</h3>
           <pre className="whitespace-pre-wrap">{JSON.stringify(formData, null, 2)}</pre>
           {error && (
@@ -569,7 +569,7 @@ const CreateTicket = () => {
               <pre className="whitespace-pre-wrap text-red-600">{error}</pre>
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     </Layout>
   );

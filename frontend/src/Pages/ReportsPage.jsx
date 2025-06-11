@@ -303,32 +303,34 @@ const ReportsPage = () => {
 
         {reportData && Array.isArray(reportData) && reportData.length > 0 && (
           <div className="bg-white rounded-lg shadow-lg p-6 report-content">
-            <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">Visualisation</h3>
-              <div className="w-full max-w-md mx-auto" style={{height: '300px'}}>
-                {chartType === 'pie' ? (
-                  <Pie data={prepareChartData()} options={{ responsive: true, maintainAspectRatio: false }} height={220} />
-                ) : (
-                  <Bar 
-                    data={prepareChartData()} 
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'top',
-                        },
-                        title: {
-                          display: true,
-                          text: 'Rapport de tickets'
+            {reportType !== 'tickets_detailed' && (
+              <div className="mb-8 border-b border-gray-200 pb-8">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">Visualisation</h3>
+                <div className="w-full max-w-md mx-auto" style={{height: '300px'}}>
+                  {chartType === 'pie' ? (
+                    <Pie data={prepareChartData()} options={{ responsive: true, maintainAspectRatio: false }} height={220} />
+                  ) : (
+                    <Bar 
+                      data={prepareChartData()} 
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            position: 'top',
+                          },
+                          title: {
+                            display: true,
+                            text: 'Rapport de tickets'
+                          }
                         }
-                      }
-                    }}
-                    height={220}
-                  />
-                )}
+                      }}
+                      height={220}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="mt-8">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Données détaillées</h3>

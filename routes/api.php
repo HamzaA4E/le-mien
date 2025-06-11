@@ -46,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tickets/options', [TicketController::class, 'getOptions']);
     Route::get('/tickets/{id}/download', [TicketController::class, 'downloadAttachment']);
     Route::get('/tickets/{id}/download/{index}', [TicketController::class, 'downloadAttachment']);
+    Route::post('/tickets/{id}/attachment', [TicketController::class, 'uploadAttachment']);
     Route::get('/tickets/pending', [TicketController::class, 'pending']);
     Route::get('/tickets/pending/count', [TicketController::class, 'countPending']);
     Route::get('/tickets/next-rejected', [TicketController::class, 'getNextRejectedTicket']);

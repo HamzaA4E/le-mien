@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Ticket extends Model
 {
@@ -38,7 +39,11 @@ class Ticket extends Model
         'Id_Emplacement' => 'integer',
         'Id_Categorie' => 'integer',
         'Id_Utilisat' => 'integer',
-        'Id_Executant' => 'integer'
+        'Id_Executant' => 'integer',
+        'DateDebut' => 'datetime:Y-m-d H:i:s',
+        'DateFinPrevue' => 'datetime:Y-m-d H:i:s',
+        'DateFinReelle' => 'datetime:Y-m-d H:i:s',
+        'DateCreation' => 'datetime:Y-m-d H:i:s'
     ];
 
     protected static function boot()
@@ -47,16 +52,32 @@ class Ticket extends Model
 
         static::creating(function ($ticket) {
             if (empty($ticket->DateCreation)) {
-                $ticket->DateCreation = now();
+                $ticket->DateCreation = now()->format('Y-m-d H:i:s');
             }
             // Si un commentaire est fourni, on le formate comme un commentaire normal avec l'ID du demandeur
             if (!empty($ticket->Commentaire) && !empty($ticket->Id_Demandeur)) {
                 $ticket->Commentaire = sprintf(
                     "[%d|%s]%s",
                     $ticket->Id_Demandeur,
-                    now()->format('d/m/Y H:i'),
+                    now()->format('Y-m-d H:i:s'),
                     $ticket->Commentaire
                 );
+            }
+        });
+
+        static::saving(function ($ticket) {
+            // Format all dates to SQL Server compatible format
+            $dateFields = ['DateDebut', 'DateFinPrevue', 'DateFinReelle', 'DateCreation'];
+            
+            foreach ($dateFields as $field) {
+                if ($ticket->isDirty($field) && $ticket->$field) {
+                    try {
+                        $date = \Carbon\Carbon::parse($ticket->$field);
+                        $ticket->$field = $date->format('Y-m-d H:i:s');
+                    } catch (\Exception $e) {
+                        \Log::error("Error formatting date for field {$field}: " . $e->getMessage());
+                    }
+                }
             }
         });
     }

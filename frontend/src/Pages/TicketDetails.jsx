@@ -31,6 +31,7 @@ const TicketDetails = () => {
   const [editingCommentIndex, setEditingCommentIndex] = useState(null);
   const [editCommentContent, setEditCommentContent] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -151,7 +152,7 @@ const TicketDetails = () => {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (index = 0) => {
     try {
         setError('');
         // Correction : parser le JSON et nettoyer le nom du fichier
@@ -159,7 +160,7 @@ const TicketDetails = () => {
         try {
           const paths = JSON.parse(ticket.attachment_path);
           if (Array.isArray(paths) && paths.length > 0) {
-            fileName = paths[0].split('/').pop();
+            fileName = paths[index].split('/').pop();
           }
         } catch {
           fileName = ticket.attachment_path.split('/').pop();
@@ -169,7 +170,7 @@ const TicketDetails = () => {
         const isPdf = fileName.toLowerCase().endsWith('.pdf');
         
         // Approche unifiée pour tous les fichiers
-        const response = await axios.get(`/api/tickets/${ticket.id}/download`, {
+        const response = await axios.get(`/api/tickets/${ticket.id}/download/${index}`, {
             responseType: 'blob',
             headers: {
                 'Accept': isPdf ? 'application/pdf' : '*/*'
@@ -335,8 +336,29 @@ const TicketDetails = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    setReportAttachment(e.target.files[0]);
+  const handleFileChange = async (e) => {
+    e.preventDefault();
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('attachment', file);
+
+    try {
+      const response = await axios.post(`/api/tickets/${id}/attachment`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Mettre à jour le ticket avec la nouvelle pièce jointe
+      const updatedTicket = await axios.get(`/api/tickets/${id}`);
+      setTicket(updatedTicket.data);
+      setShowAttachmentModal(false);
+    } catch (err) {
+      console.error('Erreur lors de l\'ajout de la pièce jointe:', err);
+      alert('Erreur lors de l\'ajout de la pièce jointe');
+    }
   };
 
   // Fonction pour télécharger la pièce jointe d'un rapport
@@ -639,29 +661,50 @@ const TicketDetails = () => {
               )}
               {ticket.attachment_path && (
                 <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                  <dt className="text-sm font-medium text-gray-500">Pièce jointe</dt>
+                  <dt className="text-sm font-medium text-gray-500">Pièces jointes</dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    <div className="flex items-center space-x-4">
+                    <div className="space-y-2">
                       {(() => {
-                        let fileName = '';
+                        let attachments = [];
                         try {
                           const paths = JSON.parse(ticket.attachment_path);
-                          if (Array.isArray(paths) && paths.length > 0) {
-                            fileName = paths[0].split('/').pop();
+                          if (Array.isArray(paths)) {
+                            attachments = paths;
+                          } else {
+                            attachments = [ticket.attachment_path];
                           }
                         } catch {
-                          fileName = ticket.attachment_path.split('/').pop();
+                          attachments = [ticket.attachment_path];
                         }
-                        return <span className="text-gray-600">{fileName}</span>;
+                        return (
+                          <>
+                            {attachments.map((path, index) => (
+                              <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
+                                <span className="text-gray-600">{path.split('/').pop()}</span>
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handleDownload(index)}
+                                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                  >
+                                    <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Télécharger
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        );
                       })()}
                       <button
-                        onClick={handleDownload}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        onClick={() => setShowAttachmentModal(true)}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mt-2"
                       >
                         <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                         </svg>
-                        Télécharger
+                        Ajouter une pièce jointe
                       </button>
                     </div>
                   </dd>
@@ -744,7 +787,7 @@ const TicketDetails = () => {
                 </div>
 
                 {/* Champ pour la pièce jointe */}
-                <div>
+                {/* <div>
                   <label htmlFor="reportAttachment" className="block text-sm font-medium text-gray-700 mb-1">
                     Pièce jointe (Optionnel)
                   </label>
@@ -757,7 +800,7 @@ const TicketDetails = () => {
                   {reportAttachment && (
                     <p className="mt-2 text-sm text-gray-500">Fichier sélectionné : {reportAttachment.name}</p>
                   )}
-                </div>
+                </div> */}
 
                 {reportError && <p className="text-red-500 text-sm">{reportError}</p>}
                 {reportSuccess && <p className="text-green-600 text-sm">{reportSuccess}</p>}
@@ -1030,6 +1073,44 @@ const TicketDetails = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal d'ajout de pièce jointe */}
+        {showAttachmentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl"
+                onClick={() => setShowAttachmentModal(false)}
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+              <h2 className="text-lg font-bold mb-4">Ajouter une pièce jointe</h2>
+              <form onSubmit={handleFileChange} className="space-y-4">
+                <div>
+                  <label htmlFor="attachment" className="block text-sm font-medium text-gray-700 mb-1">
+                    Pièce jointe (PDF, PNG, JPG)
+                  </label>
+                  <input
+                    type="file"
+                    id="attachment"
+                    accept=".pdf,.png,.jpg"
+                    onChange={handleFileChange}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Enregistrer
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

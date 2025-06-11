@@ -413,14 +413,14 @@ class TicketController extends Controller
                 'Id_Demandeur' => 'sometimes|exists:T_UTILISAT,id',
                 'Id_Emplacement' => 'sometimes|exists:T_EMPLACEMENT,id',
                 'Id_Categorie' => 'sometimes|exists:T_CATEGORIE,id',
-                'DateDebut' => 'sometimes|date_format:d/m/Y',
+                'DateDebut' => 'sometimes|date_format:Y-m-d',
                 'DateFinPrevue' => [
                     'sometimes',
-                    'date_format:d/m/Y',
+                    'date_format:Y-m-d',
                     function ($attribute, $value, $fail) use ($request) {
                         if ($request->has('DateDebut')) {
-                            $dateDebut = \DateTime::createFromFormat('d/m/Y', $request->DateDebut);
-                            $dateFinPrevue = \DateTime::createFromFormat('d/m/Y', $value);
+                            $dateDebut = \DateTime::createFromFormat('Y-m-d', $request->DateDebut);
+                            $dateFinPrevue = \DateTime::createFromFormat('Y-m-d', $value);
                             if ($dateDebut && $dateFinPrevue && $dateFinPrevue < $dateDebut) {
                                 $fail('La date de fin prévue ne peut pas être antérieure à la date de début.');
                             }
@@ -512,7 +512,7 @@ class TicketController extends Controller
                 ($ticket->Id_Statut === $idCloture)
             ) {
                 if (empty($ticket->DateFinReelle)) {
-                    $data['DateFinReelle'] = date('d/m/Y H:i:s');
+                    $data['DateFinReelle'] = date('Y-m-d H:i:s');
                 }
             }
 
@@ -528,7 +528,7 @@ class TicketController extends Controller
                 if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
                     $executant = \App\Models\Executant::where('designation', $user->designation)->first();
                     if (!$executant || $ticket->Id_Executant !== $executant->id) {
-                        $comment = "\n\n[{$user->designation}|" . date('d/m/Y H:i:s') . "]Action admin : changement de statut du ticket (non assigné à lui-même).";
+                        $comment = "\n\n[{$user->designation}|" . date('Y-m-d H:i:s') . "]Action admin : changement de statut du ticket (non assigné à lui-même).";
                         $ticket->Commentaire = ($ticket->Commentaire ?? '') . $comment;
                         $ticket->save();
                     }
@@ -775,8 +775,14 @@ class TicketController extends Controller
                 return response()->json(['message' => 'Aucune pièce jointe trouvée'], 404);
             }
 
-            $paths = json_decode($ticket->attachment_path, true);
-            if (!is_array($paths)) {
+            // Gérer le cas où attachment_path est une chaîne JSON
+            $paths = [];
+            try {
+                $paths = json_decode($ticket->attachment_path, true);
+                if (!is_array($paths)) {
+                    $paths = [$ticket->attachment_path];
+                }
+            } catch (\Exception $e) {
                 $paths = [$ticket->attachment_path];
             }
 
@@ -787,14 +793,16 @@ class TicketController extends Controller
             $path = storage_path('app/public/' . $paths[$index]);
 
             if (!file_exists($path)) {
+                \Log::error('Fichier non trouvé', [
+                    'path' => $path,
+                    'ticket_id' => $id,
+                    'index' => $index
+                ]);
                 return response()->json(['message' => 'Le fichier n\'existe plus'], 404);
             }
 
             $mimeType = mime_content_type($path) ?: 'application/octet-stream';
-
-            // Nettoyer le nom du fichier pour éviter les crochets, guillemets ou espaces parasites
             $filename = basename($path);
-            $filename = preg_replace('/^[\s"\[\]]+|[\s"\[\]]+$/', '', $filename);
 
             return response()->download($path, $filename, [
                 'Content-Type' => $mimeType,
@@ -802,13 +810,72 @@ class TicketController extends Controller
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0',
                 'Pragma' => 'no-cache'
             ]);
+
         } catch (\Exception $e) {
             \Log::error('Erreur téléchargement fichier', [
                 'error' => $e->getMessage(),
                 'ticket_id' => $id,
+                'index' => $index,
                 'path' => $path ?? null
             ]);
             return response()->json(['message' => 'Erreur lors du téléchargement'], 500);
+        }
+    }
+
+    public function uploadAttachment(Request $request, $id)
+    {
+        try {
+            $ticket = Ticket::findOrFail($id);
+            
+            // Validation du fichier
+            $request->validate([
+                'attachment' => 'required|file|max:10240', // max 10MB
+            ]);
+
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                $path = $file->store('attachments', 'public');
+                
+                // Récupérer les pièces jointes existantes
+                $existingAttachments = [];
+                if ($ticket->attachment_path) {
+                    try {
+                        $existingAttachments = json_decode($ticket->attachment_path, true);
+                        if (!is_array($existingAttachments)) {
+                            $existingAttachments = [$ticket->attachment_path];
+                        }
+                    } catch (\Exception $e) {
+                        $existingAttachments = [$ticket->attachment_path];
+                    }
+                }
+                
+                // Ajouter la nouvelle pièce jointe
+                $existingAttachments[] = $path;
+                
+                // Mettre à jour le chemin des fichiers dans le ticket
+                $ticket->attachment_path = json_encode($existingAttachments);
+                $ticket->save();
+
+                return response()->json([
+                    'message' => 'Pièce jointe ajoutée avec succès',
+                    'path' => $path,
+                    'all_attachments' => $existingAttachments
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Aucun fichier n\'a été uploadé'
+            ], 400);
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur upload fichier', [
+                'error' => $e->getMessage(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de l\'upload du fichier',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -939,7 +1006,7 @@ class TicketController extends Controller
             ]);
 
             $currentComment = $ticket->Commentaire ? $ticket->Commentaire . "\n\n" : "";
-            $newComment = $currentComment . "[" . ($demandeur ? $demandeur->designation : $user->designation) . "|" . now()->format('d/m/Y H:i') . "]" . $validated['content'];
+            $newComment = $currentComment . "[" . ($demandeur ? $demandeur->designation : $user->designation) . "|" . now()->format('Y-m-d H:i') . "]" . $validated['content'];
 
             $ticket->Commentaire = $newComment;
             $ticket->save();
@@ -1222,17 +1289,24 @@ class TicketController extends Controller
                 ], 400);
             }
 
-            // Convertir les dates au format attendu par la base de données
-            $dateDebut = Carbon::createFromFormat('Y-m-d', $validated['DateDebut'])->format('d/m/Y H:i:s');
-            $dateFinPrevue = Carbon::createFromFormat('Y-m-d', $validated['DateFinPrevue'])->format('d/m/Y H:i:s');
+            // Convertir les dates au format attendu par SQL Server
+            $dateDebut = Carbon::createFromFormat('Y-m-d', $validated['DateDebut'])->format('Y-m-d H:i:s');
+            $dateFinPrevue = Carbon::createFromFormat('Y-m-d', $validated['DateFinPrevue'])->format('Y-m-d H:i:s');
 
-            // Mettre à jour le ticket
-            $ticket->Id_Statut = Statut::where('designation', 'En instance')->value('id');
-            $ticket->Id_Executant = $validated['executantId'];
-            $ticket->Id_Priorite = $validated['priorityId'];
-            $ticket->DateDebut = $dateDebut;
-            $ticket->DateFinPrevue = $dateFinPrevue;
-            $ticket->save();
+            // Mettre à jour le ticket avec DB::raw pour les dates
+            DB::table('T_TICKET')
+                ->where('id', $ticket->id)
+                ->update([
+                    'Id_Statut' => Statut::where('designation', 'En instance')->value('id'),
+                    'Id_Executant' => $validated['executantId'],
+                    'Id_Priorite' => $validated['priorityId'],
+                    'DateDebut' => DB::raw("CONVERT(datetime, '{$dateDebut}', 120)"),
+                    'DateFinPrevue' => DB::raw("CONVERT(datetime, '{$dateFinPrevue}', 120)"),
+                    'updated_at' => now()
+                ]);
+
+            // Récupérer le ticket mis à jour
+            $ticket = Ticket::find($ticket->id);
 
             // Envoyer l'email au demandeur
             try {
@@ -1444,7 +1518,7 @@ class TicketController extends Controller
             // Mettre à jour le statut du ticket
             $statutCloture = Statut::where('designation', 'Clôturé')->first();
             $ticket->Id_Statut = $statutCloture->id;
-            $ticket->DateFinReelle = date('d/m/Y H:i:s');
+            $ticket->DateFinReelle = date('Y-m-d H:i:s');
             $ticket->save();
 
             return response()->json([

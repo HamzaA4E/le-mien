@@ -105,15 +105,15 @@
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Date de création :</span>
-                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateCreation)->format('d/m/Y') }}</span>
+                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateCreation)->format('Y-m-d') }}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Date de début :</span>
-                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateDebut)->format('d/m/Y') }}</span>
+                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateDebut)->format('Y-m-d') }}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Date de fin prévue :</span>
-                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateFinPrevue)->format('d/m/Y') }}</span>
+                    <span class="detail-value">{{ \Carbon\Carbon::parse($ticket->DateFinPrevue)->format('Y-m-d') }}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Exécutant :</span>

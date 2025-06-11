@@ -1293,6 +1293,7 @@ class TicketController extends Controller
             $dateDebut = Carbon::createFromFormat('Y-m-d', $validated['DateDebut'])->format('Y-m-d H:i:s');
             $dateFinPrevue = Carbon::createFromFormat('Y-m-d', $validated['DateFinPrevue'])->format('Y-m-d H:i:s');
 
+<<<<<<< HEAD
             // Mettre à jour le ticket avec DB::raw pour les dates
             DB::table('T_TICKET')
                 ->where('id', $ticket->id)
@@ -1300,6 +1301,22 @@ class TicketController extends Controller
                     'Id_Statut' => Statut::where('designation', 'En instance')->value('id'),
                     'Id_Executant' => $validated['executantId'],
                     'Id_Priorite' => $validated['priorityId'],
+=======
+            // Mettre à jour le ticket
+            $ticket->Id_Statut = Statut::where('designation', 'En instance')->value('id');
+            $ticket->Id_Executant = $validated['executantId'];
+            $ticket->Id_Priorite = $validated['priorityId'];
+            $ticket->DateDebut = $dateDebut;
+            $ticket->DateFinPrevue = $dateFinPrevue;
+
+            // Utiliser DB::raw pour les dates
+            DB::table('T_TICKET')
+                ->where('id', $ticket->id)
+                ->update([
+                    'Id_Statut' => $ticket->Id_Statut,
+                    'Id_Executant' => $ticket->Id_Executant,
+                    'Id_Priorite' => $ticket->Id_Priorite,
+>>>>>>> 46cd5876bf4b7d239f618da105529430663a7e10
                     'DateDebut' => DB::raw("CONVERT(datetime, '{$dateDebut}', 120)"),
                     'DateFinPrevue' => DB::raw("CONVERT(datetime, '{$dateFinPrevue}', 120)"),
                     'updated_at' => now()
@@ -1336,22 +1353,21 @@ class TicketController extends Controller
 
             // Envoyer l'email à l'exécutant
             try {
-                $executant = \App\Models\Executant::find($validated['executantId']);
-                if ($executant) {
-                    $utilisateur = Utilisateur::where('designation', $executant->designation)->first();
-                    if ($utilisateur && $utilisateur->email) {
-                        Mail::to($utilisateur->email)->send(new TicketAssignedNotification($ticket, $executant));
-                        Log::info('Email d\'assignation envoyé avec succès', [
-                            'ticket_id' => $ticket->id,
-                            'executant_id' => $executant->id,
-                            'utilisateur_email' => $utilisateur->email
-                        ]);
-                    } else {
-                        Log::warning('Email non trouvé pour l\'exécutant', [
-                            'executant_id' => $executant->id,
-                            'executant_designation' => $executant->designation
-                        ]);
-                    }
+                $executant = \App\Models\Executant::with('utilisateur')->find($validated['executantId']);
+                if ($executant && $executant->utilisateur && $executant->utilisateur->email) {
+                    Mail::to($executant->utilisateur->email)->send(new TicketAssignedNotification($ticket, $executant));
+                    Log::info('Email d\'assignation envoyé avec succès', [
+                        'ticket_id' => $ticket->id,
+                        'executant_id' => $executant->id,
+                        'utilisateur_email' => $executant->utilisateur->email
+                    ]);
+                } else {
+                    Log::warning('Email non trouvé pour l\'exécutant', [
+                        'executant_id' => $executant->id,
+                        'executant_designation' => $executant->designation,
+                        'has_utilisateur' => $executant && $executant->utilisateur ? 'yes' : 'no',
+                        'has_email' => $executant && $executant->utilisateur && $executant->utilisateur->email ? 'yes' : 'no'
+                    ]);
                 }
             } catch (\Exception $e) {
                 Log::error('Erreur lors de l\'envoi de l\'email de notification', [

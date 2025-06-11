@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Ticket extends Model
 {
@@ -38,7 +39,11 @@ class Ticket extends Model
         'Id_Emplacement' => 'integer',
         'Id_Categorie' => 'integer',
         'Id_Utilisat' => 'integer',
-        'Id_Executant' => 'integer'
+        'Id_Executant' => 'integer',
+        'DateDebut' => 'datetime',
+        'DateFinPrevue' => 'datetime',
+        'DateFinReelle' => 'datetime',
+        'DateCreation' => 'datetime'
     ];
 
     protected static function boot()
@@ -47,16 +52,32 @@ class Ticket extends Model
 
         static::creating(function ($ticket) {
             if (empty($ticket->DateCreation)) {
-                $ticket->DateCreation = now();
+                $ticket->DateCreation = now()->format('Y-m-d H:i:s');
             }
             // Si un commentaire est fourni, on le formate comme un commentaire normal avec l'ID du demandeur
             if (!empty($ticket->Commentaire) && !empty($ticket->Id_Demandeur)) {
                 $ticket->Commentaire = sprintf(
                     "[%d|%s]%s",
                     $ticket->Id_Demandeur,
-                    now()->format('d/m/Y H:i'),
+                    now()->format('Y-m-d H:i:s'),
                     $ticket->Commentaire
                 );
+            }
+        });
+
+        static::saving(function ($ticket) {
+            // Convertir les dates au format SQL Server si elles sont modifiées
+            if ($ticket->isDirty('DateDebut')) {
+                $ticket->DateDebut = DB::raw("CONVERT(datetime, '{$ticket->DateDebut}', 120)");
+            }
+            if ($ticket->isDirty('DateFinPrevue')) {
+                $ticket->DateFinPrevue = DB::raw("CONVERT(datetime, '{$ticket->DateFinPrevue}', 120)");
+            }
+            if ($ticket->isDirty('DateFinReelle')) {
+                $ticket->DateFinReelle = DB::raw("CONVERT(datetime, '{$ticket->DateFinReelle}', 120)");
+            }
+            if ($ticket->isDirty('DateCreation')) {
+                $ticket->DateCreation = DB::raw("CONVERT(datetime, '{$ticket->DateCreation}', 120)");
             }
         });
     }

@@ -1003,27 +1003,22 @@ class TicketController extends Controller
             $ticket = Ticket::findOrFail($id);
             $user = auth()->user();
             
+            // Récupérer la désignation de l'utilisateur
+            $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
+            $userDesignation = $demandeur ? $demandeur->designation : $user->designation;
+            
             Log::info('Tentative d\'ajout de commentaire', [
                 'user_id' => $user->id,
-                'user_designation' => $user->designation,
+                'user_designation' => $userDesignation,
                 'ticket_id' => $id
             ]);
-
-            $demandeur = \App\Models\Demandeur::where('designation', $user->designation)->first();
-            
-            if (!$demandeur) {
-                Log::warning('Demandeur non trouvé pour l\'utilisateur', [
-                    'user_id' => $user->id,
-                    'user_designation' => $user->designation
-                ]);
-            }
 
             $validated = $request->validate([
                 'content' => 'required|string'
             ]);
 
             $currentComment = $ticket->Commentaire ? $ticket->Commentaire . "\n\n" : "";
-            $newComment = $currentComment . "[" . ($demandeur ? $demandeur->designation : $user->designation) . "|" . now()->format('Y-m-d H:i') . "]" . $validated['content'];
+            $newComment = $currentComment . "[" . $userDesignation . "|" . now()->format('Y-m-d H:i') . "]" . $validated['content'];
 
             $ticket->Commentaire = $newComment;
             $ticket->save();

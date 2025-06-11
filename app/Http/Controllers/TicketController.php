@@ -631,7 +631,7 @@ class TicketController extends Controller
     public function getOptions()
     {
         try {
-            $demandeurs = Demandeur::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
+            $demandeurs = Demandeur::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active', 'id_service']);
             $emplacements = Emplacement::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
             $priorites = Priorite::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
             $categories = Categorie::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);

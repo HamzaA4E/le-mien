@@ -63,7 +63,7 @@ class RegisterRequestController extends Controller
             }
 
             // Récupérer l'email de l'administrateur depuis la configuration
-            $adminEmail = Config::get('mail.admin_email', 'admin@example.com');
+            $adminEmail = Config::get('mail.admin_email', 'herohamza24@gmail.com');
             
             if (!$adminEmail) {
                 Log::error('Email administrateur non configuré');

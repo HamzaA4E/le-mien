@@ -32,13 +32,6 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-// Cache pour les tickets et les filtres
-const ticketCache = {
-  tickets: null,
-  lastFetch: null,
-  cacheDuration: 5 * 60 * 1000 // 5 minutes
-};
-
 const TicketList = () => {
   const [searchParams] = useSearchParams();
   const [allTickets, setAllTickets] = useState([]); // Tous les tickets chargés
@@ -90,6 +83,10 @@ const TicketList = () => {
     user = null;
   }
   const niveau = user?.niveau;
+
+  // Log temporaire pour debug
+  console.log('USER DEBUG:', user);
+  console.log('DEMANDEURS DEBUG:', demandeurs);
 
   // Fonction de filtrage local
   const filterTicketsLocally = useCallback((tickets, titleFilter) => {
@@ -583,7 +580,15 @@ const TicketList = () => {
                 >
                   <option value="">Tous</option>
                   {(user?.niveau === 3
-                    ? demandeurs.filter(d => d.id_service === user.service?.id)
+                    ? demandeurs.filter(d => {
+                        const serviceId = user.service?.id;
+                        return (
+                          d.id_service === serviceId ||
+                          d.service_id === serviceId ||
+                          (d.service && d.service.id === serviceId) ||
+                          d.service === serviceId
+                        );
+                      })
                     : demandeurs
                   ).map(dem => (
                     <option key={dem.id} value={dem.id}>{dem.designation}</option>

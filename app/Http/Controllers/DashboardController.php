@@ -56,7 +56,7 @@ class DashboardController extends Controller
                     ->join('T_STATUT', 'T_TICKET.Id_Statut', '=', 'T_STATUT.id')
                     ->join('T_PRIORITE', 'T_TICKET.Id_Priorite', '=', 'T_PRIORITE.id')
                     ->join('T_CATEGORIE', 'T_TICKET.Id_Categorie', '=', 'T_CATEGORIE.id')
-                    ->where('T_TICKET.Id_Statut', '!=', 1);
+                    ->where('T_TICKET.Id_Statut', '!=', 1); // Exclure le statut "Nouveau" (ID 1)
 
                 // Appliquer les filtres selon le type d'utilisateur
                 if ($user->isDemandeur()) {
@@ -66,7 +66,7 @@ class DashboardController extends Controller
                     } else {
                         return $this->getEmptyResponse($cacheKey);
                     }
-                } elseif ($user->isDirecteurDepartement()) {
+                
                     $baseQuery->join('T_DEMDEUR', 'T_TICKET.Id_Demandeur', '=', 'T_DEMDEUR.id')
                         ->where('T_DEMDEUR.id_service', $user->id_service);
                 } elseif ($user->isExecutant()) {
@@ -132,6 +132,11 @@ class DashboardController extends Controller
                             ];
                         }),
                 ];
+
+                // Trier les statuts par ID
+                usort($stats['ticketsByStatut'], function($a, $b) {
+                    return $a['id'] - $b['id'];
+                });
 
                 // Mettre en cache la réponse
                 Cache::put($cacheKey, $stats, $this->cacheDuration);

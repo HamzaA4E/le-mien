@@ -105,12 +105,13 @@ const EntityManagement = ({ entity, label, isUsed = false }) => {
   };
 
   useEffect(() => {
+    // Charger les données seulement quand le composant est monté et quand l'entité change
     fetchItems();
     checkUsedItems();
     if (entity === 'demandeurs') {
       fetchServices();
     }
-  }, [entity]);
+  }, [entity]); // Se déclenche quand l'entité change
 
   const invalidateCache = () => {
     localStorage.removeItem(getCacheKey(entity));

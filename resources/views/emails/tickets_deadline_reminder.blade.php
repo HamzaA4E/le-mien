@@ -35,12 +35,12 @@
         </tr>
         <tr>
             <td style="padding: 10px; border-bottom: 1px solid #eee;">
-                <strong>Catégorie:</strong> {{ $ticket->categorie->designation }}
+                <strong>Catégorie:</strong> {{ $ticket->categorie->designation ?? 'À définir par l\'administrateur' }}
             </td>
         </tr>
         <tr>
             <td style="padding: 10px; border-bottom: 1px solid #eee;">
-                <strong>Emplacement:</strong> {{ $ticket->emplacement->designation }}
+                <strong>Emplacement:</strong> {{ $ticket->emplacement->designation ?? 'À définir par l\'administrateur' }}
             </td>
         </tr>
     @endforeach

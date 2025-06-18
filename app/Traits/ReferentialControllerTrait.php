@@ -152,6 +152,8 @@ trait ReferentialControllerTrait
             $column = 'Id_Priorite';
         } elseif ($model === \App\Models\Statut::class) {
             $column = 'Id_Statut';
+        } elseif ($model === \App\Models\TypeDemande::class) {
+            $column = 'Id_TypeDemande';
         }
 
         if ($column) {
@@ -283,6 +285,8 @@ trait ReferentialControllerTrait
             $column = 'Id_Priorite';
         } elseif ($model === \App\Models\Statut::class) {
             $column = 'Id_Statut';
+        } elseif ($model === \App\Models\TypeDemande::class) {
+            $column = 'Id_TypeDemande';
         }
 
         if ($column) {

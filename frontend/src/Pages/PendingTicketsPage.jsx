@@ -4,122 +4,172 @@ import Layout from '../components/Layout';
 import { FaSyncAlt, FaEye, FaTicketAlt, FaTimesCircle } from 'react-icons/fa';
 
 // Composant Modal d'approbation
-const ApproveModal = ({ isOpen, onClose, onApprove, ticketId, executants, loadingExecutants }) => {
+const ApproveModal = ({ isOpen, onClose, onApprove, ticket, executants, loadingExecutants, typeDemandes, loadingTypeDemandes }) => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [executantId, setExecutantId] = useState('');
     const [priorityId, setPriorityId] = useState('');
+    const [typeDemandeId, setTypeDemandeId] = useState('');
     const [priorities, setPriorities] = useState([]);
     const [loadingPriorities, setLoadingPriorities] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // Charger les priorités
-        const fetchPriorities = async () => {
-            try {
-                const response = await axios.get('/api/priorites');
-                setPriorities(response.data);
-            } catch (error) {
-                console.error('Erreur lors du chargement des priorités:', error);
-            } finally {
-                setLoadingPriorities(false);
-            }
-        };
-        fetchPriorities();
-    }, []);
+        if (ticket && ticket.statut?.designation !== 'Nouveau') {
+            // Charger les priorités seulement si ce n'est pas un ticket "Nouveau"
+            const fetchPriorities = async () => {
+                try {
+                    const response = await axios.get('/api/priorites');
+                    setPriorities(response.data);
+                } catch (error) {
+                    console.error('Erreur lors du chargement des priorités:', error);
+                } finally {
+                    setLoadingPriorities(false);
+                }
+            };
+            fetchPriorities();
+        }
+    }, [ticket]);
 
     useEffect(() => {
-        console.log('ApproveModal - executants reçus:', executants);
-    }, [executants]);
+        if (ticket && ticket.typeDemande) {
+            setTypeDemandeId(ticket.typeDemande.id);
+        }
+    }, [ticket]);
 
     const handleSubmit = useCallback(() => {
+        if (ticket && ticket.statut?.designation === 'Nouveau') {
+            if (!typeDemandeId) {
+                setError('Veuillez sélectionner le type de demande.');
+                return;
+            }
+            onApprove(ticket.id, null, null, null, null, typeDemandeId, null, null);
+            return;
+        }
         if (!startDate || !endDate || !executantId || !priorityId) {
             setError('Veuillez renseigner tous les champs obligatoires.');
             return;
         }
-
         // Formater les dates au format YYYY-MM-DD
         const formattedStartDate = new Date(startDate).toISOString().split('T')[0];
         const formattedEndDate = new Date(endDate).toISOString().split('T')[0];
-
         if (new Date(formattedEndDate) <= new Date(formattedStartDate)) {
             setError('La date de fin prévue doit être postérieure à la date de début.');
             return;
         }
+        onApprove(ticket.id, formattedStartDate, formattedEndDate, executantId, priorityId, null, null, null);
+    }, [startDate, endDate, executantId, priorityId, ticket, typeDemandeId, onApprove]);
 
-        onApprove(ticketId, formattedStartDate, formattedEndDate, executantId, priorityId);
-    }, [startDate, endDate, executantId, priorityId, ticketId, onApprove]);
+    if (!isOpen || !ticket) return null;
 
-    if (!isOpen) return null;
+    // Compter le nombre de champs affichés
+    const resumeFieldsCount = [
+        ticket?.Titre,
+        ticket?.demandeur?.designation,
+        ticket?.Description,
+        ticket?.demandeur?.service?.designation,
+        ticket?.categorie?.designation,
+        ticket?.emplacement?.designation,
+        ticket?.priorite?.designation,
+        ticket?.DateDebut,
+        ticket?.DateFinPrevue,
+        ticket?.Commentaire
+    ].filter(Boolean).length;
+
+    const modalWidthClass = resumeFieldsCount <= 5 ? 'w-72' : 'w-96';
 
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
-            <div className="relative p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className={`relative p-5 border ${modalWidthClass} shadow-lg rounded-md bg-white`}>
                 <div className="mt-3 text-center">
                     <h3 className="text-lg leading-6 font-medium text-gray-900">Approuver le ticket</h3>
                     <div className="mt-2 px-7 py-3">
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700">Date de début</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                min={new Date().toISOString().split('T')[0]}
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700">Date de fin prévue</label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                min={startDate || new Date().toISOString().split('T')[0]}
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700">Exécutant</label>
-                            {loadingExecutants ? (
-                                <div className="mt-1 text-sm text-gray-500">Chargement des exécutants...</div>
-                            ) : executants && executants.length > 0 ? (
-                                <select
-                                    value={executantId}
-                                    onChange={(e) => setExecutantId(e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                >
-                                    <option value="">Sélectionnez un exécutant</option>
-                                    {executants.map((executant) => (
-                                        <option key={executant.id} value={executant.id}>
-                                            {executant.designation}
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <div className="mt-1 text-sm text-red-500">Aucun exécutant disponible</div>
-                            )}
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700">Priorité</label>
-                            {loadingPriorities ? (
-                                <div className="mt-1 text-sm text-gray-500">Chargement des priorités...</div>
-                            ) : priorities && priorities.length > 0 ? (
-                                <select
-                                    value={priorityId}
-                                    onChange={(e) => setPriorityId(e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                >
-                                    <option value="">Sélectionnez une priorité</option>
-                                    {priorities.map((priority) => (
-                                        <option key={priority.id} value={priority.id}>
-                                            {priority.designation}
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <div className="mt-1 text-sm text-red-500">Aucune priorité disponible</div>
-                            )}
-                        </div>
+                        {ticket.statut?.designation === 'Nouveau' ? (
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700">Type de demande</label>
+                                {loadingTypeDemandes ? (
+                                    <div className="mt-1 text-sm text-gray-500">Chargement des types de demande...</div>
+                                ) : typeDemandes && typeDemandes.length > 0 ? (
+                                    <select
+                                        value={typeDemandeId}
+                                        onChange={e => setTypeDemandeId(e.target.value)}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    >
+                                        <option value="">Sélectionnez un type</option>
+                                        {typeDemandes.map(type => (
+                                            <option key={type.id} value={type.id}>{type.designation}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="mt-1 text-sm text-red-500">Aucun type de demande disponible</div>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Date de début</label>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                        min={new Date().toISOString().split('T')[0]}
+                                    />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Date de fin prévue</label>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                        min={startDate || new Date().toISOString().split('T')[0]}
+                                    />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Exécutant</label>
+                                    {loadingExecutants ? (
+                                        <div className="mt-1 text-sm text-gray-500">Chargement des exécutants...</div>
+                                    ) : executants && executants.length > 0 ? (
+                                        <select
+                                            value={executantId}
+                                            onChange={(e) => setExecutantId(e.target.value)}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                        >
+                                            <option value="">Sélectionnez un exécutant</option>
+                                            {executants.map((executant) => (
+                                                <option key={executant.id} value={executant.id}>
+                                                    {executant.designation}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <div className="mt-1 text-sm text-red-500">Aucun exécutant disponible</div>
+                                    )}
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Priorité</label>
+                                    {loadingPriorities ? (
+                                        <div className="mt-1 text-sm text-gray-500">Chargement des priorités...</div>
+                                    ) : priorities && priorities.length > 0 ? (
+                                        <select
+                                            value={priorityId}
+                                            onChange={(e) => setPriorityId(e.target.value)}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                        >
+                                            <option value="">Sélectionnez une priorité</option>
+                                            {priorities.map((priority) => (
+                                                <option key={priority.id} value={priority.id}>
+                                                    {priority.designation}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <div className="mt-1 text-sm text-red-500">Aucune priorité disponible</div>
+                                    )}
+                                </div>
+                            </>
+                        )}
                         {error && (
                             <div className="text-red-600 text-sm mt-2">
                                 {error}
@@ -198,9 +248,25 @@ const DetailModal = ({ isOpen, onClose, ticket, onApprove, onReject, loading }) 
     // Trouver le dernier report de type 'rejet'
     const lastRejectionReport = ticket?.reports?.findLast(report => report.type === 'rejet');
 
+    // Compter le nombre de champs affichés
+    const resumeFieldsCount = [
+        ticket?.Titre,
+        ticket?.demandeur?.designation,
+        ticket?.Description,
+        ticket?.demandeur?.service?.designation,
+        ticket?.categorie?.designation,
+        ticket?.emplacement?.designation,
+        ticket?.priorite?.designation,
+        ticket?.DateDebut,
+        ticket?.DateFinPrevue,
+        ticket?.Commentaire
+    ].filter(Boolean).length;
+
+    const modalWidthClass = resumeFieldsCount <= 5 ? 'w-72' : 'w-96';
+
     return (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-            <div className="relative bg-white p-8 rounded-xl shadow-xl w-full max-w-2xl">
+            <div className={`relative bg-white p-8 rounded-xl shadow-xl ${modalWidthClass}`}>
                 <button
                     onClick={onClose}
                     className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition"
@@ -213,80 +279,67 @@ const DetailModal = ({ isOpen, onClose, ticket, onApprove, onReject, loading }) 
                     <div className="text-center text-blue-600 font-semibold">Chargement...</div>
                 ) : ticket ? (
                     <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 mb-6">
-                            <div>
+                        <div className="mb-6">
+                            {ticket.Titre && (
                                 <div className="mb-2">
                                     <span className="font-semibold text-gray-600">Titre :</span>
                                     <span className="ml-2 text-gray-900">{ticket.Titre}</span>
                                 </div>
+                            )}
+                            {ticket.demandeur?.designation && (
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Demandeur :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.demandeur.designation}</span>
+                                </div>
+                            )}
+                            {ticket.Description && (
                                 <div className="mb-2">
                                     <span className="font-semibold text-gray-600">Description :</span>
                                     <span className="ml-2 text-gray-900">{ticket.Description}</span>
                                 </div>
-                                <div className="mb-2">
-                                    <span className="font-semibold text-gray-600">Catégorie :</span>
-                                    <span className="ml-2 text-gray-900">{ticket.categorie?.designation}</span>
-                                </div>
-                                <div className="mb-2">
-                                    <span className="font-semibold text-gray-600">Emplacement :</span>
-                                    <span className="ml-2 text-gray-900">{ticket.emplacement?.designation}</span>
-                                </div>
+                            )}
+                            {ticket.demandeur?.service?.designation && (
                                 <div className="mb-2">
                                     <span className="font-semibold text-gray-600">Service :</span>
-                                    <span className="ml-2 text-gray-900">{ticket.demandeur?.service?.designation}</span>
+                                    <span className="ml-2 text-gray-900">{ticket.demandeur.service.designation}</span>
                                 </div>
-                                {/* Afficher la raison du refus si le ticket est refusé, sinon le dernier commentaire */}
-                                {ticket.statut?.designation === 'Refusé' && lastRejectionReport ? (
-                                     <div className="mb-2">
-                                        <span className="font-semibold text-gray-600">Raison du refus :</span>
-                                        <span className="ml-2 text-gray-900">{lastRejectionReport.Raison || 'Non spécifiée'}</span>
-                                    </div>
-                                ) : (
-                                    <div className="mb-2">
-                                        <span className="font-semibold text-gray-600">Commentaire :</span>
-                                        <span className="ml-2 text-gray-900">
-                                            {ticket.formatted_comments && ticket.formatted_comments.length > 0
-                                                ? ticket.formatted_comments[ticket.formatted_comments.length-1].content
-                                                : 'Aucun'}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                {/* Afficher les dates si le ticket n'est pas refusé */}
-                                {ticket.statut?.designation !== 'Refusé' && (
-                                    <>
-                                        <div className="mb-2">
-                                            <span className="font-semibold text-gray-600">Date de début :</span>
-                                            <span className="ml-2 text-gray-900">{formatDate(ticket.DateDebut)}</span>
-                                        </div>
-                                        <div className="mb-2">
-                                            <span className="font-semibold text-gray-600">Date de fin :</span>
-                                            <span className="ml-2 text-gray-900">{formatDate(ticket.DateFinPrevue)}</span>
-                                        </div>
-                                    </>
-                                )}
+                            )}
+                            {ticket.categorie?.designation && (
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Catégorie :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.categorie.designation}</span>
+                                </div>
+                            )}
+                            {ticket.emplacement?.designation && (
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Emplacement :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.emplacement.designation}</span>
+                                </div>
+                            )}
+                            {ticket.priorite?.designation && (
                                 <div className="mb-2">
                                     <span className="font-semibold text-gray-600">Priorité :</span>
-                                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                                        ticket.priorite?.designation === 'Urgent'
-                                            ? 'bg-red-50 text-red-600 border border-red-200'
-                                            : 'bg-green-50 text-green-700 border border-green-200'
-                                    }`}>
-                                        {ticket.priorite?.designation}
-                                    </span>
+                                    <span className="ml-2 text-gray-900">{ticket.priorite.designation}</span>
                                 </div>
+                            )}
+                            {ticket.DateDebut && (
                                 <div className="mb-2">
-                                    <span className="font-semibold text-gray-600">Demandeur :</span>
-                                    <span className="ml-2 text-gray-900">{ticket.demandeur?.designation}</span>
+                                    <span className="font-semibold text-gray-600">Date de début :</span>
+                                    <span className="ml-2 text-gray-900">{formatDate(ticket.DateDebut)}</span>
                                 </div>
-                                {ticket.executant && (
-                                    <div className="mb-2">
-                                        <span className="font-semibold text-gray-600">Exécutant :</span>
-                                        <span className="ml-2 text-gray-900">{ticket.executant.designation}</span>
-                                    </div>
-                                )}
-                            </div>
+                            )}
+                            {ticket.DateFinPrevue && (
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Date de fin :</span>
+                                    <span className="ml-2 text-gray-900">{formatDate(ticket.DateFinPrevue)}</span>
+                                </div>
+                            )}
+                            {ticket.Commentaire && (
+                                <div className="mb-2">
+                                    <span className="font-semibold text-gray-600">Commentaire :</span>
+                                    <span className="ml-2 text-gray-900">{ticket.Commentaire}</span>
+                                </div>
+                            )}
                         </div>
                         <div className="flex justify-end gap-3 mt-2">
                             {/* Les boutons Approuver/Refuser ne devraient être visibles que pour les tickets non refusés en attente */}
@@ -355,6 +408,8 @@ const PendingTicketsPage = () => {
     const [lastRejectedTicketId, setLastRejectedTicketId] = useState(null);
     const [hasMoreRejected, setHasMoreRejected] = useState(true);
     const [processedTicketIds] = useState(new Set());
+    const [typeDemandes, setTypeDemandes] = useState([]);
+    const [loadingTypeDemandes, setLoadingTypeDemandes] = useState(true);
 
     const fetchTickets = useCallback(async () => {
         setSpin(true);
@@ -441,7 +496,7 @@ const PendingTicketsPage = () => {
         };
     }, [showRejected, hasMoreRejected, fetchNextRejectedTicket]);
 
-    const handleApprove = useCallback(async (ticketId, startDate, endDate, executantId, priorityId) => {
+    const handleApprove = useCallback(async (ticketId, startDate, endDate, executantId, priorityId, typeDemandeId, categorieId, emplacementId) => {
         try {
             // Vérifier d'abord le statut du ticket
             const ticketResponse = await axios.get(`/api/tickets/${ticketId}`);
@@ -456,14 +511,20 @@ const PendingTicketsPage = () => {
                 DateDebut: startDate,
                 DateFinPrevue: endDate,
                 executantId: executantId,
-                priorityId: priorityId
+                priorityId: priorityId,
+                typeDemandeId: typeDemandeId,
+                categorieId: categorieId,
+                emplacementId: emplacementId
             });
 
             const response = await axios.post(`/api/tickets/${ticketId}/approve`, {
                 DateDebut: startDate,
                 DateFinPrevue: endDate,
                 executantId: parseInt(executantId, 10),
-                priorityId: parseInt(priorityId, 10)
+                priorityId: parseInt(priorityId, 10),
+                typeDemandeId: typeDemandeId ? parseInt(typeDemandeId, 10) : null,
+                categorieId: categorieId ? parseInt(categorieId, 10) : null,
+                emplacementId: emplacementId ? parseInt(emplacementId, 10) : null
             });
 
             if (response.data) {
@@ -511,11 +572,20 @@ const PendingTicketsPage = () => {
         setSelectedTicket(null);
     }, []);
 
-    const openApproveModal = useCallback((id) => {
-        console.log('Ouverture du modal avec les exécutants:', executants);
-        setApproveTicketId(id);
-        setShowApproveModal(true);
-    }, [executants]);
+    const openApproveModal = useCallback(async (id) => {
+        try {
+            // Charger le ticket complet avant d'ouvrir le modal
+            const res = await axios.get(`/api/tickets/${id}`);
+            setSelectedTicket(res.data);
+            setApproveTicketId(id);
+            setShowApproveModal(true);
+        } catch (e) {
+            setSelectedTicket(null);
+            setApproveTicketId(null);
+            setShowApproveModal(false);
+            setErrorMessage("Erreur lors du chargement du ticket pour approbation.");
+        }
+    }, []);
 
     const closeApproveModal = useCallback(() => {
         setShowApproveModal(false);
@@ -560,6 +630,23 @@ const PendingTicketsPage = () => {
             }
         };
         fetchExecutants();
+    }, []);
+
+    // Charger les types de demande
+    useEffect(() => {
+        const fetchTypeDemandes = async () => {
+            try {
+                console.log('Chargement des types de demande...');
+                const response = await axios.get('/api/type-demandes');
+                console.log('Réponse des types de demande:', response.data);
+                setTypeDemandes(response.data);
+            } catch (error) {
+                console.error('Erreur lors du chargement des types de demande:', error);
+            } finally {
+                setLoadingTypeDemandes(false);
+            }
+        };
+        fetchTypeDemandes();
     }, []);
 
     if (loading) {
@@ -701,9 +788,11 @@ const PendingTicketsPage = () => {
                     isOpen={showApproveModal}
                     onClose={closeApproveModal}
                     onApprove={handleApprove}
-                    ticketId={approveTicketId}
+                    ticket={selectedTicket}
                     executants={executants}
                     loadingExecutants={loadingExecutants}
+                    typeDemandes={typeDemandes}
+                    loadingTypeDemandes={loadingTypeDemandes}
                 />
 
                 <RejectModal

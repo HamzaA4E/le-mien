@@ -20,6 +20,7 @@ use App\Mail\TicketCompletedNotification;
 use App\Mail\TicketApprovedNotification;
 use App\Mail\TicketRejectedNotification;
 use App\Models\Executant;
+use Illuminate\Support\Facades\Cache;
 
 class TicketController extends Controller
 {
@@ -41,7 +42,8 @@ class TicketController extends Controller
                 'emplacement',
                 'categorie',
                 'reports',
-                'executant'
+                'executant',
+                'typeDemande'
             ]);
 
             // Restriction pour les administrateurs : ils ne voient pas les tickets "Nouveau" et "Refusé"
@@ -106,10 +108,25 @@ class TicketController extends Controller
                 $query->where('Id_Emplacement', $request->emplacement);
             }
             if ($request->filled('statut')) {
-                $query->where('Id_Statut', $request->statut);
+                if (is_numeric($request->statut)) {
+                    $query->where('Id_Statut', $request->statut);
+                } else {
+                    $query->whereHas('statut', function($q) use ($request) {
+                        $q->where('designation', $request->statut);
+                    });
+                }
             }
             if ($request->filled('priorite')) {
                 $query->where('Id_Priorite', $request->priorite);
+            }
+            if ($request->filled('type_demande')) {
+                if (is_numeric($request->type_demande)) {
+                    $query->where('Id_TypeDemande', $request->type_demande);
+                } else {
+                    $query->whereHas('typeDemande', function($q) use ($request) {
+                        $q->where('designation', $request->type_demande);
+                    });
+                }
             }
 
             // Ajouter le filtre pour les rapports non lus si demandé
@@ -197,50 +214,39 @@ class TicketController extends Controller
             Log::info('Début de la création du ticket');
             Log::info('Données reçues:', $request->all());
 
-            // Validation des données
-            $validated = $request->validate([
-                'titre' => 'required|string|max:255',
-                'description' => 'required|string',
-                'commentaire' => 'nullable|string',
-                'attachments' => 'nullable',
-                'attachments.*' => 'file|max:10240', // max 10MB par fichier
-                'date_debut' => 'nullable|date',
-                'date_fin_prevue' => [
-                    'nullable',
-                    'date',
-                    function (
-                        $attribute, $value, $fail
-                    ) use ($request) {
-                        if (
-                            $value && $request->date_debut && strtotime($value) < strtotime($request->date_debut)
-                        ) {
-                            $fail('La date de fin prévue ne peut pas être antérieure à la date de début.');
-                        }
-                    },
-                ],
-                'date_fin_reelle' => 'nullable|date',
-                'id_demandeur' => 'required|exists:T_UTILISAT,id',
-                'id_utilisateur' => 'required|exists:T_UTILISAT,id',
-                'id_emplacement' => 'required|exists:T_EMPLACEMENT,id',
-                'id_priorite' => 'nullable|exists:T_PRIORITE,id',
-                'id_categorie' => 'required|exists:T_CATEGORIE,id',
-                'id_statut' => 'required|exists:T_STATUT,id',
-                'id_executant' => 'nullable|exists:T_EXECUTANT,id',
-            ]);
-
-            Log::info('Données validées:', $validated);
+            // Validation des données simplifiée pour le demandeur
+            try {
+                $validated = $request->validate([
+                    'titre' => 'required|string|max:255',
+                    'description' => 'required|string',
+                    'attachments' => 'nullable',
+                    'attachments.*' => 'file|max:10240', // max 10MB par fichier
+                    'id_demandeur' => 'required|exists:T_UTILISAT,id',
+                    'id_utilisateur' => 'required|exists:T_UTILISAT,id',
+                ]);
+                Log::info('Validation réussie:', $validated);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                Log::error('Erreur de validation:', [
+                    'errors' => $e->errors(),
+                    'request_data' => $request->all()
+                ]);
+                throw $e;
+            }
 
             DB::beginTransaction();
 
             try {
                 // Récupérer l'utilisateur
                 $utilisateur = Utilisateur::find($validated['id_demandeur']);
+                Log::info('Utilisateur trouvé:', ['utilisateur' => $utilisateur ? $utilisateur->toArray() : null]);
+                
                 if (!$utilisateur) {
                     throw new \Exception('Utilisateur non trouvé');
                 }
 
                 // Vérifier si un demandeur existe déjà avec cette désignation
                 $demandeur = Demandeur::where('designation', $utilisateur->designation)->first();
+                Log::info('Demandeur existant:', ['demandeur' => $demandeur ? $demandeur->toArray() : null]);
                 
                 // Si aucun demandeur n'existe, en créer un
                 if (!$demandeur) {
@@ -263,12 +269,13 @@ class TicketController extends Controller
 
                 // Mettre à jour l'id_demandeur avec l'ID du demandeur
                 $validated['id_demandeur'] = $demandeur->id;
+                Log::info('ID demandeur mis à jour:', ['id_demandeur' => $validated['id_demandeur']]);
 
-                // Préparer les dates
-                $dateDebut = $validated['date_debut'] ?? null;
-                $dateFinPrevue = $validated['date_fin_prevue'] ?? null;
-                $dateFinReelle = $validated['date_fin_reelle'] ?? null;
-                $dateCreation = now();
+                // Récupérer le statut "Nouveau"
+                $statutNouveau = \App\Models\Statut::where('designation', 'Nouveau')->first();
+                if (!$statutNouveau) {
+                    throw new \Exception('Statut "Nouveau" non trouvé dans la base de données');
+                }
 
                 // Gestion des pièces jointes
                 $attachmentPaths = [];
@@ -280,64 +287,65 @@ class TicketController extends Controller
                         $attachmentPaths[] = $path;
                     }
                     $attachmentPathValue = implode(',', $attachmentPaths);
+                    Log::info('Pièces jointes traitées:', ['paths' => $attachmentPaths]);
                 }
 
                 // Préparer les données pour la création du ticket
                 $data = [
                     'Titre' => $validated['titre'],
                     'Description' => $validated['description'],
-                    'Commentaire' => $validated['commentaire'] ?? null,
+                    'Commentaire' => null,
                     'attachment_path' => $attachmentPathValue,
-                    'Id_Priorite' => $validated['id_priorite'] ?? null,
-                    'Id_Statut' => (int)$validated['id_statut'],
+                    'Id_Priorite' => null, // Sera défini par l'admin
+                    'Id_Statut' => $statutNouveau->id, // Statut "Nouveau"
                     'Id_Demandeur' => (int)$validated['id_demandeur'],
-                    'Id_Emplacement' => (int)$validated['id_emplacement'],
-                    'Id_Categorie' => (int)$validated['id_categorie'],
+                    'Id_Emplacement' => null, // Sera défini par l'admin après validation
+                    'Id_Categorie' => null, // Sera défini par l'admin après validation
                     'Id_Utilisat' => (int)$validated['id_utilisateur'],
-                    'Id_Executant' => isset($validated['id_executant']) ? (int)$validated['id_executant'] : null,
-                    'DateDebut' => $dateDebut,
-                    'DateFinPrevue' => $dateFinPrevue,
-                    'DateFinReelle' => $dateFinReelle,
-                    'DateCreation' => $dateCreation,
-                    'created_at' => $dateCreation,
-                    'updated_at' => $dateCreation,
+                    'Id_Executant' => null, // Sera défini par l'admin
+                    'Id_TypeDemande' => null, // Sera défini par l'admin
+                    'DateDebut' => null, // Sera défini par l'admin
+                    'DateFinPrevue' => null, // Sera défini par l'admin
+                    'DateFinReelle' => null,
+                    'DateCreation' => now()
                 ];
 
-                Log::info('Données formatées pour SQL Server:', $data);
+                Log::info('Données préparées pour la création du ticket:', $data);
 
+                // Créer le ticket
                 $ticket = Ticket::create($data);
+                Log::info('Ticket créé avec succès:', ['ticket_id' => $ticket->id]);
+
+                // Invalider le cache des compteurs
+                $this->invalidateCountersCache();
+
                 DB::commit();
 
-                Log::info('Ticket créé avec succès:', ['id' => $ticket->id]);
-
                 return response()->json([
-                    'message' => 'Ticket créé avec succès',
-                    'ticket' => $ticket,
-                    'attachments' => $attachmentPaths
+                    'message' => 'Ticket créé avec succès. Il sera examiné par l\'administrateur.',
+                    'ticket' => $ticket
                 ], 201);
 
             } catch (\Exception $e) {
                 DB::rollBack();
-                Log::error('Erreur lors de la création du ticket dans la base de données: ' . $e->getMessage());
-                Log::error('Stack trace: ' . $e->getTraceAsString());
+                Log::error('Erreur lors de la création du ticket:', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
                 throw $e;
             }
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Erreur de validation:', ['errors' => $e->errors()]);
-            return response()->json([
-                'message' => 'Erreur de validation',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
-            Log::error('Erreur lors de la création du ticket: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Erreur globale lors de la création du ticket:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'message' => 'Erreur lors de la création du ticket',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
+
     //Affichage d'un ticket
     public function show($id)
     {
@@ -522,41 +530,10 @@ class TicketController extends Controller
             DB::beginTransaction();
             try {
                 $ticket->update($data);
+                Log::info('Ticket mis à jour avec succès:', ['ticket_id' => $ticket->id]);
 
-                // Ajout d'un commentaire automatique si l'admin change le statut d'un ticket qui n'est pas assigné à lui-même
-                $user = auth()->user();
-                if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
-                    $executant = \App\Models\Executant::where('designation', $user->designation)->first();
-                    if (!$executant || $ticket->Id_Executant !== $executant->id) {
-                        $comment = "\n\n[{$user->designation}|" . date('Y-m-d H:i:s') . "]Action admin : changement de statut du ticket (non assigné à lui-même).";
-                        $ticket->Commentaire = ($ticket->Commentaire ?? '') . $comment;
-                        $ticket->save();
-                    }
-                }
-
-                // Envoyer un email si le ticket est marqué comme terminé
-                if (isset($data['Id_Statut'])) {
-                    $statutTermine = Statut::where('designation', 'Terminé')->first();
-                    if ($statutTermine && (int)$data['Id_Statut'] === (int)$statutTermine->id) {
-                        $demandeur = $ticket->demandeur;
-                        $utilisateur = Utilisateur::where('designation', $demandeur->designation)->first();
-                        if ($utilisateur && $utilisateur->email) {
-                            Mail::to($utilisateur->email)
-                                ->send(new TicketCompletedNotification($ticket, $demandeur));
-                            Log::info('Email de notification envoyé au demandeur', [
-                                'ticket_id' => $ticket->id,
-                                'demandeur_email' => $utilisateur->email
-                            ]);
-                        } else {
-                            Log::warning('Impossible d\'envoyer l\'email de notification : utilisateur non trouvé ou sans email', [
-                                'ticket_id' => $ticket->id,
-                                'demandeur_exists' => $demandeur ? 'yes' : 'no',
-                                'utilisateur_exists' => $utilisateur ? 'yes' : 'no',
-                                'has_email' => $utilisateur && $utilisateur->email ? 'yes' : 'no'
-                            ]);
-                        }
-                    }
-                }
+                // Invalider le cache des compteurs
+                $this->invalidateCountersCache();
 
                 DB::commit();
                 
@@ -617,6 +594,11 @@ class TicketController extends Controller
             }
 
             $ticket->delete();
+            Log::info('Ticket supprimé avec succès:', ['ticket_id' => $ticket->id]);
+
+            // Invalider le cache des compteurs
+            $this->invalidateCountersCache();
+
             return response()->json(null, 204);
         } catch (\Exception $e) {
             Log::error('Erreur lors de la suppression du ticket: ' . $e->getMessage());
@@ -636,6 +618,7 @@ class TicketController extends Controller
             $priorites = Priorite::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
             $categories = Categorie::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
             $statuts = Statut::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
+            $typeDemandes = \App\Models\TypeDemande::where('is_active', true)->orderBy('designation')->get(['id', 'designation', 'is_active']);
             // Fetch executants from the Executant model
             $executants = Executant::where('is_active', true)
                                      ->orderBy('designation')
@@ -648,6 +631,7 @@ class TicketController extends Controller
                     'priorites' => $priorites,
                     'categories' => $categories,
                     'statuts' => $statuts,
+                    'typeDemandes' => $typeDemandes,
                     'executants' => $executants,
                 ]
             ]);
@@ -765,6 +749,77 @@ class TicketController extends Controller
             ->finPrevueDans24hNonCloture()
             ->get();
     }
+
+    // Nouvelle méthode pour regrouper tous les compteurs
+    public function getCounters()
+    {
+        try {
+            $user = auth()->user();
+            $cacheKey = "ticket_counters_{$user->id}";
+            
+            // Vérifier le cache (durée de 2 minutes)
+            if (Cache::has($cacheKey)) {
+                return response()->json(Cache::get($cacheKey));
+            }
+
+            $counters = [];
+
+            // Compteur de tickets en attente
+            $pendingQuery = Ticket::whereHas('statut', function($q) {
+                $q->where('designation', 'Nouveau');
+            });
+            
+            // Compteur de tickets terminés
+            $completedQuery = Ticket::whereHas('statut', function($q) {
+                $q->where('designation', 'Terminé');
+            });
+
+            // Appliquer les filtres selon le type d'utilisateur
+            if ($user->isDemandeur()) {
+                $demandeur = Demandeur::where('designation', $user->designation)->first();
+                if ($demandeur) {
+                    $pendingQuery->where('Id_Demandeur', $demandeur->id);
+                    $completedQuery->where('Id_Demandeur', $demandeur->id);
+                }
+            } elseif ($user->isDirecteurDepartement()) {
+                $demandeurIds = Demandeur::where('id_service', $user->id_service)->pluck('id');
+                $pendingQuery->whereIn('Id_Demandeur', $demandeurIds);
+                $completedQuery->whereIn('Id_Demandeur', $demandeurIds);
+            } elseif ($user->isExecutant()) {
+                $executant = Executant::where('designation', $user->designation)->first();
+                if ($executant) {
+                    $pendingQuery->where('Id_Executant', $executant->id);
+                    $completedQuery->where('Id_Executant', $executant->id);
+                }
+            }
+
+            $counters['pending'] = $pendingQuery->count();
+            $counters['completed'] = $completedQuery->count();
+
+            // Mettre en cache pour 2 minutes
+            Cache::put($cacheKey, $counters, 120);
+
+            return response()->json($counters);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des compteurs', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des compteurs',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Méthode pour invalider le cache des compteurs
+    private function invalidateCountersCache()
+    {
+        $user = auth()->user();
+        $cacheKey = "ticket_counters_{$user->id}";
+        Cache::forget($cacheKey);
+    }
+
     //Téléchargement de la pièce jointe
     public function downloadAttachment($id, $index = 0)
     {
@@ -872,6 +927,9 @@ class TicketController extends Controller
                 $ticket->attachment_path = json_encode($existingAttachments);
                 $ticket->save();
 
+                // Invalider le cache des compteurs
+                $this->invalidateCountersCache();
+
                 return response()->json([
                     'message' => 'Pièce jointe ajoutée avec succès',
                     'path' => $path,
@@ -932,10 +990,25 @@ class TicketController extends Controller
                 $query->where('Id_Emplacement', $request->emplacement);
             }
             if ($request->filled('statut')) {
-                $query->where('Id_Statut', $request->statut);
+                if (is_numeric($request->statut)) {
+                    $query->where('Id_Statut', $request->statut);
+                } else {
+                    $query->whereHas('statut', function($q) use ($request) {
+                        $q->where('designation', $request->statut);
+                    });
+                }
             }
             if ($request->filled('priorite')) {
                 $query->where('Id_Priorite', $request->priorite);
+            }
+            if ($request->filled('type_demande')) {
+                if (is_numeric($request->type_demande)) {
+                    $query->where('Id_TypeDemande', $request->type_demande);
+                } else {
+                    $query->whereHas('typeDemande', function($q) use ($request) {
+                        $q->where('designation', $request->type_demande);
+                    });
+                }
             }
 
             // Ajouter le filtre pour les rapports non lus si demandé
@@ -1259,27 +1332,15 @@ class TicketController extends Controller
         }
     }
 
-    public function approve($id)
+    public function approve(Request $request, $id)
     {
         try {
-            $request = request();
-            Log::info('Approbation du ticket', [
-                'ticket_id' => $id,
-                'request_data' => $request->all()
-            ]);
-
             $validated = $request->validate([
-                'DateDebut' => 'required|date_format:Y-m-d',
-                'DateFinPrevue' => [
-                    'required',
-                    'date_format:Y-m-d',
-                    'after:DateDebut'
-                ],
-                'executantId' => 'required|integer|exists:T_EXECUTANT,id',
-                'priorityId' => 'required|integer|exists:T_PRIORITE,id'
+                'typeDemandeId' => 'required|exists:T_TYPEDEMANDE,id',
+                'categorieId' => 'nullable|exists:T_CATEGORIE,id',
+                'emplacementId' => 'nullable|exists:T_EMPLACEMENT,id'
             ]);
-
-            $ticket = Ticket::with(['statut', 'priorite', 'categorie', 'demandeur'])->findOrFail($id);
+            $ticket = Ticket::with(['statut', 'priorite', 'categorie', 'demandeur', 'typeDemande'])->findOrFail($id);
             
             // Log détaillé du statut du ticket
             Log::info('Statut du ticket', [
@@ -1289,36 +1350,45 @@ class TicketController extends Controller
                 'statut_object' => $ticket->statut->toArray()
             ]);
             
-            // Vérifier si le ticket est en attente ou nouveau
-            if (!in_array($ticket->statut->designation, ['En attente', 'Nouveau'])) {
+            // Vérifier si le ticket est nouveau
+            if ($ticket->statut->designation !== 'Nouveau') {
                 Log::warning('Statut invalide pour l\'approbation', [
                     'ticket_id' => $id,
                     'statut_actuel' => $ticket->statut->designation,
-                    'statuts_acceptes' => ['En attente', 'Nouveau']
+                    'statuts_acceptes' => ['Nouveau']
                 ]);
                 return response()->json([
-                    'message' => 'Seuls les tickets en attente ou nouveaux peuvent être approuvés.'
+                    'message' => 'Seuls les tickets nouveaux peuvent être approuvés.'
                 ], 400);
             }
 
-            // Convertir les dates au format attendu par SQL Server
-            $dateDebut = Carbon::createFromFormat('Y-m-d', $validated['DateDebut'])->format('Y-m-d H:i:s');
-            $dateFinPrevue = Carbon::createFromFormat('Y-m-d', $validated['DateFinPrevue'])->format('Y-m-d H:i:s');
+            // Récupérer le type de demande
+            $typeDemande = \App\Models\TypeDemande::find($validated['typeDemandeId']);
+            if (!$typeDemande) {
+                return response()->json([
+                    'message' => 'Type de demande invalide.'
+                ], 400);
+            }
 
-            // Mettre à jour le ticket avec DB::raw pour les dates
+            // Déterminer le nouveau statut selon le type de demande
+            $nouveauStatut = 'En attente de validation';
+            if ($typeDemande->designation === 'Projet') {
+                $nouveauStatut = 'En attente de validation'; // Sera validé par le directeur
+            }
+
+            // Mettre à jour le ticket avec la catégorie et l'emplacement définis par l'admin
             DB::table('T_TICKET')
                 ->where('id', $ticket->id)
                 ->update([
-                    'Id_Statut' => Statut::where('designation', 'En instance')->value('id'),
-                    'Id_Executant' => $validated['executantId'],
-                    'Id_Priorite' => $validated['priorityId'],
-                    'DateDebut' => DB::raw("CONVERT(datetime, '{$dateDebut}', 120)"),
-                    'DateFinPrevue' => DB::raw("CONVERT(datetime, '{$dateFinPrevue}', 120)"),
+                    'Id_Statut' => Statut::where('designation', $nouveauStatut)->value('id'),
+                    'Id_TypeDemande' => $validated['typeDemandeId'],
+                    'Id_Categorie' => $validated['categorieId'],
+                    'Id_Emplacement' => $validated['emplacementId'],
                     'updated_at' => now()
                 ]);
 
             // Récupérer le ticket mis à jour
-            $ticket = Ticket::find($ticket->id);
+            $ticket = Ticket::with(['statut', 'typeDemande', 'demandeur', 'categorie', 'emplacement'])->find($ticket->id);
 
             // Envoyer l'email au demandeur
             try {
@@ -1332,11 +1402,6 @@ class TicketController extends Controller
                             'demandeur_id' => $demandeur->id,
                             'utilisateur_email' => $utilisateur->email
                         ]);
-                    } else {
-                        Log::warning('Email non trouvé pour le demandeur', [
-                            'demandeur_id' => $demandeur->id,
-                            'demandeur_designation' => $demandeur->designation
-                        ]);
                     }
                 }
             } catch (\Exception $e) {
@@ -1346,35 +1411,40 @@ class TicketController extends Controller
                 ]);
             }
 
-            // Envoyer l'email à l'exécutant
-            try {
-                $executant = \App\Models\Executant::find($validated['executantId']);
-                if ($executant) {
-                    $utilisateur = Utilisateur::where('designation', $executant->designation)->first();
-                    if ($utilisateur && $utilisateur->email) {
-                        Mail::to($utilisateur->email)->send(new TicketAssignedNotification($ticket, $executant));
-                        Log::info('Email d\'assignation envoyé avec succès', [
-                            'ticket_id' => $ticket->id,
-                            'executant_id' => $executant->id,
-                            'utilisateur_email' => $utilisateur->email
-                        ]);
-                    } else {
-                        Log::warning('Email non trouvé pour l\'exécutant', [
-                            'executant_id' => $executant->id,
-                            'executant_designation' => $executant->designation
-                        ]);
+            // Si c'est un projet, envoyer l'email au directeur de département
+            if ($typeDemande->designation === 'Projet') {
+                try {
+                    $demandeur = $ticket->demandeur;
+                    if ($demandeur && $demandeur->service) {
+                        // Chercher le directeur de département (niveau 3)
+                        $directeur = Utilisateur::where('id_service', $demandeur->id_service)
+                                               ->where('niveau', 3)
+                                               ->first();
+                        if ($directeur && $directeur->email) {
+                            // TODO: Créer un email spécifique pour la validation du directeur
+                            // Mail::to($directeur->email)->send(new TicketDirectorValidationRequest($ticket, $directeur));
+                            Log::info('Email de validation envoyé au directeur', [
+                                'ticket_id' => $ticket->id,
+                                'directeur_id' => $directeur->id,
+                                'directeur_email' => $directeur->email
+                            ]);
+                        }
                     }
+                } catch (\Exception $e) {
+                    Log::error('Erreur lors de l\'envoi de l\'email au directeur', [
+                        'error' => $e->getMessage(),
+                        'ticket_id' => $ticket->id
+                    ]);
                 }
-            } catch (\Exception $e) {
-                Log::error('Erreur lors de l\'envoi de l\'email de notification', [
-                    'error' => $e->getMessage(),
-                    'executant_id' => $executant->id
-                ]);
             }
+
+            // Invalider le cache des compteurs
+            $this->invalidateCountersCache();
 
             Log::info('Ticket approuvé avec succès', [
                 'ticket_id' => $id,
-                'executant_id' => $validated['executantId']
+                'type_demande' => $typeDemande->designation,
+                'nouveau_statut' => $nouveauStatut
             ]);
 
             return response()->json([
@@ -1411,8 +1481,28 @@ class TicketController extends Controller
             ]);
 
             $ticket = Ticket::with(['demandeur'])->findOrFail($id);
-            $refuseId = \App\Models\Statut::where('designation', 'Refusé')->value('id');
-            $ticket->Id_Statut = $refuseId; // Statut "Refusé"
+            $user = auth()->user();
+            
+            // Déterminer le type de refus selon le niveau de l'utilisateur
+            $statutRefus = '';
+            if ($user->niveau === 1) { // Administrateur
+                $statutRefus = 'Refusé par administrateur';
+            } elseif ($user->niveau === 3) { // Directeur de département
+                $statutRefus = 'Refusé par directeur';
+            } else {
+                return response()->json([
+                    'message' => 'Vous n\'êtes pas autorisé à refuser ce ticket.'
+                ], 403);
+            }
+            
+            $refuseId = \App\Models\Statut::where('designation', $statutRefus)->value('id');
+            if (!$refuseId) {
+                return response()->json([
+                    'message' => 'Statut de refus non trouvé.'
+                ], 500);
+            }
+            
+            $ticket->Id_Statut = $refuseId;
             $ticket->save();
 
             // Créer un report pour le refus
@@ -1434,7 +1524,8 @@ class TicketController extends Controller
                         Log::info('Email de rejet envoyé avec succès', [
                             'ticket_id' => $ticket->id,
                             'demandeur_id' => $demandeur->id,
-                            'utilisateur_email' => $utilisateur->email
+                            'utilisateur_email' => $utilisateur->email,
+                            'type_refus' => $statutRefus
                         ]);
                     } else {
                         Log::warning('Email non trouvé pour le demandeur', [
@@ -1450,13 +1541,24 @@ class TicketController extends Controller
                 ]);
             }
 
+            // Invalider le cache des compteurs
+            $this->invalidateCountersCache();
+
+            Log::info('Ticket refusé avec succès', [
+                'ticket_id' => $id,
+                'type_refus' => $statutRefus,
+                'user_id' => $user->id,
+                'user_niveau' => $user->niveau
+            ]);
+
             return response()->json([
                 'message' => 'Ticket refusé avec succès',
                 'ticket' => $ticket
             ]);
         } catch (\Exception $e) {
-            Log::error('Error rejecting ticket', [
+            Log::error('Erreur lors du refus du ticket', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'ticket_id' => $id
             ]);
             return response()->json([
@@ -1532,6 +1634,9 @@ class TicketController extends Controller
             $ticket->Id_Statut = $statutCloture->id;
             $ticket->DateFinReelle = date('Y-m-d H:i:s');
             $ticket->save();
+
+            // Invalider le cache des compteurs
+            $this->invalidateCountersCache();
 
             return response()->json([
                 'message' => 'Ticket approuvé avec succès',
@@ -1613,6 +1718,9 @@ class TicketController extends Controller
                 'is_viewed' => false
             ]);
 
+            // Invalider le cache des compteurs
+            $this->invalidateCountersCache();
+
             return response()->json([
                 'message' => 'Ticket remis en cours',
                 'ticket' => $ticket->load(['statut'])
@@ -1674,6 +1782,202 @@ class TicketController extends Controller
             ]);
             return response()->json([
                 'message' => 'Une erreur est survenue lors du comptage des tickets terminés'
+            ], 500);
+        }
+    }
+
+    public function validateByDirector($id)
+    {
+        try {
+            $ticket = Ticket::with(['statut', 'typeDemande', 'demandeur'])->findOrFail($id);
+            $user = auth()->user();
+            
+            // Vérifier que l'utilisateur est un directeur de département (niveau 3)
+            if ($user->niveau !== 3) {
+                return response()->json([
+                    'message' => 'Seuls les directeurs de département peuvent valider les projets.'
+                ], 403);
+            }
+            
+            // Vérifier que le ticket est en attente de validation
+            if ($ticket->statut->designation !== 'En attente de validation') {
+                return response()->json([
+                    'message' => 'Seuls les tickets en attente de validation peuvent être validés par le directeur.'
+                ], 400);
+            }
+            
+            // Vérifier que c'est bien un projet
+            if (!$ticket->typeDemande || $ticket->typeDemande->designation !== 'Projet') {
+                return response()->json([
+                    'message' => 'Seuls les projets nécessitent une validation du directeur.'
+                ], 400);
+            }
+            
+            // Vérifier que le directeur appartient au même service que le demandeur
+            $demandeur = $ticket->demandeur;
+            if ($demandeur->id_service !== $user->id_service) {
+                return response()->json([
+                    'message' => 'Vous ne pouvez valider que les projets de votre service.'
+                ], 403);
+            }
+            
+            // Mettre à jour le statut
+            DB::table('T_TICKET')
+                ->where('id', $ticket->id)
+                ->update([
+                    'Id_Statut' => Statut::where('designation', 'Validé par directeur')->value('id'),
+                    'updated_at' => now()
+                ]);
+            
+            // Récupérer le ticket mis à jour
+            $ticket = Ticket::with(['statut', 'typeDemande', 'demandeur'])->find($ticket->id);
+            
+            // Envoyer l'email au demandeur
+            try {
+                if ($demandeur) {
+                    $utilisateur = Utilisateur::where('designation', $demandeur->designation)->first();
+                    if ($utilisateur && $utilisateur->email) {
+                        // TODO: Créer un email spécifique pour la validation du directeur
+                        // Mail::to($utilisateur->email)->send(new TicketDirectorValidatedNotification($ticket, $demandeur));
+                        Log::info('Email de validation du directeur envoyé au demandeur', [
+                            'ticket_id' => $ticket->id,
+                            'demandeur_id' => $demandeur->id,
+                            'utilisateur_email' => $utilisateur->email
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de l\'envoi de l\'email de validation du directeur', [
+                    'error' => $e->getMessage(),
+                    'ticket_id' => $ticket->id
+                ]);
+            }
+            
+            // Invalider le cache des compteurs
+            $this->invalidateCountersCache();
+            
+            Log::info('Ticket validé par le directeur avec succès', [
+                'ticket_id' => $id,
+                'directeur_id' => $user->id,
+                'directeur_designation' => $user->designation
+            ]);
+            
+            return response()->json([
+                'message' => 'Projet validé avec succès',
+                'ticket' => $ticket
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la validation par le directeur', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de la validation du projet',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function assignToExecutant(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'DateDebut' => 'required|date_format:Y-m-d',
+                'DateFinPrevue' => [
+                    'required',
+                    'date_format:Y-m-d',
+                    'after:DateDebut'
+                ],
+                'executantId' => 'required|integer|exists:T_EXECUTANT,id',
+                'priorityId' => 'required|integer|exists:T_PRIORITE,id',
+                'emplacementId' => 'required|integer|exists:T_EMPLACEMENT,id',
+                'categorieId' => 'required|integer|exists:T_CATEGORIE,id'
+            ]);
+
+            $ticket = Ticket::with(['statut', 'typeDemande'])->findOrFail($id);
+            
+            // Vérifier que le ticket peut être assigné
+            $statutsAutorises = ['En attente de validation', 'Validé par directeur'];
+            if (!in_array($ticket->statut->designation, $statutsAutorises)) {
+                return response()->json([
+                    'message' => 'Seuls les tickets en attente de validation ou validés par le directeur peuvent être assignés.'
+                ], 400);
+            }
+
+            // Convertir les dates au format attendu par SQL Server
+            $dateDebut = Carbon::createFromFormat('Y-m-d', $validated['DateDebut'])->format('Y-m-d H:i:s');
+            $dateFinPrevue = Carbon::createFromFormat('Y-m-d', $validated['DateFinPrevue'])->format('Y-m-d H:i:s');
+
+            // Mettre à jour le ticket
+            DB::table('T_TICKET')
+                ->where('id', $ticket->id)
+                ->update([
+                    'Id_Statut' => Statut::where('designation', 'En instance')->value('id'),
+                    'Id_Executant' => $validated['executantId'],
+                    'Id_Priorite' => $validated['priorityId'],
+                    'Id_Emplacement' => $validated['emplacementId'],
+                    'Id_Categorie' => $validated['categorieId'],
+                    'DateDebut' => DB::raw("CONVERT(datetime, '{$dateDebut}', 120)"),
+                    'DateFinPrevue' => DB::raw("CONVERT(datetime, '{$dateFinPrevue}', 120)"),
+                    'updated_at' => DB::raw("CONVERT(date, GETDATE(), 120)")
+                ]);
+
+            // Récupérer le ticket mis à jour
+            $ticket = Ticket::with(['statut', 'executant', 'demandeur'])->find($ticket->id);
+
+            // Envoyer l'email à l'exécutant
+            try {
+                $executant = \App\Models\Executant::find($validated['executantId']);
+                if ($executant) {
+                    $utilisateur = Utilisateur::where('designation', $executant->designation)->first();
+                    if ($utilisateur && $utilisateur->email) {
+                        Mail::to($utilisateur->email)->send(new TicketAssignedNotification($ticket, $executant));
+                        Log::info('Email d\'assignation envoyé avec succès', [
+                            'ticket_id' => $ticket->id,
+                            'executant_id' => $executant->id,
+                            'utilisateur_email' => $utilisateur->email
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de l\'envoi de l\'email de notification', [
+                    'error' => $e->getMessage(),
+                    'executant_id' => $validated['executantId']
+                ]);
+            }
+
+            // Invalider le cache des compteurs
+            $this->invalidateCountersCache();
+
+            Log::info('Ticket assigné à l\'exécutant avec succès', [
+                'ticket_id' => $id,
+                'executant_id' => $validated['executantId']
+            ]);
+
+            return response()->json([
+                'message' => 'Ticket assigné avec succès',
+                'ticket' => $ticket
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Erreur de validation lors de l\'assignation du ticket', [
+                'errors' => $e->errors(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de l\'assignation du ticket', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'ticket_id' => $id
+            ]);
+            return response()->json([
+                'message' => 'Erreur lors de l\'assignation du ticket',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

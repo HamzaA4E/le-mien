@@ -792,7 +792,12 @@ const TicketList = () => {
                       </div>
                       <div>
                         <span className="text-gray-500">Catégorie :</span>
-                        <span className="font-semibold text-gray-900 ml-1">{ticket.categorie?.designation || 'Non spécifiée'}</span>
+                        <span className="font-semibold text-gray-900 ml-1">
+                            {ticket.categorie?.designation || 
+                             (ticket.statut?.designation === 'Nouveau' ? 
+                              'À définir par l\'admin' : 
+                              'Non spécifiée')}
+                        </span>
                       </div>
                       {ticket.DateDebut && (
                         <div>

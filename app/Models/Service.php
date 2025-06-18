@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SqlServerTimestamps;
 
 class Service extends Model
 {
+    use SqlServerTimestamps;
+
     protected $table = 'T_SERVICE';
     protected $primaryKey = 'id';
     public $timestamps = true;
@@ -14,4 +17,4 @@ class Service extends Model
         'designation',
         'is_active'
     ];
-} 
+}

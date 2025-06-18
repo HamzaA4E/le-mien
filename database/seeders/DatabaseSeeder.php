@@ -33,36 +33,6 @@ class DatabaseSeeder extends Seeder
             'updated_at' => date('Y-m-d'),
         ]);
 
-        Priorite::firstOrCreate(['designation' => 'Urgent']);
-
-        // Ajouter la catégorie "achat"
-        Categorie::firstOrCreate(['designation' => 'achat']);
-
-        // Ajouter l'emplacement "sapino"
-        Emplacement::firstOrCreate(['designation' => 'sapino']);
-
-        // Ajouter les statuts de base
-        $statuts = ['Nouveau', 'En instance','En cours', 'Terminé','Clôturé', 'Refusé'];
-        foreach ($statuts as $statut) {
-            Statut::firstOrCreate(['designation' => $statut]);
-        }
-
-        // Ajouter les services
-        $services = [
-            'Achat',
-            'Administration',
-            'Finance et Comptabilité',
-            'Marketing et Communication',
-            'Fabrication',
-            'Logistique',
-            'Commercial'
-        ];
-
-        foreach ($services as $service) {
-            Service::firstOrCreate(
-                ['designation' => $service],
-                ['is_active' => true]
-            );
-        }
+        
     }
 }

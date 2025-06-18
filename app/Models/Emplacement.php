@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SqlServerTimestamps;
 
 class Emplacement extends Model
 {
-    use HasFactory;
+    use HasFactory, SqlServerTimestamps;
 
     protected $table = 'T_EMPLACEMENT';
     protected $primaryKey = 'id';
@@ -24,4 +25,4 @@ class Emplacement extends Model
     {
         return $this->hasMany(Ticket::class, 'Id_Emplacement');
     }
-} 
+}

@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\SqlServerTimestamps;
 
-class Statut extends Model
+class TypeDemande extends Model
 {
     use HasFactory, SqlServerTimestamps;
 
-    protected $table = 'T_STATUT';
+    protected $table = 'T_TYPEDEMANDE';
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -18,4 +18,13 @@ class Statut extends Model
         'designation',
         'is_active'
     ];
-}
+
+    protected $casts = [
+        'is_active' => 'boolean'
+    ];
+
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class, 'Id_TypeDemande');
+    }
+} 

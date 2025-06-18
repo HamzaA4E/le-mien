@@ -81,7 +81,12 @@ const DetailModal = ({ isOpen, onClose, ticket, loading }) => {
                                 </div>
                                 <div className="mb-2">
                                     <span className="font-semibold text-gray-800">Catégorie :</span>
-                                    <span className="ml-2 text-gray-900">{ticket.categorie?.designation}</span>
+                                    <span className="ml-2 text-gray-900">
+                                        {ticket.categorie?.designation || 
+                                         (ticket.statut?.designation === 'Nouveau' ? 
+                                          'À définir par l\'administrateur' : 
+                                          'Non spécifiée')}
+                                    </span>
                                 </div>
                                 <div className="mb-2">
                                     <span className="font-semibold text-gray-800">Service :</span>
@@ -307,24 +312,12 @@ const CompletedTicketsPage = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                {ticket.DateCreation && ticket.DateCreation.date
-                                                    ? new Date(ticket.DateCreation.date.replace(' ', 'T')).toLocaleDateString('fr-FR', {
-                                                        year: 'numeric',
-                                                        month: '2-digit',
-                                                        day: '2-digit'
-                                                    })
-                                                    : 'Date non disponible'}
+                                                {formatDate(ticket.DateCreation)}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                {ticket.DateFinReelle
-                                                    ? new Date(ticket.DateFinReelle).toLocaleDateString('fr-FR', {
-                                                        year: 'numeric',
-                                                        month: '2-digit',
-                                                        day: '2-digit'
-                                                    })
-                                                    : 'Date non disponible'}
+                                                {formatDate(ticket.DateFinReelle)}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

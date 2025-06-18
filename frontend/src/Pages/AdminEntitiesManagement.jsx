@@ -10,6 +10,7 @@ const entities = [
   { entity: 'priorites', label: 'Priorité' },
   { entity: 'statuts', label: 'Statut' },
   { entity: 'executants', label: 'Exécutant' },
+  { entity: 'type-demandes', label: 'Type de demande' },
 ];
 
 const AdminEntitiesManagement = () => {
@@ -18,7 +19,9 @@ const AdminEntitiesManagement = () => {
 
   const handleTabClick = (entity) => {
     setActiveTab(entity);
-    setLoadedTabs(prev => prev.includes(entity) ? prev : [...prev, entity]);
+    if (!loadedTabs.includes(entity)) {
+      setLoadedTabs(prev => [...prev, entity]);
+    }
   };
 
   return (
@@ -42,7 +45,9 @@ const AdminEntitiesManagement = () => {
               key={e.entity}
               style={{ display: activeTab === e.entity ? 'block' : 'none' }}
             >
-              <EntityManagement entity={e.entity} label={e.label} />
+              {loadedTabs.includes(e.entity) && (
+                <EntityManagement entity={e.entity} label={e.label} />
+              )}
             </div>
           ))}
         </div>

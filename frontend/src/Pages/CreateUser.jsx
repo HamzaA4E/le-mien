@@ -14,20 +14,29 @@ const CreateUser = () => {
     id_service: '' // Ajout du champ id_service
   });
 
-  // Liste des services pour les directeurs département
-  const services = [
-    { id: 1, designation: 'Achat' },
-    { id: 2, designation: 'Administration' },
-    { id: 3, designation: 'Finance et Comptabilité' },
-    { id: 4, designation: 'Marketing et Communication' },
-    { id: 5, designation: 'Fabrication' },
-    { id: 6, designation: 'Logistique' },
-    { id: 7, designation: 'Commercial' }
-  ];
-
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingServices, setLoadingServices] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Récupérer les services depuis la base de données
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setLoadingServices(true);
+        const response = await axios.get('/api/services');
+        setServices(response.data);
+      } catch (error) {
+        console.error('Erreur lors du chargement des services:', error);
+        setError('Erreur lors du chargement des services');
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    fetchServices();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -146,10 +155,13 @@ const CreateUser = () => {
                   value={formData.id_service}
                   onChange={handleChange}
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  disabled={loadingServices}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
-                  <option value="">Sélectionner un service</option>
-                  {services.map(service => (
+                  <option value="">
+                    {loadingServices ? 'Chargement des services...' : 'Sélectionner un service'}
+                  </option>
+                  {!loadingServices && services.map(service => (
                     <option key={service.id} value={service.id}>
                       {service.designation}
                     </option>

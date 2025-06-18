@@ -21,10 +21,10 @@ return new class extends Migration
             if (Schema::hasTable($table)) {
                 Schema::table($table, function (Blueprint $tableBlueprint) use ($table) {
                     if (!Schema::hasColumn($table, 'created_at')) {
-                        $tableBlueprint->timestamp('created_at')->nullable();
+                        $tableBlueprint->date('created_at')->nullable();
                     }
                     if (!Schema::hasColumn($table, 'updated_at')) {
-                        $tableBlueprint->timestamp('updated_at')->nullable();
+                        $tableBlueprint->date('updated_at')->nullable();
                     }
                 });
             }

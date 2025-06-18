@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use App\Traits\SqlServerTimestamps;
 
 class Ticket extends Model
 {
-    use HasFactory;
+    use HasFactory, SqlServerTimestamps;
 
     protected $table = 'T_TICKET';
     protected $primaryKey = 'id';
@@ -26,6 +27,7 @@ class Ticket extends Model
         'Id_Categorie',
         'Id_Utilisat',
         'Id_Executant',
+        'Id_TypeDemande',
         'DateDebut',
         'DateFinPrevue',
         'DateFinReelle',
@@ -40,10 +42,11 @@ class Ticket extends Model
         'Id_Categorie' => 'integer',
         'Id_Utilisat' => 'integer',
         'Id_Executant' => 'integer',
-        'DateDebut' => 'datetime:Y-m-d H:i:s',
-        'DateFinPrevue' => 'datetime:Y-m-d H:i:s',
-        'DateFinReelle' => 'datetime:Y-m-d H:i:s',
-        'DateCreation' => 'datetime:Y-m-d H:i:s'
+        'Id_TypeDemande' => 'integer',
+        'DateDebut' => 'datetime',
+        'DateFinPrevue' => 'datetime',
+        'DateFinReelle' => 'datetime',
+        'DateCreation' => 'datetime'
     ];
 
     protected static function boot()
@@ -52,7 +55,7 @@ class Ticket extends Model
 
         static::creating(function ($ticket) {
             if (empty($ticket->DateCreation)) {
-                $ticket->DateCreation = now()->format('Y-m-d H:i:s');
+                $ticket->DateCreation = now();
             }
             // Si un commentaire est fourni, on le formate comme un commentaire normal avec l'ID du demandeur
             if (!empty($ticket->Commentaire) && !empty($ticket->Id_Demandeur)) {
@@ -107,6 +110,11 @@ class Ticket extends Model
         return $this->belongsTo(Categorie::class, 'Id_Categorie');
     }
 
+    public function typeDemande()
+    {
+        return $this->belongsTo(TypeDemande::class, 'Id_TypeDemande');
+    }
+
     public function utilisateur()
     {
         return $this->belongsTo(Utilisateur::class, 'Id_Utilisat');
@@ -132,5 +140,59 @@ class Ticket extends Model
     public function reports()
     {
         return $this->hasMany(TicketReport::class, 'Id_Ticket');
+    }
+
+    public function setCreatedAtAttribute($value)
+    {
+        if (!$value) {
+            $this->attributes['created_at'] = null;
+            return;
+        }
+        $this->attributes['created_at'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
+    }
+
+    public function setUpdatedAtAttribute($value)
+    {
+        if (!$value) {
+            $this->attributes['updated_at'] = null;
+            return;
+        }
+        $this->attributes['updated_at'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
+    }
+
+    public function setDateCreationAttribute($value)
+    {
+        if (!$value) {
+            $this->attributes['DateCreation'] = null;
+            return;
+        }
+        $this->attributes['DateCreation'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
+    }
+
+    public function setDateDebutAttribute($value)
+    {
+        if (!$value) {
+            $this->attributes['DateDebut'] = null;
+            return;
+        }
+        $this->attributes['DateDebut'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
+    }
+
+    public function setDateFinPrevueAttribute($value)
+    {
+        if (!$value) {
+            $this->attributes['DateFinPrevue'] = null;
+            return;
+        }
+        $this->attributes['DateFinPrevue'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
+    }
+
+    public function setDateFinReelleAttribute($value)
+    {
+        if (!$value) {
+            $this->attributes['DateFinReelle'] = null;
+            return;
+        }
+        $this->attributes['DateFinReelle'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
     }
 } 

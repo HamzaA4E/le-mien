@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs, FaRobot, FaClock, FaCheckCircle, FaChartBar } from 'react-icons/fa';
+import { FaHome, FaTicketAlt, FaPlus, FaUserPlus, FaUser, FaUsers, FaSignOutAlt, FaCogs, FaRobot, FaClock, FaCheckCircle, FaChartBar, FaCheck, FaUserCheck } from 'react-icons/fa';
 import axios from 'axios';
+import { useCounters } from '../contexts/CountersContext';
 
 // Configuration de la base URL pour axios
 axios.defaults.baseURL = 'http://localhost:8000';
@@ -10,9 +11,7 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
-  const [completedTicketsCount, setCompletedTicketsCount] = useState(0);
+  const { counters } = useCounters();
 
   // Récupérer le user depuis le localStorage
   let user = null;
@@ -22,40 +21,6 @@ const Sidebar = () => {
     user = null;
   }
   const niveau = user?.niveau;
-
-  useEffect(() => {
-    const fetchCounts = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const headers = {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        };
-
-        // Récupérer le nombre de demandes en attente (admin seulement)
-        if (niveau === 1) {
-          const requestsResponse = await axios.get('/api/admin/register-requests/count', { headers });
-          setPendingRequestsCount(requestsResponse.data.count);
-        }
-
-        // Récupérer le nombre de tickets en attente (tous les niveaux)
-        const ticketsResponse = await axios.get('/api/tickets/pending/count', { headers });
-        setPendingTicketsCount(ticketsResponse.data.count);
-
-        // Récupérer le nombre de tickets terminés (tous les niveaux)
-        const completedResponse = await axios.get('/api/tickets/completed/count', { headers });
-        setCompletedTicketsCount(completedResponse.data.count);
-      } catch (error) {
-        console.error('Error fetching counts:', error);
-      }
-    };
-
-    fetchCounts();
-    // Rafraîchir les compteurs toutes les 30 secondes
-    const interval = setInterval(fetchCounts, 30000);
-    return () => clearInterval(interval);
-  }, [niveau]);
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -96,18 +61,23 @@ const Sidebar = () => {
   let menuItems = [
     { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
     { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
-    { path: '/admin/create-ticket', icon: <FaPlus />, text: 'Créer un ticket (Admin)' },
+    { path: '/create-ticket', icon: <FaPlus />, text: 'Créer un ticket ' },
     { 
       path: '/admin/pending-tickets', 
       icon: <FaClock />, 
       text: 'Tickets en attente',
-      badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
+      badge: counters.pendingTickets > 0 ? counters.pendingTickets : null
+    },
+    { 
+      path: '/admin/validated-by-director',
+      icon: <FaUserCheck />, 
+      text: 'Tickets validés par directeur'
     },
     { 
       path: '/admin/register-requests', 
       icon: <FaUserPlus />, 
       text: 'Demandes d\'inscription',
-      badge: pendingRequestsCount > 0 ? pendingRequestsCount : null
+      badge: counters.pendingRequests > 0 ? counters.pendingRequests : null
     },
     { path: '/create-user', icon: <FaUserPlus />, text: 'Créer un utilisateur' },
     { path: '/users', icon: <FaUsers />, text: 'Liste des utilisateurs' },
@@ -125,7 +95,7 @@ const Sidebar = () => {
         path: '/admin/pending-tickets', 
         icon: <FaClock />, 
         text: 'Tickets en attente',
-        badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
+        badge: counters.pendingTickets > 0 ? counters.pendingTickets : null
       },
       { path: '/reports', icon: <FaChartBar />, text: 'Rapports' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
@@ -137,12 +107,17 @@ const Sidebar = () => {
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Tickets' },
       { 
+        path: '/director-validation', 
+        icon: <FaCheck />, 
+        text: 'Validation des projets'
+      },
+      { 
         path: '/admin/pending-tickets', 
         icon: <FaClock />, 
         text: 'Tickets en attente',
-        badge: pendingTicketsCount > 0 ? pendingTicketsCount : null
+        badge: counters.pendingTickets > 0 ? counters.pendingTickets : null
       },
-      { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
+     { path: '/create-ticket', icon: <FaPlus />, text: 'Créer un ticket ' },
       { path: '/reports', icon: <FaChartBar />, text: 'Rapports' },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];
@@ -151,13 +126,13 @@ const Sidebar = () => {
   else if (niveau === '4' || niveau === 4) {
     menuItems = [
       { path: '/dashboard', icon: <FaHome />, text: 'Tableau de bord' },
-      { path: '/create-ticket', icon: <FaRobot />, text: 'Créer un ticket (IA)' },
+      { path: '/create-ticket', icon: <FaPlus />, text: 'Créer un ticket ' },
       { path: '/tickets', icon: <FaTicketAlt />, text: 'Mes Tickets' },
       { 
         path: '/completed-tickets', 
         icon: <FaCheckCircle />, 
         text: 'Tickets terminés',
-        badge: completedTicketsCount > 0 ? completedTicketsCount : null
+        badge: counters.completedTickets > 0 ? counters.completedTickets : null
       },
       { path: '/profile', icon: <FaUser />, text: 'Mon Profil' },
     ];

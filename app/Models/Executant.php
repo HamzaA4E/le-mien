@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SqlServerTimestamps;
 
 class Executant extends Model
 {
-    use HasFactory;
+    use HasFactory, SqlServerTimestamps;
 
     protected $table = 'T_EXECUTANT';
     protected $primaryKey = 'id';
@@ -26,4 +27,4 @@ class Executant extends Model
     {
         return $this->hasMany(Ticket::class, 'Id_Executant');
     }
-} 
+}

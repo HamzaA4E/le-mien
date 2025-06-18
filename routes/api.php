@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Routes pour les tickets
     Route::get('/tickets/options', [TicketController::class, 'getOptions']);
+    Route::get('/tickets/counters', [TicketController::class, 'getCounters']);
     Route::get('/tickets/{id}/download', [TicketController::class, 'downloadAttachment']);
     Route::get('/tickets/{id}/download/{index}', [TicketController::class, 'downloadAttachment']);
     Route::post('/tickets/{id}/attachment', [TicketController::class, 'uploadAttachment']);
@@ -54,6 +55,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tickets/completed/count', [TicketController::class, 'countCompleted']);
     Route::post('/tickets/{id}/approve', [TicketController::class, 'approve']);
     Route::post('/tickets/{id}/reject', [TicketController::class, 'reject']);
+    Route::post('/tickets/{id}/validate-by-director', [TicketController::class, 'validateByDirector']);
+    Route::post('/tickets/{id}/assign-to-executant', [TicketController::class, 'assignToExecutant']);
     Route::post('/tickets/{id}/demandeur-approve', [TicketController::class, 'demandeurApprove']);
     Route::post('/tickets/{id}/demandeur-reject', [TicketController::class, 'demandeurReject']);
     Route::apiResource('tickets', TicketController::class);
@@ -76,6 +79,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/statuts', [StatutController::class, 'store']);
     Route::get('/services', [ServiceController::class, 'index']);
     Route::post('/services', [ServiceController::class, 'store']);
+    Route::get('/type-demandes', [TypeDemandeController::class, 'index']);
+    Route::post('/type-demandes', [TypeDemandeController::class, 'store']);
 
     // Routes pour la gestion des utilisateurs
     Route::get('/users', [UserController::class, 'index']);
@@ -88,10 +93,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('services', ServiceController::class)->except(['show']);
     Route::apiResource('priorites', PrioriteController::class)->except(['show']);
     Route::apiResource('statuts', StatutController::class)->except(['show']);
+    Route::apiResource('type-demandes', TypeDemandeController::class)->except(['show']);
 
     // Nouvelle route pour les tests de performance
-    Route::get('/test-performance/{id}', [SocieteController::class, 'testPerformance']);
-
+   
     // Route pour récupérer toutes les données de la liste des tickets en une seule requête
     Route::get('/tickets/list-data', [TicketController::class, 'getTicketListData']);
 
@@ -114,6 +119,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/services/used-items', [ServiceController::class, 'usedItems']);
     Route::get('/priorites/used-items', [PrioriteController::class, 'usedItems']);
     Route::get('/statuts/used-items', [StatutController::class, 'usedItems']);
+    Route::get('/type-demandes/used-items', [TypeDemandeController::class, 'usedItems']);
 
     // Routes pour les exécutants
     Route::get('/executants', [ExecutantController::class, 'index']);

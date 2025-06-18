@@ -1,9 +1,10 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { CountersProvider } from '../contexts/CountersContext';
 import LoginPage from '../pages/LoginPage';
 import Dashboard from '../pages/Dashboard';
 import TicketList from '../pages/TicketList';
-import ChatBot from '../components/ChatBot/ChatBot';
+
 import CreateUser from '../pages/CreateUser';
 import Profile from '../Pages/Profile';
 import ListUsers from '../pages/ListUsers';
@@ -16,13 +17,15 @@ import Register from '../pages/Register';
 import RegisterRequests from '../pages/AdminRegisterRequests';
 import ReportsPage from '../pages/ReportsPage';
 import CreateTicket from '../Pages/CreateTicket';
+import DirectorValidationPage from '../Pages/DirectorValidationPage';
+import TicketsValidatedByDirectorPage from '../Pages/TicketsValidatedByDirectorPage';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   if (!token) {
     return <Navigate to="/" replace />;
   }
-  return children;
+  return <CountersProvider>{children}</CountersProvider>;
 };
 
 const ErrorBoundary = () => {
@@ -67,11 +70,7 @@ const router = createBrowserRouter([
     element: <PrivateRoute><EditTicket /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
-  {
-    path: '/create-ticket',
-    element: <PrivateRoute><ChatBot /></PrivateRoute>,
-    errorElement: <ErrorBoundary />,
-  },
+ 
   {
     path: '/create-user',
     element: <PrivateRoute><CreateUser /></PrivateRoute>,
@@ -113,8 +112,18 @@ const router = createBrowserRouter([
     errorElement: <ErrorBoundary />,
   },
   {
-    path: '/admin/create-ticket',
+    path: '/create-ticket',
     element: <PrivateRoute><CreateTicket /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/director-validation',
+    element: <PrivateRoute><DirectorValidationPage /></PrivateRoute>,
+    errorElement: <ErrorBoundary />,
+  },
+  {
+    path: '/admin/validated-by-director',
+    element: <PrivateRoute><TicketsValidatedByDirectorPage /></PrivateRoute>,
     errorElement: <ErrorBoundary />,
   },
   {

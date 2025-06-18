@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SqlServerTimestamps;
 
 class Categorie extends Model
 {
-    use HasFactory;
+    use HasFactory, SqlServerTimestamps;
 
     protected $table = 'T_CATEGORIE';
     protected $primaryKey = 'id';
@@ -24,4 +25,4 @@ class Categorie extends Model
     {
         return $this->hasMany(\App\Models\Ticket::class, 'Id_Categorie');
     }
-} 
+}

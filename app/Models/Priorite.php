@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\SqlServerTimestamps;
 
 class Priorite extends Model
 {
-    use HasFactory;
+    use HasFactory, SqlServerTimestamps;
 
     protected $table = 'T_PRIORITE';
     protected $primaryKey = 'id';
@@ -22,4 +23,4 @@ class Priorite extends Model
     {
         return $this->hasMany(\App\Models\Ticket::class, 'Id_Priorite');
     }
-} 
+}

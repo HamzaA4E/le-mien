@@ -97,11 +97,11 @@
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Emplacement :</span>
-                    <span class="detail-value">{{ $ticket->emplacement->designation ?? 'Non spécifié' }}</span>
+                    <span class="detail-value">{{ $ticket->emplacement->designation ?? 'À définir par l\'administrateur' }}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Catégorie :</span>
-                    <span class="detail-value">{{ $ticket->categorie->designation ?? 'Non spécifiée' }}</span>
+                    <span class="detail-value">{{ $ticket->categorie->designation ?? 'À définir par l\'administrateur' }}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Date de création :</span>

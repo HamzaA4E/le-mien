@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import Layout from '../components/Layout';
+import { useCounters } from '../contexts/CountersContext';
 
 const EditTicket = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { refreshCounters } = useCounters();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -191,6 +193,7 @@ const EditTicket = () => {
       if (response.data && response.data.id) {
         // Rafraîchir la page après la mise à jour
         window.location.href = `/tickets/${id}`;
+        refreshCounters();
       } else {
         throw new Error('Erreur lors de la modification du ticket');
       }

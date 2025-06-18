@@ -78,12 +78,12 @@
                 
                 <div class="detail-item">
                     <span class="detail-label">Date de début :</span>
-                    <span>{{ \Carbon\Carbon::parse($ticket->DateDebut)->format('d/m/Y') }}</span>
+                    <span>{{ \Carbon\Carbon::parse($ticket->DateDebut)->format('Y-m-d') }}</span>
                 </div>
                 
                 <div class="detail-item">
                     <span class="detail-label">Date de fin prévue :</span>
-                    <span>{{ \Carbon\Carbon::parse($ticket->DateFinPrevue)->format('d/m/Y') }}</span>
+                    <span>{{ \Carbon\Carbon::parse($ticket->DateFinPrevue)->format('Y-m-d') }}</span>
                 </div>
             </div>
 

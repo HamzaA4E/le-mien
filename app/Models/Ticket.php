@@ -42,11 +42,24 @@ class Ticket extends Model
         'Id_Categorie' => 'integer',
         'Id_Utilisat' => 'integer',
         'Id_Executant' => 'integer',
+<<<<<<< HEAD
         'Id_TypeDemande' => 'integer',
+=======
+<<<<<<< HEAD
+        'DateDebut' => 'datetime:Y-m-d H:i:s',
+        'DateFinPrevue' => 'datetime:Y-m-d H:i:s',
+        'DateFinReelle' => 'datetime:Y-m-d H:i:s',
+        'DateCreation' => 'datetime:Y-m-d H:i:s'
+=======
+>>>>>>> 8176dcaab4dae6463e2f4422e7dd488ba8fe330b
         'DateDebut' => 'datetime',
         'DateFinPrevue' => 'datetime',
         'DateFinReelle' => 'datetime',
         'DateCreation' => 'datetime'
+<<<<<<< HEAD
+=======
+>>>>>>> 46cd5876bf4b7d239f618da105529430663a7e10
+>>>>>>> 8176dcaab4dae6463e2f4422e7dd488ba8fe330b
     ];
 
     protected static function boot()
@@ -69,6 +82,7 @@ class Ticket extends Model
         });
 
         static::saving(function ($ticket) {
+<<<<<<< HEAD
             // Format all dates to SQL Server compatible format
             $dateFields = ['DateDebut', 'DateFinPrevue', 'DateFinReelle', 'DateCreation'];
             
@@ -81,6 +95,20 @@ class Ticket extends Model
                         \Log::error("Error formatting date for field {$field}: " . $e->getMessage());
                     }
                 }
+=======
+            // Convertir les dates au format SQL Server si elles sont modifiées
+            if ($ticket->isDirty('DateDebut')) {
+                $ticket->DateDebut = DB::raw("CONVERT(datetime, '{$ticket->DateDebut}', 120)");
+            }
+            if ($ticket->isDirty('DateFinPrevue')) {
+                $ticket->DateFinPrevue = DB::raw("CONVERT(datetime, '{$ticket->DateFinPrevue}', 120)");
+            }
+            if ($ticket->isDirty('DateFinReelle')) {
+                $ticket->DateFinReelle = DB::raw("CONVERT(datetime, '{$ticket->DateFinReelle}', 120)");
+            }
+            if ($ticket->isDirty('DateCreation')) {
+                $ticket->DateCreation = DB::raw("CONVERT(datetime, '{$ticket->DateCreation}', 120)");
+>>>>>>> 46cd5876bf4b7d239f618da105529430663a7e10
             }
         });
     }

@@ -1370,6 +1370,7 @@ class TicketController extends Controller
                 ], 400);
             }
 
+<<<<<<< HEAD
             // Déterminer le nouveau statut selon le type de demande
             $nouveauStatut = 'En attente de validation';
             if ($typeDemande->designation === 'Projet') {
@@ -1384,6 +1385,34 @@ class TicketController extends Controller
                     'Id_TypeDemande' => $validated['typeDemandeId'],
                     'Id_Categorie' => $validated['categorieId'],
                     'Id_Emplacement' => $validated['emplacementId'],
+=======
+<<<<<<< HEAD
+            // Mettre à jour le ticket avec DB::raw pour les dates
+            DB::table('T_TICKET')
+                ->where('id', $ticket->id)
+                ->update([
+                    'Id_Statut' => Statut::where('designation', 'En instance')->value('id'),
+                    'Id_Executant' => $validated['executantId'],
+                    'Id_Priorite' => $validated['priorityId'],
+=======
+            // Mettre à jour le ticket
+            $ticket->Id_Statut = Statut::where('designation', 'En instance')->value('id');
+            $ticket->Id_Executant = $validated['executantId'];
+            $ticket->Id_Priorite = $validated['priorityId'];
+            $ticket->DateDebut = $dateDebut;
+            $ticket->DateFinPrevue = $dateFinPrevue;
+
+            // Utiliser DB::raw pour les dates
+            DB::table('T_TICKET')
+                ->where('id', $ticket->id)
+                ->update([
+                    'Id_Statut' => $ticket->Id_Statut,
+                    'Id_Executant' => $ticket->Id_Executant,
+                    'Id_Priorite' => $ticket->Id_Priorite,
+>>>>>>> 46cd5876bf4b7d239f618da105529430663a7e10
+                    'DateDebut' => DB::raw("CONVERT(datetime, '{$dateDebut}', 120)"),
+                    'DateFinPrevue' => DB::raw("CONVERT(datetime, '{$dateFinPrevue}', 120)"),
+>>>>>>> 8176dcaab4dae6463e2f4422e7dd488ba8fe330b
                     'updated_at' => now()
                 ]);
 
@@ -1411,6 +1440,7 @@ class TicketController extends Controller
                 ]);
             }
 
+<<<<<<< HEAD
             // Si c'est un projet, envoyer l'email au directeur de département
             if ($typeDemande->designation === 'Projet') {
                 try {
@@ -1434,6 +1464,24 @@ class TicketController extends Controller
                     Log::error('Erreur lors de l\'envoi de l\'email au directeur', [
                         'error' => $e->getMessage(),
                         'ticket_id' => $ticket->id
+=======
+            // Envoyer l'email à l'exécutant
+            try {
+                $executant = \App\Models\Executant::with('utilisateur')->find($validated['executantId']);
+                if ($executant && $executant->utilisateur && $executant->utilisateur->email) {
+                    Mail::to($executant->utilisateur->email)->send(new TicketAssignedNotification($ticket, $executant));
+                    Log::info('Email d\'assignation envoyé avec succès', [
+                        'ticket_id' => $ticket->id,
+                        'executant_id' => $executant->id,
+                        'utilisateur_email' => $executant->utilisateur->email
+                    ]);
+                } else {
+                    Log::warning('Email non trouvé pour l\'exécutant', [
+                        'executant_id' => $executant->id,
+                        'executant_designation' => $executant->designation,
+                        'has_utilisateur' => $executant && $executant->utilisateur ? 'yes' : 'no',
+                        'has_email' => $executant && $executant->utilisateur && $executant->utilisateur->email ? 'yes' : 'no'
+>>>>>>> 8176dcaab4dae6463e2f4422e7dd488ba8fe330b
                     ]);
                 }
             }

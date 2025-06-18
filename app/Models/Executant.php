@@ -27,4 +27,13 @@ class Executant extends Model
     {
         return $this->hasMany(Ticket::class, 'Id_Executant');
     }
+<<<<<<< HEAD
 }
+=======
+
+    public function utilisateur()
+    {
+        return $this->belongsTo(Utilisateur::class, 'designation', 'designation');
+    }
+} 
+>>>>>>> 8176dcaab4dae6463e2f4422e7dd488ba8fe330b
